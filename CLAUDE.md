@@ -97,6 +97,16 @@ Specifically, these do NOT work and have all lied here:
   term that HAD to return hits. **A registry search without a control is
   decoration** — and so is a grep, a harness sweep, or an audit that reports
   clean without ever having been shown failing.
+  **AMENDED 2026-08-31 (ledger 121), because the rule as written above was
+  not enough and produced a false zero anyway: a control proves the surface
+  CAN return hits; it does NOT prove the surface answered THIS query.** A
+  public registry was caught silently re-running a stale earlier query while
+  displaying the new one — a controlled search, a real control, a wrong
+  answer. So: **when a surface is found to misbehave, every prior zero taken
+  from it is VOID, not merely suspect** — re-run them or mark them unknown.
+  And a zero from an outside surface is not something to build a
+  recommendation on in the same breath; state it, state that it is
+  unconfirmed, and let the keeper's own knowledge meet it first.
 
 What works: **draw twice with real signal between, and diff.** Hit-test with
 `elementFromPoint`. Read state from an accessor rather than inferring it from
