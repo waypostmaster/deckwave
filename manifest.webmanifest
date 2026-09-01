@@ -1,0 +1,15 @@
+{
+  "name": "Deckwave",
+  "short_name": "Deckwave",
+  "description": "Beat-locked, harmonically-mixed DJ set from your own music library, entirely in the browser.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04010f",
+  "theme_color": "#04010f",
+  "icons": [
+    { "src": "assets/icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

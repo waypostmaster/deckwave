@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    a { color: #22e8ff; } a:hover { color: #ff2d95; }
+  </style>
+</helmet>
+<div style="width: 980px; height: 620px; background: #04010f; color: #e6ddff; position: relative; overflow: hidden">
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 8px; opacity: 0.22; filter: blur(1px)">
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+    <div style="height: 130px; background: #0b0424; border: 1px solid #22125c"></div>
+  </div>
+  <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 520px; background: #0b0424; border: 1px solid #22125c; box-shadow: 0 20px 80px rgba(0,0,0,0.8); padding: 28px 30px; display: flex; flex-direction: column; gap: 18px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 15px; letter-spacing: 0.3em; color: #ff2d95; font-weight: 700; text-shadow: 0 0 10px #ff2d95">DECKWAVE.FM</div>
+      <div style="font-size: 11px; line-height: 1.6; color: #e6ddff">A DJ that lives in this page. It reads your music, learns every
+        track's tempo and key, and mixes a beat-locked set — nothing is ever uploaded.</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; gap: 12px; align-items: center; border: 1px solid #ff2d95; padding: 13px 16px; cursor: pointer">
+        <div style="font-size: 13px; color: #ff2d95; width: 16px; text-align: center">1</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+          <div style="font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #ff2d95; font-weight: 700">▶ Hear it now</div>
+          <div style="font-size: 9.5px; color: #7d6eb0">A licensed set, fetched free — no music of your own needed. Playing in under a minute.</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center; border: 1px solid #22e8ff; padding: 13px 16px; cursor: pointer">
+        <div style="font-size: 13px; color: #22e8ff; width: 16px; text-align: center">2</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+          <div style="font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #22e8ff; font-weight: 700">⊕ Scan your music</div>
+          <div style="font-size: 9.5px; color: #7d6eb0">Point it at a folder. Analysed on this machine, cached, never sent anywhere.</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center; border: 1px solid #22125c; padding: 10px 16px; cursor: pointer">
+        <div style="font-size: 13px; color: #7d6eb0; width: 16px; text-align: center">3</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+          <div style="font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #7d6eb0">Skip — take me to the console</div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size: 8.5px; letter-spacing: 0.1em; color: #7d6eb0; border-top: 1px solid #22125c; padding-top: 12px; display: flex; justify-content: space-between">
+      <span>YOUR AUDIO NEVER LEAVES THIS MACHINE</span>
+      <span>AGPL-3.0 · SHOWS ONCE · BACK VIA ?</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

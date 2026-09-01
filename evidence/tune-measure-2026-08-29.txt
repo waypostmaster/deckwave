@@ -1,0 +1,6 @@
+records                        [33m219[39m
+minor / major                  196 / 23
+camelot LABELS that change     [33m196[39m (89.5%)
+ordered pairs, camScore differs [33m1532[39m of [33m47961[39m = 3.2%
+cross-mode pairs                [33m9016[39m = 18.8%
+same-mode pairs that differ     [33m0[39m (must be 0)

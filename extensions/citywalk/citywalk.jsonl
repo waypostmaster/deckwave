@@ -1,0 +1,7 @@
+{"ts": "2026-01-01T10:00:00Z", "kind": "move", "ref": "w-001", "place_id": 1, "place": "the site", "parent_id": null, "note": "the outermost container", "sample": true}
+{"ts": "2026-01-01T10:02:00Z", "kind": "move", "ref": "w-002", "place_id": 10, "place": "the north wing", "parent_id": 1, "note": "one level in", "sample": true}
+{"ts": "2026-01-01T10:05:00Z", "kind": "move", "ref": "w-003", "place_id": 104, "place": "the long gallery", "parent_id": 10, "note": "two levels in", "sample": true}
+{"ts": "2026-01-01T10:09:00Z", "kind": "note", "ref": null, "place_id": 104, "place": "the long gallery", "parent_id": 10, "note": "a record left in place", "sample": true, "event": "calmer"}
+{"ts": "2026-01-01T10:14:00Z", "kind": "move", "ref": "w-004", "place_id": 1041, "place": "the alcove", "parent_id": 104, "note": "three levels in - the deepest rung", "sample": true}
+{"ts": "2026-01-01T10:21:00Z", "kind": "note", "ref": null, "place_id": 1041, "place": "the alcove", "parent_id": 104, "note": "another record, same place", "sample": true, "event": "hype"}
+{"ts": "2026-01-01T10:30:00Z", "kind": "move", "ref": "w-005", "place_id": 104, "place": "the long gallery", "parent_id": 10, "note": "back out one edge", "sample": true}

@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Today.dc.html", "x": 0, "y": 0, "w": 980, "h": 300, "title": "Today — the problem" },
+    { "file": "Main.dc.html", "x": 0, "y": 380, "w": 980, "h": 620, "title": "First run — the cold open" },
+    { "file": "Transport.dc.html", "x": 1060, "y": 380, "w": 980, "h": 430, "title": "Guided transport — three states" },
+    { "file": "Empty.dc.html", "x": 1060, "y": 880, "w": 700, "h": 380, "title": "Panel empty states" }
+  ],
+  "annotations": [
+    { "id": "spec-scope", "x": 1060, "y": 0, "w": 420, "text": "SPEC, NOT A REDESIGN\nThe instruments, panels, honesty rules and every existing control survive untouched. Three additions only:\n1. a first-run card (shows once, localStorage, ? brings it back)\n2. a guided primary row wrapping the existing buttons - the full strip lives behind ⚙ MORE (the code already groups controls: play / files / capture / cfg)\n3. one dim empty-state line per panel\nAll three are display-layer; no detector, threshold or audio path moves. Harness impact: check-panels empty-state text only." },
+    { "id": "spec-firstrun", "x": 0, "y": 1040, "w": 460, "text": "FIRST RUN CARD\nOrder is deliberate: HEAR IT NOW first (the demo is the whole product in one press - keeper's words), scan second, skip third. The privacy line is load-bearing copy, not fine print: 'your audio never leaves this machine' is the single biggest thing a cold visitor needs to believe.\nImplement: overlay div in the dashboard shadow root; 1 = the existing demo handler, 2 = the existing scan handler, 3 = dismiss. Gate on localStorage dw-seen + empty corpus." },
+    { "id": "spec-transport", "x": 2080, "y": 380, "w": 400, "text": "GUIDED ROW MECHANICS\nStep state derives from what already exists: corpus.length (scan done), dash.set.length (build done), DW.state.of (playing). The three build modes collapse into ONE select (the buttons already share a handler taking mode). Pink = the one thing to do next; green = done; dim = locked. ⚙ MORE toggles today's rows exactly as ⚙ DISPLAY does now - same mechanism, wider scope.\nAfter first play ever, default to State C on load (returning users are not new users)." },
+    { "id": "spec-open", "x": 2080, "y": 880, "w": 400, "text": "OPEN QUESTIONS FOR THE KEEPER\n- Does the demo belong in step 1 (pink, primary) or as the side door shown here? The mockup makes it primary on the card, secondary in the row.\n- Should ⚙ MORE remember open/closed per browser?\n- Phone layout: the guided row is one row - does it replace the phone transport too, or desktop only first?\nEdit anything here; artboards are the spec I will implement from." }
+  ],
+  "launch": { "view": "canvas" }
+}

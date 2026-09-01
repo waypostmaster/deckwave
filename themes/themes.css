@@ -1,0 +1,155 @@
+/* DECKWAVE THEMES
+   Every value here is a token whose FALLBACK is the cyberpunk default, so the
+   app ships looking like itself and a host page can override any of it without
+   forking. Custom properties pierce the shadow boundary and survive
+   :host{all:initial} — that is what makes this work.
+
+   Apply by setting a class on the host element, or copy the block into your
+   own stylesheet and change what you like. --dw-glow:0 plus
+   --dw-scanline-opacity:0 turns the whole instrument flat. */
+
+deckwave-app, .dw-theme-cyberpunk {
+  --dw-color-bg:#04010f;      --dw-color-surface:#0b0424;
+  --dw-color-line:#22125c;    --dw-color-text:#e6ddff;
+  --dw-color-dim:#7d6eb0;     --dw-color-accent:#22e8ff;
+  --dw-color-accent-2:#ff2d95;--dw-color-good:#3ee68a;
+  --dw-color-warn:#ffb02e;    --dw-color-bad:#ff5470;
+  --dw-glow:1;                --dw-scanline-opacity:.26;
+  --dw-border-radius:0px;
+}
+
+/* amber CRT — the monochrome terminal era */
+.dw-theme-amber {
+  --dw-color-bg:#0a0600;      --dw-color-surface:#140c02;
+  --dw-color-line:#3d2a08;    --dw-color-text:#ffcc66;
+  --dw-color-dim:#8a6a2a;     --dw-color-accent:#ffb02e;
+  --dw-color-accent-2:#ff7020;--dw-color-good:#c8d02a;
+  --dw-glow:1.2;              --dw-scanline-opacity:.34;
+  --dw-border-radius:0px;
+}
+
+/* classic green — the player-that-whipped-the-llama's-ass palette */
+.dw-theme-classic {
+  --dw-color-bg:#000000;      --dw-color-surface:#1a1a1a;
+  --dw-color-line:#2f4f2f;    --dw-color-text:#d4ffd4;
+  --dw-color-dim:#4a7a4a;     --dw-color-accent:#00ff41;
+  --dw-color-accent-2:#ffff00;--dw-color-good:#00ff41;
+  --dw-glow:.7;               --dw-scanline-opacity:.3;
+  --dw-border-radius:0px;
+}
+
+/* paper — proves the theming is real rather than decorative */
+.dw-theme-paper {
+  --dw-color-bg:#faf7f0;      --dw-color-surface:#ffffff;
+  --dw-color-line:#d8d0c0;    --dw-color-text:#2a2118;
+  --dw-color-dim:#8a7f6a;     --dw-color-accent:#2f6f8f;
+  --dw-color-accent-2:#a8452f;--dw-color-good:#3f7a3f;
+  --dw-glow:0;                --dw-scanline-opacity:0;
+  --dw-border-radius:3px;
+}
+
+.dw-theme-mono {
+  --dw-color-bg:#0c0c0c;      --dw-color-surface:#161616;
+  --dw-color-line:#333333;    --dw-color-text:#e8e8e8;
+  --dw-color-dim:#777777;     --dw-color-accent:#ffffff;
+  --dw-color-accent-2:#bbbbbb;--dw-color-good:#dddddd;
+  --dw-glow:.3;               --dw-scanline-opacity:.12;
+  --dw-border-radius:0px;
+}
+
+.dw-theme-ice {
+  --dw-color-bg:#020a14;      --dw-color-surface:#061426;
+  --dw-color-line:#12304f;    --dw-color-text:#dff0ff;
+  --dw-color-dim:#5f88ad;     --dw-color-accent:#7fdcff;
+  --dw-color-accent-2:#c9a6ff;--dw-color-good:#8ce8c8;
+  --dw-glow:.85;              --dw-scanline-opacity:.18;
+  --dw-border-radius:2px;
+}
+
+/* stargaze — named for the track that was playing when the history panels
+   were first watched against real audio. Deep sky rather than deep space:
+   the background is a blue-black with some violet left in it, so the filled
+   areas in the timeline panels read as atmosphere instead of as holes.
+
+   The two accents are picked far apart in hue (pale gold against ice blue)
+   because the loudtime panel draws its average and its peak in exactly those
+   two, and on a heavily limited track the traces converge — if the hues are
+   close, a squashed passage looks like one thick line rather than two lines
+   meeting. Keeping them apart preserves the reading.
+
+   Glow is up a little and scanlines are down: the point is depth, not CRT. */
+.dw-theme-stargaze {
+  --dw-color-bg:#03040e;      --dw-color-surface:#0a0f24;
+  --dw-color-line:#1d2a52;    --dw-color-text:#e8ecff;
+  --dw-color-dim:#6b7aa8;     --dw-color-accent:#8fd4ff;
+  --dw-color-accent-2:#ffd98a;--dw-color-good:#7fe6c0;
+  --dw-color-warn:#ffb75e;    --dw-color-bad:#ff6b8a;
+  --dw-glow:1.15;             --dw-scanline-opacity:.14;
+  --dw-border-radius:1px;
+}
+
+/* darkwing — purple and gold, and let's get dangerous.
+
+   The two accents are a long way apart in hue on purpose, for the same reason
+   stargaze's are: loudtime draws its average in --dw-color-accent and its peak
+   in --dw-color-accent-2, and on a heavily limited track those two traces
+   converge. Violet against gold stays two lines when they meet. A purple
+   theme's obvious second accent is another purple, and that would have cost
+   the reading.
+
+   Background keeps some violet in it rather than going to black, so the
+   filled areas in the timeline panels read as night air instead of as holes.
+   Glow is up for the spotlight; scanlines stay low because this is a cape,
+   not a CRT. */
+.dw-theme-darkwing {
+  --dw-color-bg:#0a0416;      --dw-color-surface:#150a2e;
+  --dw-color-line:#33195e;    --dw-color-text:#efe4ff;
+  --dw-color-dim:#8878b8;     --dw-color-accent:#b06bff;
+  --dw-color-accent-2:#ffd23f;--dw-color-good:#4fe0a8;
+  --dw-color-warn:#ff9e2c;    --dw-color-bad:#ff4d6d;
+  --dw-glow:1.1;              --dw-scanline-opacity:.2;
+  --dw-border-radius:0px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  deckwave-app { --dw-animation-speed: 0; }
+}
+
+/* RAW SEWAGE — the storm drain at 3am. Sickly biolume green on wet
+   concrete-brown, low glow because nothing down here is neon. Paired with
+   the bobcat sprite, who lives here and is not sorry about it. */
+.dw-theme-sewage {
+  --dw-color-bg:#0d1108;      --dw-color-surface:#161c0f;
+  --dw-color-line:#2c3a1c;    --dw-color-text:#d8e6c0;
+  --dw-color-dim:#6f7d55;     --dw-color-accent:#8fbf3f;
+  --dw-color-accent-2:#a87b2e;--dw-color-good:#7fd94a;
+  --dw-color-warn:#c8a03a;    --dw-color-bad:#a33b2a;
+  --dw-glow:0.55;             --dw-scanline-opacity:.28;
+  --dw-border-radius:0px;
+}
+
+/* EXPANSE — a warship's console, a long way from a sun.
+
+   Background is vacuum with some blue left in it rather than true black, for
+   the reason stargaze's is: the timeline panels fill areas, and against pure
+   black a filled area reads as a hole rather than as depth.
+
+   The two accents are a hull-display teal against MCRN orange, and they are
+   deliberately most of a colour wheel apart. loudtime draws its VU average in
+   --dw-color-accent and its PPM peak in --dw-color-accent-2, and on a heavily
+   limited track those two traces converge — close hues would turn a squashed
+   passage into one thick line and cost the reading. Every theme here that
+   came after stargaze has had to obey that, and this one is no exception.
+
+   `bad` is pulled off the accent-2 orange towards red on purpose: an alert
+   that looks like the ordinary highlight is not an alert. Glow is moderate
+   and scanlines are middling — shipboard displays, not a CRT museum. */
+.dw-theme-expanse {
+  --dw-color-bg:#04060c;      --dw-color-surface:#0c1220;
+  --dw-color-line:#1e3346;    --dw-color-text:#dfe9f2;
+  --dw-color-dim:#6d8598;     --dw-color-accent:#4fd8d0;
+  --dw-color-accent-2:#ff7a3c;--dw-color-good:#4fd8a0;
+  --dw-color-warn:#ffb340;    --dw-color-bad:#ff3b5c;
+  --dw-glow:.9;               --dw-scanline-opacity:.22;
+  --dw-border-radius:1px;
+}

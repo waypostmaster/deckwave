@@ -1,0 +1,25 @@
+<!-- @dsCard group="Foundations" -->
+<meta charset="utf-8">
+<title>Colour tokens</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; padding:20px; background:#04010f; color:#e6ddff;
+         font:12px/1.6 ui-monospace, Menlo, monospace; }
+  h1 { font-size:11px; letter-spacing:.22em; text-transform:uppercase;
+       color:#ff2d95; margin:0 0 4px; font-weight:700; }
+  p.sub { color:#7d6eb0; margin:0 0 16px; font-size:10.5px; max-width:62ch; }
+  
+  .sws{display:grid;gap:6px}
+  .sw{display:grid;grid-template-columns:26px 190px 200px 1fr;gap:12px;align-items:center;
+      padding:6px 8px;border:1px solid #22125c;background:#0b0424}
+  .sw i{display:block;width:26px;height:26px;border:1px solid #22125c}
+  .sw code{color:#22e8ff}
+  .sw b{color:#7d6eb0;font-weight:400}
+  .sw span{color:#7d6eb0}
+  @media(max-width:720px){.sw{grid-template-columns:26px 1fr}.sw b,.sw span{display:none}}
+
+</style>
+
+<h1>Colour tokens</h1>
+<p class="sub">Ten colour custom properties. The fallback IS the default look, so a host page overrides any of them without forking. Custom properties pierce the shadow boundary and survive :host{all:initial} - that is what makes the theming real rather than decorative.</p>
+<div class="sws"><div class="sw"><i style="background:#06021a"></i><code>--dw-color-bg</code><b>#06021a</b><span>panel ground behind every canvas</span></div><div class="sw"><i style="background:#0d0526"></i><code>--dw-color-surface</code><b>#0d0526</b><span>the card itself, behind the chrome</span></div><div class="sw"><i style="background:#22125c"></i><code>--dw-color-line</code><b>#22125c</b><span>borders, axes, unlit corpus points</span></div><div class="sw"><i style="background:#e6ddff"></i><code>--dw-color-text</code><b>#e6ddff</b><span>body text</span></div><div class="sw"><i style="background:#7d6eb0"></i><code>--dw-color-dim</code><b>#7d6eb0</b><span>labels, secondary readings</span></div><div class="sw"><i style="background:#22e8ff"></i><code>--dw-color-accent</code><b>#22e8ff</b><span>primary trace</span></div><div class="sw"><i style="background:#ff2d95"></i><code>--dw-color-accent-2</code><b>#ff2d95</b><span>second trace - kept far in hue from accent</span></div><div class="sw"><i style="background:#ffb02e"></i><code>--dw-color-warn</code><b>#ffb02e</b><span>caution state</span></div><div class="sw"><i style="background:#ff5470"></i><code>--dw-color-bad</code><b>#ff5470</b><span>failure state</span></div><div class="sw"><i style="background:#3ee68a"></i><code>--dw-color-good</code><b>#3ee68a</b><span>healthy state</span></div></div>

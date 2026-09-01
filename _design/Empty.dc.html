@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    a { color: #22e8ff; } a:hover { color: #ff2d95; }
+  </style>
+</helmet>
+<div style="width: 700px; height: 380px; background: #04010f; color: #e6ddff; display: flex; flex-direction: column; gap: 10px; padding: 12px 10px">
+  <div style="font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #22e8ff">Proposed — dark panels say what they are waiting for, in one dim line</div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex-grow: 1">
+    <div style="background: #0b0424; border: 1px solid #22125c; position: relative; display: flex; align-items: center; justify-content: center">
+      <div style="position: absolute; top: 5px; left: 8px; font-size: 7.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">Spectrogram</div>
+      <div style="font-size: 9px; letter-spacing: 0.12em; color: #38306b; text-transform: uppercase">draws when music plays</div>
+    </div>
+    <div style="background: #0b0424; border: 1px solid #22125c; position: relative; display: flex; align-items: center; justify-content: center">
+      <div style="position: absolute; top: 5px; left: 8px; font-size: 7.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">Camelot wheel</div>
+      <div style="font-size: 9px; letter-spacing: 0.12em; color: #38306b; text-transform: uppercase">the harmonic path of your set — build one</div>
+    </div>
+    <div style="background: #0b0424; border: 1px solid #22125c; position: relative; display: flex; align-items: center; justify-content: center">
+      <div style="position: absolute; top: 5px; left: 8px; font-size: 7.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">Set arc</div>
+      <div style="font-size: 9px; letter-spacing: 0.12em; color: #38306b; text-transform: uppercase">energy across the whole night — after a build</div>
+    </div>
+    <div style="background: #0b0424; border: 1px solid #22125c; position: relative; display: flex; align-items: center; justify-content: center">
+      <div style="position: absolute; top: 5px; left: 8px; font-size: 7.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">Goniometer</div>
+      <div style="font-size: 9px; letter-spacing: 0.12em; color: #38306b; text-transform: uppercase">stereo field, live — press ▶</div>
+    </div>
+  </div>
+  <div style="font-size: 9px; line-height: 1.6; color: #7d6eb0">One dim uppercase line per panel, centred, gone the instant real signal arrives. Copy names the PREREQUISITE (scan / build / play), never apologises, and stays inside each panel's existing ⓘ vocabulary.</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

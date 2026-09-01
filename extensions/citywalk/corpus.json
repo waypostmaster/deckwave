@@ -1,0 +1,36 @@
+{
+ "note": "House words only. Every entry below is this extension's own design statement, written by its author. Nobody else is named, quoted, or addressed, and no text here belongs to another party.",
+ "why": "The corpus used while building this held text addressed to named individuals in another system. It was replaced before this was tracked: a public repository that resists deletion by design is not somewhere to put another party's name without asking them, and one of those parties had been asked and had not yet answered.",
+ "entries": [
+  {
+   "id": "why-real",
+   "of": "the rain",
+   "text": "Every glyph on this screen is a real bit of real text. The older rain this one replaces picked each character from a hash of position and time: the motion was honest, the speed read real energy, the colour read the real key, and the characters meant nothing at all. A screen that looks like data and is not is worse than a blank one, because it is believed."
+  },
+  {
+   "id": "the-refusal",
+   "of": "missing data",
+   "text": "If the corpus is missing this screen draws nothing and says so. It does not fall back to random glyphs. A display that invents its own contents the moment the real contents are gone is the exact failure the whole design argues against, and the fallback is where that failure always enters."
+  },
+  {
+   "id": "the-ladder",
+   "of": "the walk",
+   "text": "Places nest, and a move crosses one level of that nesting at a time. So a walk is drawn as a spine with one rung per level rather than as a floor plan: the containment is the composition. Places the feed has not seen are not drawn as though they were observed, and a shipped sample says on its face that it is one."
+  },
+  {
+   "id": "assumed",
+   "of": "the beat",
+   "text": "Four four is assumed. The engine performs no downbeat detection, so every place this page mentions a bar it says assumed. A confident downbeat nobody measured is the same lie in a different costume, and it would be indistinguishable from a real one at a glance."
+  },
+  {
+   "id": "staleness",
+   "of": "honesty",
+   "text": "A display that cannot tell working from stopped must say so rather than look calm. The feed line goes red and states plainly that the screen cannot tell the difference. The rain keeps falling when the feed is quiet, which is exactly why the staleness line is never allowed to be quiet itself."
+  },
+  {
+   "id": "the-proof",
+   "of": "falsification",
+   "text": "This claim is cheap to refute. Read the bits off the screen, group them into eights, decode them, and either you get this paragraph back or the screen is lying to you. No other part of this page asks to be taken on trust, and this part does not either."
+  }
+ ]
+}

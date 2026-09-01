@@ -1,0 +1,127 @@
+DECKWAVE — COPYRIGHT AND THIRD-PARTY NOTICES
+
+Deckwave — browser-based music library analysis and automatic DJ mixing
+Copyright (C) 2026 the Deckwave authors
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+LICENSE now holds the full verbatim AGPL-3.0 text, as it must. This notice
+carries the copyright statement that used to sit at the top of it.
+
+WHY AGPL: Deckwave links Essentia.js (AGPL-3.0, Music Technology Group,
+Universitat Pompeu Fabra) in-process and is therefore a combined work.
+Essentia is dual-licensed; a commercial licence is available from
+mtg-info@upf.edu if you need to distribute under other terms.
+
+DEPENDENCIES
+------------
+Essentia.js — AGPL-3.0
+  Music Technology Group, Universitat Pompeu Fabra
+  https://github.com/MTG/essentia.js
+  Also available under a commercial licence: mtg-info@upf.edu
+  Correya, Bogdanov, Joglar-Ongay, Serra. "Essentia.js: A JavaScript Library
+  for Music and Audio Analysis on the Web." ISMIR 2020.
+  >>> This dependency is why Deckwave as a whole is AGPL-3.0. <<<
+
+SoundTouchJS AudioWorklet — MPL-2.0  (version 2.1.1, PINNED)
+  https://github.com/cutterbl/SoundTouchJS
+  Copyright (c) Olli Parviainen, Ryan Berdeen, Jakub Fiala,
+  Steve 'Cutter' Blades.
+  Underlying SoundTouch library (C++) by Olli Parviainen.
+  Vendored unmodified as vendor/soundtouch-processor.js.
+  Licence text: vendor/LICENSE.soundtouch-processor.txt.
+
+  UPGRADED 2026-08-18, from 0.3.0 (LGPL-2.1) to 2.1.1 (MPL-2.0). The reason
+  was a defect, not housekeeping. 0.3.0's process() pushed 128 frames into the
+  stretcher and assumed 128 came back, writing the untouched remainder of a
+  zero-filled array to the output whenever fewer were ready — and its
+  receiveSamples() returns undefined, so it could not detect this. Measured
+  offline against the vendored bytes: 0 gaps/sec unstretched, 10 gaps/sec and
+  7.3% silent output frames at tempo 1.08. 2.1.1 doing the equivalent work
+  measured 0 gaps/sec.
+
+  The obligation in force is therefore MPL-2.0. Both are file-level copyleft
+  and the file is vendored unmodified, so the practical requirement is
+  unchanged: ship the licence text and say where the source came from.
+
+  vendor/soundtouch-worklet.js (0.3.0, LGPL-2.1) and its licence text are
+  RETAINED ON DISK so the two can be A/B'd by ear. Nothing loads it. If 2.1.1
+  is kept, the retained 0.3.0 file and its LGPL text stay in vendor/ by
+  decision (2026-09-01): they are what the upgrade replaced and the table
+  documents them as NOT loaded. The obligation in force is MPL-2.0. The LGPL-2.1
+  obligation travels with the distribution for a file the app never uses.
+
+  HISTORICAL CORRECTION, 2026-08-17, kept because the failure is instructive.
+  This entry once read "MPL-2.0 (current versions)" while the application
+  actually loaded 0.3.0 under LGPL-2.1: deckwave.js requested an UNPINNED
+  jsdelivr URL, and the 2.x releases do not contain that path — the directory
+  is ".dist", with a leading dot — so the request silently resolved to 0.3.0.
+  Verified at the time by sha256. Pin your version: an unpinned dependency can
+  change your obligations, and here it already had.
+
+libflac.js — MIT
+  https://github.com/mmig/libflac.js
+  Wrapper/glue code. Copyright (c) 2014-2020 DFKI GmbH.
+
+libFLAC — BSD-style (COPYING.Xiph)
+  Xiph.Org Foundation. The library only; the flac/metaflac command-line
+  tools are GPL and are not used here.
+
+butterchurn — MIT  (version 2.6.7, PINNED)
+  https://github.com/jberg/butterchurn
+  Copyright (c) 2013-2018 Jordan Berg. A WebGL reimplementation of the
+  Milkdrop 2 visualizer (Milkdrop 2's own source was BSD-released by
+  Nullsoft in 2013; no Winamp-proprietary code is involved). Vendored
+  unmodified as vendor/butterchurn.min.js; loaded lazily by the popout's
+  party mode only. Licence text: vendor/LICENSE.butterchurn.txt.
+
+butterchurn-presets — MIT per its repository  (version 2.4.7, PINNED)
+  https://github.com/jberg/butterchurn-presets
+  Converted community Milkdrop presets by their original authors. The MIT
+  label is the conversion repository's; the underlying presets circulated
+  freely in the Winamp community and ship in the Internet Archive's webamp
+  under the same package. Vendored unmodified as
+  vendor/butterchurn-presets.min.js.
+
+INFLUENCES (no code used or copied)
+-----------------------------------
+Strudel — strudel.cc, codeberg.org/uzu/strudel
+  Felix Roos, Alex McLean and contributors. The visual vocabulary here
+  (scope, spectrum, punchcard, pitchwheel) follows Strudel's built-in
+  feedback set. These are independent implementations on the Web Audio
+  AnalyserNode.
+
+CRAWNiiK / browser-visualizer-v1 (MIT) — https://github.com/CRAWNiiK
+  Assessed 2026-08-21 as prior art and found unrelated in provenance. Listed
+  here because the assessment is not the whole story: the projector-window
+  idea in `⇱ popout` came from looking at that project. No code was used or
+  copied; the idea was.
+
+
+TidalCycles — Alex McLean. Strudel's ancestor.
+
+Switch Angel — whose Strudel live-coding work is where these visuals were
+  first pointed out to the author.
+
+Winamp / AVS / Milkdrop — the general debt for what a music player looks
+  like. No Winamp code, assets, skins or audio are used. Note that Winamp's
+  2024 source release is under a restrictive licence and is NOT used here.
+  (Since 2026-08-21 the Milkdrop LINEAGE does ship via butterchurn — see
+  its entry above — which descends from the 2013 BSD release, not from the
+  2024 one.)
+
+STANDARDS
+---------
+VU meter ballistics follow ANSI C16.5-1942, now incorporated into
+IEC 60268-17: full-wave averaging reaching 99% deflection in 300ms.

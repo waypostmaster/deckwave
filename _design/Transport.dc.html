@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    a { color: #22e8ff; } a:hover { color: #ff2d95; }
+    .b { background: none; border: 1px solid #22125c; color: #7d6eb0; font-size: 9px;
+         letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 11px; white-space: nowrap; }
+    .step { display: flex; gap: 7px; align-items: center; }
+    .n { width: 15px; height: 15px; border-radius: 50%; border: 1px solid #22125c; font-size: 9px;
+         display: flex; align-items: center; justify-content: center; color: #7d6eb0; }
+  </style>
+</helmet>
+<div style="width: 980px; height: 430px; background: #04010f; color: #e6ddff; display: flex; flex-direction: column; gap: 18px; padding: 14px 0">
+  <div style="padding: 0 12px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #22e8ff">Proposed — one guided row. Steps light as they unlock; everything else earns its place behind ⚙ more</div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <div style="padding: 0 12px; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">State A · fresh visitor — one lit action</div>
+    <div style="display: flex; gap: 10px; padding: 9px 12px; background: #0b0424; border-top: 1px solid #22125c; border-bottom: 1px solid #22125c; align-items: center">
+      <span class="step"><span class="n" style="border-color: #ff2d95; color: #ff2d95">1</span><span class="b" style="border-color: #ff2d95; color: #ff2d95; font-weight: 700">Scan your music</span></span>
+      <span style="color: #22125c">──</span>
+      <span class="step"><span class="n">2</span><span class="b" style="opacity: 0.45">Build a set ▾</span></span>
+      <span style="color: #22125c">──</span>
+      <span class="step"><span class="n">3</span><span class="b" style="opacity: 0.45">▶ Play</span></span>
+      <span style="flex-grow: 1"></span>
+      <span class="b">▶ Demo — no music? hear it anyway</span>
+      <span class="b">⚙ More</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <div style="padding: 0 12px; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">State B · library scanned — the next step lights, the last stays green</div>
+    <div style="display: flex; gap: 10px; padding: 9px 12px; background: #0b0424; border-top: 1px solid #22125c; border-bottom: 1px solid #22125c; align-items: center">
+      <span class="step"><span class="n" style="border-color: #3ee68a; color: #3ee68a">✓</span><span class="b" style="border-color: #3ee68a; color: #3ee68a">189 tracks</span></span>
+      <span style="color: #22125c">──</span>
+      <span class="step"><span class="n" style="border-color: #ff2d95; color: #ff2d95">2</span><span class="b" style="border-color: #ff2d95; color: #ff2d95; font-weight: 700">Build a set ▾</span></span>
+      <span style="color: #22125c">──</span>
+      <span class="step"><span class="n">3</span><span class="b" style="opacity: 0.45">▶ Play</span></span>
+      <span style="flex-grow: 1"></span>
+      <span class="b">⚙ More</span>
+    </div>
+    <div style="margin: 0 12px; width: 300px; background: #0b0424; border: 1px solid #22125c; display: flex; flex-direction: column">
+      <div style="padding: 7px 11px; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #e6ddff; border-bottom: 1px solid #22125c">All tracks <span style="color: #7d6eb0">· nothing left out; the unreachable play straight</span></div>
+      <div style="padding: 7px 11px; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #e6ddff; border-bottom: 1px solid #22125c">Best matches <span style="color: #7d6eb0">· beatmatched only, ends when the gate runs out</span></div>
+      <div style="padding: 7px 11px; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #e6ddff">Phrase match <span style="color: #7d6eb0">· transitions on 8-bar phrases</span></div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <div style="padding: 0 12px; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #7d6eb0">State C · playing — the row becomes the transport it already is</div>
+    <div style="display: flex; gap: 5px; padding: 9px 12px; background: #0b0424; border-top: 1px solid #22125c; border-bottom: 1px solid #22125c; align-items: center">
+      <span class="b" style="border-color: #ff2d95; color: #ff2d95">Now playing · WALKMAN · 128 bpm · 9A</span>
+      <span class="b">Pause</span><span class="b">Next ▶</span><span class="b">■ Stop</span>
+      <span style="flex-grow: 1"></span>
+      <span class="b">+ Save set</span>
+      <span class="b">⚙ More</span>
+    </div>
+  </div>
+
+  <div style="padding: 0 12px; font-size: 9px; line-height: 1.7; color: #7d6eb0">⚙ MORE opens today's full strip unchanged — every existing control, in the existing groups (files · capture · config). Nothing is removed; the guided row is a lens, not a lobotomy.</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,918 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CITYWALK</title>
+<!--
+  CITYWALK — a Deckwave extension. One file, zero core changes, no build step,
+  no dependencies. The deck is embedded in an iframe and driven only through
+  its public surface (DWEVENTS.pulse / DWEVENTS.inject).
+
+  WHY THE RAIN IS NOT DECORATION, which is the whole design.
+
+  There is an older RAIN in the Deckwave Console artifact. It is beautiful and
+  it carries no information: every glyph comes from
+
+      GLYPH[(c.x + y + (t*9|0) + k*7|0) % GLYPH.length]
+
+  -- a hash of position and time. The motion is honest (speed reads real
+  energy, hue reads the real playing key) and the characters mean nothing. A
+  screen that looks like data and is not is the exact failure this whole
+  project spends its days catching.
+
+  So every glyph here is a real bit of real text. The corpus is corpus.json,
+  and it holds this extension's own design statement -- the argument you are
+  reading now. HOUSE WORDS ONLY: nobody else is named, quoted or addressed,
+  and the screen says so where a viewer can read it.
+
+  The corpus used while building this held text addressed to named individuals
+  in another system. It was replaced before this file was tracked. A public
+  repository that resists deletion by design is not somewhere to put another
+  party's name without asking them first, and one of those parties had been
+  asked and had not yet answered.
+
+  ─── THE FEED, so you can point this at your own places ───────────────────
+
+  This is not tied to any particular system. Anything with a CONTAINMENT TREE
+  drives it: a building and its floors, a filesystem, a document outline, a
+  game world, a museum and its wings. Append JSON lines to citywalk.jsonl:
+
+      {"ts":"2026-01-01T10:00:00Z",   when it happened, ISO 8601
+       "kind":"move",                 "move" or "note"
+       "ref":"w-001",                 your own id for the move; null for a note
+       "place_id":104,                stable id of the place
+       "place":"the long gallery",    its name, shown as-is and escaped
+       "parent_id":10,                the place that contains it, or null
+       "note":"two levels in",        one line, your words
+       "sample":true,                 OPTIONAL - see below
+       "event":"hype"}                OPTIONAL - any DWEVENTS intent
+
+  The ladder is built by walking parent_id upward from the newest row, using
+  ONLY places the feed has actually carried. An ancestor the feed has never
+  named is drawn as unseen rather than invented.
+
+  ─── THE EVENTS FEED (bottom right) ──────────────────────────────────────
+
+  A SECOND, independent file: events.jsonl, same directory, same shape of bus.
+  It is whatever is happening around the walk rather than the walk itself.
+
+      {"ts":"...","who":"a name","what":"what they did","where":"a place"}
+
+  Deliberately NOT a network call. This page fetches its own directory and
+  nothing else, ever. If you want live events from some system, have that
+  system append to this file -- a local process, a poller, a cron job. The
+  page never learns the system exists and grows no new network surface, which
+  is the only reason it can promise a viewer that it reaches nowhere.
+
+  Empty or missing events.jsonl is a normal state and says so on the panel.
+
+  "sample":true marks a row as an example rather than an observed event. The
+  shipped citywalk.jsonl is entirely samples and the header says SAMPLE FEED
+  in red until real rows arrive -- because a shipped example presented as an
+  observed walk would be the same invented-data failure the rain refuses.
+  Drop your own rows in and the banner goes away on its own.
+
+  HONESTY FURNITURE, per extension rule 5: a display that cannot tell working
+  from stopped must say so. citywalk.jsonl is append-only, polled with a
+  cache-buster, and the header goes red when it has been quiet. The rain keeps
+  falling when the feed is stale -- so the staleness line is the ONLY thing
+  that can tell you, and it is never allowed to be quiet about it.
+
+  4/4 IS ASSUMED. Deckwave's engine does no downbeat detection. Every place
+  this page mentions a bar it says "assumed", because a confident downbeat we
+  did not measure is the same lie in a different costume.
+-->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#02040a; --panel:#060a12; --line:#12202e;
+  --fg:#a8c4d8; --dim:#3f5f74; --hot:#39ffa0; --red:#ff4d7d;
+  --keyhue:150; --accent:hsl(var(--keyhue) 85% 60%);
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  --beat:0;
+}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidden}
+body{font-size:12px;line-height:1.4}
+/* The bottom strip's height is used TWICE — the grid row here, and the deck
+   panel's `bottom` offset, which floats above it. They were two hand-typed
+   150s and would have drifted the first time either was tuned alone, leaving
+   the deck sitting over the log. One name, both readers. */
+:root{ --bottomh: 300px }
+#app{display:grid;grid-template-rows:30px 1fr var(--bottomh);height:100vh}
+#bar{display:flex;align-items:center;gap:12px;padding:0 10px;background:#050912;
+  border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+#bar b{color:var(--accent);letter-spacing:.3em;font-weight:700}
+#bar .kv{color:var(--dim)} #bar .kv i{color:var(--fg);font-style:normal}
+#bar .grow{flex:1}
+#stale{color:var(--dim)} #stale.bad{color:var(--red);font-weight:700}
+#mid{display:grid;grid-template-columns:1fr 300px;min-height:0}
+#stage{position:relative;background:#000;overflow:hidden}
+#rain{position:absolute;inset:0;width:100%;height:100%;display:block}
+#src{position:absolute;left:10px;bottom:8px;right:10px;font-size:10px;color:var(--dim);
+  letter-spacing:.08em;pointer-events:none;text-shadow:0 0 6px #000}
+#src em{color:var(--accent);font-style:normal}
+#side{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px}
+#side h2{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;margin-bottom:8px}
+.rung{display:flex;gap:8px;padding:3px 0;align-items:baseline}
+.rung .id{color:var(--dim);min-width:42px;text-align:right}
+.rung .nm{flex:1}
+.rung.here .nm{color:var(--accent);font-weight:700;
+  text-shadow:0 0 calc(6px + var(--beat)*10px) hsl(var(--keyhue) 90% 55%)}
+.rung.anc .nm{color:var(--fg);opacity:.55}
+.rung.anc.a2 .nm{opacity:.34} .rung.anc.a3 .nm{opacity:.2}
+.spine{color:var(--dim)}
+#bottom{display:grid;grid-template-columns:1fr 300px 280px;border-top:1px solid var(--line);min-height:0}
+#log{background:var(--panel);overflow:auto;padding:8px 10px}
+#events{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:8px 10px}
+#events h2{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+#events .ev{padding:2px 0;line-height:1.35}
+#events .who{color:var(--accent)} #events .what{color:var(--fg)} #events .where{color:var(--dim)}
+#events .none{color:var(--dim);line-height:1.5}
+#watch{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:8px 10px}
+#watch h2{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+#watch .none{color:var(--dim);line-height:1.5}
+#watch .wrow{margin:0 0 8px}
+#watch .wn{color:var(--accent);font-size:15px;font-weight:700}
+#watch .wl{color:var(--fg)}
+/* the caveat is not fine print: a count without its knob is a claim */
+#watch .wx{color:var(--dim);line-height:1.45;margin-top:1px}
+#watch .wnote{color:var(--dim);line-height:1.45;margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+#voice.on{color:var(--accent);border-color:var(--accent)}
+#feedbar{display:flex;gap:5px;align-items:center;margin-bottom:7px;font-size:10px;color:var(--dim)}
+#feedbar input{font:inherit;background:#0b1420;color:var(--fg);border:1px solid var(--line);padding:2px 5px}
+#feedbar button{padding:2px 7px;font-size:9px}
+#feedmsg{color:var(--red);font-size:9px}
+.nb{display:flex;gap:6px;align-items:baseline;padding:3px 4px;cursor:pointer;
+  border:1px solid transparent;line-height:1.3}
+.nb:hover{border-color:var(--line);background:#0b1420}
+.nb .rel{color:var(--dim);width:9px}
+.nb .id{color:var(--dim);min-width:40px;text-align:right}
+.nb .nm{flex:1;color:var(--fg)}
+.nb .ct{color:var(--dim);font-size:10px;white-space:nowrap}
+.nb.shut .nm{opacity:.5}
+.nb.req{border-color:var(--accent);background:#0d1b16}
+.nb.req .nm{color:var(--accent)}
+.nb .pend{color:var(--accent);font-size:9px}
+#nbnone{color:var(--dim);line-height:1.5}
+#peek{margin-top:8px;padding:7px 8px;border:1px solid var(--line);background:#040810;
+  font-size:11px;line-height:1.45;min-height:52px}
+#peekhint{color:var(--dim);opacity:.7}
+#events .ev.has{cursor:pointer;border-left:2px solid transparent;padding-left:4px}
+#events .ev.has:hover{background:#0b1420;border-left-color:var(--accent)}
+#reader{position:fixed;inset:0;background:rgba(2,4,10,.82);z-index:30;display:flex;
+  align-items:center;justify-content:center;padding:32px}
+#reader[hidden]{display:none}
+#rdbox{background:var(--panel);border:1px solid var(--line);max-width:760px;width:100%;
+  max-height:80vh;display:flex;flex-direction:column}
+#rdhead{padding:9px 12px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+#rdwho{color:var(--accent);font-size:11px;flex:1}
+#rdclose{padding:1px 8px;font-size:10px}
+#rdflag{color:var(--red);font-size:10px;padding:6px 12px 0}
+#rdbody{padding:10px 12px;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  color:var(--fg);line-height:1.5;font-size:12px}
+#log div{padding:2px 0;color:var(--dim)}
+#log b{color:var(--fg);font-weight:400}
+#log span{color:var(--dim)}
+#deckwrap{position:fixed;right:0;bottom:var(--bottomh);width:420px;height:0;overflow:hidden;
+  border:1px solid var(--line);background:#000;transition:height .18s;z-index:5}
+#deckwrap.open{height:340px}
+iframe{border:0;width:100%;height:100%}
+#boot{position:fixed;inset:0;background:#02040a;display:flex;align-items:center;
+  justify-content:center;flex-direction:column;gap:14px;z-index:20;text-align:center;padding:24px}
+#boot p{max-width:520px;color:var(--dim);line-height:1.6}
+button{font:inherit;letter-spacing:.14em;text-transform:uppercase;background:#0b1420;
+  color:var(--fg);border:1px solid var(--line);padding:8px 16px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+</style>
+
+<div id="app">
+  <div id="bar">
+    <b>CITYWALK</b>
+    <span class="kv">room <i id="room">—</i></span>
+    <span class="kv">deck <i id="deck">silent</i></span>
+    <span class="kv">bar <i id="bar4">—</i> <span style="opacity:.6">(assumed 4/4)</span></span>
+    <span class="grow"></span>
+    <span id="sample" hidden style="color:var(--red);font-weight:700">sample feed</span>
+    <span id="stale">feed —</span>
+    <button id="deckbtn" style="padding:2px 8px;font-size:10px">deck</button>
+  </div>
+  <div id="mid">
+    <div id="stage">
+      <canvas id="rain"></canvas>
+      <div id="src">rain = <em id="srcname">—</em> · <em id="srcbits">0</em> real bits of this page's own design statement, falling as bytes. <em>House words only.</em> Nobody else's writing is on this screen.</div>
+    </div>
+    <div id="side">
+      <h2>reachable — hover to look, click to request a move</h2>
+      <div id="nbs"></div>
+      <div id="peek"><span id="peekhint">hover a place to read what is there before you go</span></div>
+      <h2 style="margin-top:16px">the ladder — one rung per level of nesting</h2>
+      <div id="ladder"></div>
+      <h2 style="margin-top:16px">why a ladder</h2>
+      <div style="color:var(--dim);line-height:1.5">Places nest, and a move crosses one level at a time. So a walk is a spine, not a floor plan. Anything with a containment tree can drive this — the feed schema is at the top of this file.</div>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="log"></div>
+    <div id="events">
+      <h2>events <span id="evsrc" style="opacity:.6"></span></h2>
+      <div id="feedbar">
+        <label for="feedin">feed</label>
+        <input id="feedin" spellcheck="false" autocomplete="off" size="18">
+        <button id="feedset">set</button>
+        <button id="voice" title="read records aloud over the music (needs a real tap to arm)">voice off</button>
+        <button id="again" title="say the last one again">again</button>
+        <span id="feedmsg"></span>
+      </div>
+      <div id="evlist"></div>
+    </div>
+    <div id="watch">
+      <h2>watched places <span id="wsrc" style="opacity:.6"></span></h2>
+      <div id="wbody"></div>
+    </div>
+  </div>
+</div>
+
+<div id="reader" hidden>
+  <div id="rdbox">
+    <div id="rdhead"><span id="rdwho"></span><button id="rdclose">close</button></div>
+    <div id="rdflag"></div>
+    <div id="rdbody"></div>
+  </div>
+</div>
+
+<div id="deckwrap"><iframe id="dw" src="../../index.html" title="Deckwave"></iframe></div>
+
+<div id="boot">
+  <b style="color:var(--accent);letter-spacing:.3em">CITYWALK</b>
+  <p>Every glyph in the rain is a real bit of this extension's own design statement, written by its author. Not a hash, not a generator, and not anybody else's words. <b style="color:var(--fg)">Decode a column and you get the argument back.</b></p>
+  <p>Audio needs one real click — browsers require it and a synthetic one does not count. This starts the deck; open it with the <b style="color:var(--fg)">deck</b> button to press play.</p>
+  <button id="go">begin the walk</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const deck = () => { try { return $('dw').contentWindow.DWEVENTS || null; } catch (e) { return null; } };
+
+/* ---- the corpus: house words -> real bits ------------------------------
+   Encoded here, in the page, rather than shipped pre-encoded, so corpus.json
+   stays readable with `cat` and anybody can check that the bits on screen are
+   the bits of those words. */
+let BITS = '', SRCNAME = '—';
+const toBits = s => Array.from(s).map(ch => {
+  const cp = ch.codePointAt(0);
+  if (cp < 128) return cp.toString(2).padStart(8, '0');
+  return Array.from(new TextEncoder().encode(ch)).map(b => b.toString(2).padStart(8, '0')).join('');
+}).join('');
+
+async function loadCorpus() {
+  try {
+    const r = await fetch('corpus.json?t=' + Date.now());
+    const j = await r.json();
+    const parts = j.entries.map(e => e.text);
+    BITS = parts.map(toBits).join('');
+    SRCNAME = j.entries.map(e => e.id).join(' · ');
+    $('srcname').textContent = SRCNAME;
+    $('srcbits').textContent = BITS.length.toLocaleString();
+  } catch (e) {
+    /* No corpus, no rain. It does NOT fall back to random glyphs: a screen
+       that invents its own data the moment the real data is missing is the
+       thing this extension exists to argue against. */
+    BITS = '';
+    $('srcname').textContent = 'CORPUS MISSING';
+    $('srcbits').textContent = '0';
+  }
+}
+
+/* ---- the walk feed ----------------------------------------------------- */
+let walk = [], lastFeed = 0;
+async function loadWalk() {
+  try {
+    const r = await fetch('citywalk.jsonl?t=' + Date.now());
+    const txt = await r.text();
+    const rows = txt.split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+    if (rows.length !== walk.length) lastFeed = Date.now();
+    walk = rows;
+    render();
+  } catch (e) { /* leave the last good state; staleness will say so */ }
+}
+
+function render() {
+  if (!walk.length) return;
+  const cur = walk[walk.length - 1];
+  $('room').textContent = '#' + cur.place_id + ' ' + cur.place;
+  /* A shipped example must never read as an observed walk. The lamp is lit
+     while EVERY row is flagged sample:true and goes out on its own the moment
+     one real row lands -- nobody has to remember to turn it off. */
+  $('sample').hidden = !walk.every(w => w.sample === true);
+
+  /* the ladder: current room, then its ancestors upward, from whatever the
+     feed has actually seen. Rooms it has not seen are not invented. */
+  const byId = {};
+  for (const w of walk) byId[w.place_id] = w;
+  const chain = [];
+  let node = cur, guard = 0;
+  while (node && guard++ < 12) {
+    chain.push(node);
+    node = node.parent_id != null ? byId[node.parent_id] : null;
+  }
+  $('ladder').innerHTML = chain.map((n, i) => {
+    const cls = i === 0 ? 'rung here' : 'rung anc' + (i > 1 ? ' a' + Math.min(i, 3) : '');
+    const spine = i === 0 ? '▉' : '│';
+    return '<div class="' + cls + '"><span class="id">#' + esc(n.place_id) + '</span>' +
+      '<span class="spine">' + spine + '</span><span class="nm">' + esc(n.place) + '</span></div>';
+  }).join('') + (chain.length && chain[chain.length - 1].parent_id != null
+    ? '<div class="rung anc a3"><span class="id"></span><span class="spine">┆</span>' +
+      '<span class="nm" style="opacity:.4">#' + esc(chain[chain.length - 1].parent_id) + ' — not seen in this feed</span></div>' : '');
+
+  $('log').innerHTML = walk.slice(-9).reverse().map(w =>
+    '<div><span>' + esc((w.ts || '').slice(11, 19)) + '</span> ' +
+    '<b>#' + esc(w.place_id) + ' ' + esc(w.place) + '</b> <span>' + esc(w.note || '') + '</span>' +
+    (w.action_id ? ' <span style="opacity:.5">act ' + esc(w.action_id) + '</span>' : '') + '</div>').join('');
+}
+
+/* ---- the events feed --------------------------------------------------
+   A second bus, read the same way and from the same directory. Whatever is
+   happening AROUND the walk. Every field is escaped and none of them reaches
+   an attribute; nothing here is ever turned into a link. Missing or empty is
+   a normal state and the panel says which. */
+let events = [], evLoaded = false, evStamp = 0;
+
+/* THE FEED PATH IS THE USER'S TO SET, AND IT CANNOT LEAVE THIS DIRECTORY.
+   A free-text box that accepted any URL would quietly destroy the one promise
+   this page makes to a viewer -- that it fetches its own directory and nothing
+   else. So the box takes a PATH, and safeFeed() is the gate: anything with a
+   scheme, a protocol-relative //, a leading /, a backslash, or a .. segment is
+   refused and the box says why. There is deliberately no override.
+   The choice is remembered per browser, and never leaves it. */
+const FEED_DEFAULT = 'events.jsonl';
+function safeFeed(p) {
+  const s = String(p == null ? '' : p).trim();
+  if (!s) return { ok: false, why: 'empty' };
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return { ok: false, why: 'no scheme — same directory only' };
+  if (s.startsWith('//')) return { ok: false, why: 'no protocol-relative path' };
+  if (s.startsWith('/')) return { ok: false, why: 'no absolute path — relative only' };
+  if (s.includes('\\')) return { ok: false, why: 'no backslashes' };
+  if (s.split('/').includes('..')) return { ok: false, why: 'no .. — cannot leave this directory' };
+  if (s.includes('?') || s.includes('#')) return { ok: false, why: 'no query or fragment' };
+  return { ok: true, path: s };
+}
+let feedPath = FEED_DEFAULT;
+try {
+  const stored = localStorage.getItem('citywalk.feed');
+  if (stored && safeFeed(stored).ok) feedPath = stored;
+} catch (e) { /* storage can throw; the default is always usable */ }
+
+function setFeed(p) {
+  const v = safeFeed(p);
+  const msg = $('feedmsg');
+  if (!v.ok) { msg.textContent = v.why; msg.style.color = 'var(--red)'; return false; }
+  feedPath = v.path;
+  try { localStorage.setItem('citywalk.feed', feedPath); } catch (e) {}
+  msg.textContent = ''; events = []; evLoaded = false; evStamp = 0;
+  renderEvents(); loadEvents();
+  return true;
+}
+
+async function loadEvents() {
+  try {
+    const r = await fetch(feedPath + '?t=' + Date.now());
+    if (!r.ok) { evLoaded = true; renderEvents(); return; }
+    const rows = (await r.text()).split('\n').filter(l => l.trim())
+      .map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+    if (rows.length !== events.length) evStamp = Date.now();
+    /* SORT BY ts. Do not assume the feed arrives in time order — this one did
+       not. Whatever writes the file may emit in ingestion order, and records
+       can be ingested in batches whose timestamps interleave. The panel calls
+       itself newest-first, so it has to earn that rather than inherit it: an
+       unsorted feed rendered under a "newest first" heading is a display
+       making a claim its data does not support. Found by noticing that 8 rows
+       with readable bodies produced exactly 1 clickable row. */
+    rows.sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
+    /* CONTROL ROWS ARE NOT EVENTS. A {"watch":{...}} line configures the
+       watched-places panel and must not appear in the feed list or be read
+       aloud; the LAST one wins, so the producer can retune without rewriting
+       the file. Same for {"voiceCfg":{...}}, which patches the deck's speech
+       character live - duck depth, pitch, rate, voice - with no reload. */
+    const ctrl = rows.filter(r => r && (r.watch || r.voiceCfg));
+    ctrl.forEach(r => {
+      if (r.watch && typeof r.watch === 'object') watchCfg = r.watch;
+      if (r.voiceCfg && typeof r.voiceCfg === 'object') {
+        const D = deck();
+        if (D && D.configureSpeech) { try { D.configureSpeech(r.voiceCfg); } catch (err) {} }
+      }
+    });
+    const shown = rows.filter(r => !(r && (r.watch || r.voiceCfg)));
+    /* the rows that are NEW since the last poll, computed before `events` is
+       replaced - speech reads these and nothing else, so a re-render never
+       re-reads the backlog */
+    const had = {};
+    events.forEach(e => { const k = evKey(e); if (k) had[k] = 1; });
+    const fresh = shown.filter(e => { const k = evKey(e); return k && !had[k]; });
+    if (shown.length !== events.length) evStamp = Date.now();
+    events = shown; evLoaded = true;
+    renderEvents(); renderWatch();
+    speakNew(fresh);
+  } catch (e) { evLoaded = true; renderEvents(); renderWatch(); }
+}
+function renderEvents() {
+  const el = $('evlist');
+  if (!evLoaded) { el.innerHTML = '<div class="none">reading…</div>'; return; }
+  if (!events.length) {
+    $('evsrc').textContent = '';
+    el.innerHTML = '<div class="none">nothing at <b>' + esc(feedPath) + '</b>, or it is empty. ' +
+      'That is a normal state, not a failure — nothing writes to that file unless you point ' +
+      'something at it. Set a different path above; it must sit in this directory.</div>';
+    return;
+  }
+  const age = evStamp ? Math.floor((Date.now() - evStamp) / 60000) : null;
+  $('evsrc').textContent = '· ' + events.length + (age !== null && age >= 5 ? ' · quiet ' + age + 'm' : '');
+  el.innerHTML = events.slice(-40).reverse().map((e, i) => {
+    const idx = events.length - 1 - i;
+    const readable = (typeof e.body === 'string' && e.body.length > 0) ||
+      (e.detail && Object.keys(e.detail).length > 0);
+    return '<div class="ev' + (readable ? ' has' : '') + '"' +
+      (readable ? ' data-i="' + idx + '" title="click to read"' : '') + '>' +
+      '<span class="where">' + esc((e.ts || '').slice(11, 16)) + '</span> ' +
+      '<span class="who">' + esc(e.who || '—') + '</span> ' +
+      '<span class="what">' + esc(e.what || '') + '</span>' +
+      (e.where ? ' <span class="where">· ' + esc(e.where) + '</span>' : '') + '</div>';
+  }).join('');
+}
+
+/* ---- SPEECH, and the watched-places panel ------------------------------
+
+   SPEECH. The deck already owns this: DWEVENTS.speak() ducks the music to a
+   chosen depth, speaks, and restores the volume EXACTLY when the utterance
+   ends -- and it deliberately keeps a speech duck distinct from a manual one,
+   so it never steals or restores a duck somebody set by hand. So this does
+   NOT wrap speak() in inject('duck')/inject('unduck'): that would duck twice
+   and fight the engine's own restore. The page's whole job here is deciding
+   WHAT to say and WHETHER it is allowed to.
+
+   Four constraints, and three are browser physics rather than taste:
+
+   - OFF BY DEFAULT, ARMED BY A REAL TAP. Browsers will not speak on a page
+     the user has not touched, and iOS additionally needs speech primed from
+     inside a gesture -- armSpeech() does that. A console that looks armed and
+     is silent is worse than one that plainly reads "voice off".
+   - NEVER SPEAK MARKUP. A speech field is a different register from a screen
+     field. Authored prose only: tags stripped, whitespace collapsed, and a
+     record that still looks like markup, JSON or code after that is REFUSED
+     rather than read out as punctuation.
+   - SPEECH FIRES IMMEDIATELY, and this is the one place this panel parts from
+     RECON on purpose. RECON holds a record for the next assumed downbeat,
+     which suits a narrator describing its own work. These are events arriving
+     on somebody else's clock -- a note lands when a person writes it -- and
+     beat-aligning a live event can delay it by most of a bar. The whole value
+     of speaking an event is that it is happening NOW. Visual records keep
+     their existing behaviour; only the voice is unqueued.
+   - A RECORD SPEAKS ONCE. Re-reading the feed re-renders the list; it must
+     not re-read the backlog aloud. Everything already on screen when the
+     voice is armed is marked spoken, so turning it on recites no history. */
+let voiceOn = false;
+const spokenKeys = new Set();
+const evKey = e => (e && (e.id != null ? 'id:' + e.id
+                   : (e.ts || '') + '|' + (e.who || '') + '|' + (e.what || ''))) || '';
+
+/* Authored prose or nothing. Returns '' for anything that still smells like
+   markup after stripping -- refusing is the honest failure, because a voice
+   working through JSON braces is not information, it is noise. */
+function sayable(v, e) {
+  let t = typeof v === 'string' ? v
+        : [e && e.who, e && e.what, e && e.where].filter(Boolean).join(' - ');
+  t = String(t == null ? '' : t).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  if (/[{}<>]/.test(t)) return '';
+  if (/^[\[\{]/.test(t)) return '';
+  if (t.indexOf('```') > -1) return '';
+  return t.slice(0, 400);
+}
+
+function speakRecord(e) {
+  const D = deck(); if (!D || !D.speak) return;
+  const t = sayable(e.speak === true ? null : e.speak, e);
+  if (!t) return;
+  try { D.speak(t); } catch (err) {}
+}
+
+function setVoice(on) {
+  voiceOn = !!on;
+  const b = $('voice');
+  b.textContent = 'voice ' + (voiceOn ? 'on' : 'off');
+  b.className = voiceOn ? 'on' : '';
+  if (voiceOn) {
+    events.forEach(e => spokenKeys.add(evKey(e)));   /* on screen already = history */
+    const D = deck(); if (D && D.armSpeech) { try { D.armSpeech(); } catch (err) {} }
+  }
+}
+
+function speakNew(fresh) {
+  if (!voiceOn || !fresh || !fresh.length) return;
+  fresh.forEach(e => {
+    const k = evKey(e);
+    if (spokenKeys.has(k)) return;
+    spokenKeys.add(k);
+    if (e && e.speak) speakRecord(e);
+  });
+}
+
+/* ---- watched places ----------------------------------------------------
+
+   WHAT THIS IS AND IS NOT. Two columns that are never added together:
+
+     IN WATCHED PLACES is a HARD signal. A record's place id is a fact.
+     MENTIONS is a SOFT signal. A keyword set is a KNOB, not a measurement --
+     widen it and the number goes up, which is why the words themselves are
+     printed beside the count.
+
+   NOTHING ABOUT ANY PARTICULAR SYSTEM IS IN THIS FILE. The ids and the words
+   arrive as DATA on the same feed as everything else, so this panel works for
+   a building's floors or a museum's wings and the page never learns what it
+   is watching. It also means no new fetch: the feed is already being read.
+   Append one control row to the events feed:
+
+       {"watch":{"ids":[104,105],"words":["gallery","annexe"],
+                 "source_newest":61999,
+                 "unanswered":"a note in a watched place with no later reply"}}
+
+   The last two are optional and both exist to stop the panel bluffing:
+
+   - SOURCE_NEWEST is whatever the producer believes the newest id upstream
+     is. Printed BESIDE this feed's own newest, with the delta. A quiet feed
+     is ambiguous -- a working poller and a dead one produce identical
+     evidence -- and two numbers settle it where a dot cannot.
+   - UNANSWERED is a DEFINITION, every version of it is arguable, so the panel
+     prints the one it was handed rather than implying there is only one. No
+     definition, no count.
+
+   Word boundaries, never substrings: "port" must not match "important". And a
+   record that NAMES a watched thing is not a record ADDRESSED to it -- this
+   says "mentions", never "for you". */
+let watchCfg = null;
+
+function wordHit(text, words) {
+  const t = String(text || '').toLowerCase();
+  return words.some(w => {
+    const s = String(w || '').toLowerCase().trim();
+    if (!s) return false;
+    let i = t.indexOf(s);
+    while (i > -1) {
+      const before = i === 0 ? ' ' : t.charAt(i - 1);
+      const after = t.charAt(i + s.length) || ' ';
+      if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) return true;
+      i = t.indexOf(s, i + 1);
+    }
+    return false;
+  });
+}
+
+function renderWatch() {
+  const el = $('wbody'), src = $('wsrc');
+  if (!watchCfg) {
+    src.textContent = '';
+    el.innerHTML = '<div class="none">no <b>watch</b> row on this feed. Append one to start ' +
+      'watching places by id - the panel holds no list of its own, on purpose, so it works for ' +
+      'whatever you point it at. The shape is in the header of this file.</div>';
+    return;
+  }
+  const ids = (watchCfg.ids || []).map(Number).filter(n => !isNaN(n));
+  const words = (watchCfg.words || []).filter(w => typeof w === 'string' && w.trim());
+
+  /* DEDUPLICATE. A feed that repeats a row inflates every number here, and an
+     off-by-one count is how you find out a quota was wrong. */
+  const seen = {}, rows = [];
+  events.forEach(e => {
+    const k = evKey(e);
+    if (k && seen[k]) return;
+    if (k) seen[k] = 1;
+    rows.push(e);
+  });
+  const dupes = events.length - rows.length;
+
+  const inPlace = rows.filter(e =>
+    ids.indexOf(Number(e.place_id != null ? e.place_id : e.where_id)) > -1);
+  const mentions = words.length
+    ? rows.filter(e => wordHit([e.what, e.where, e.who, e.body].filter(Boolean).join(' '), words))
+    : [];
+
+  let mineNewest = 0;
+  rows.forEach(e => { const n = Number(e.id) || 0; if (n > mineNewest) mineNewest = n; });
+  const up = Number(watchCfg.source_newest) || 0;
+
+  const line = (label, n, extra) =>
+    '<div class="wrow"><span class="wn">' + n + '</span> <span class="wl">' + esc(label) + '</span>' +
+    (extra ? '<div class="wx">' + extra + '</div>' : '') + '</div>';
+
+  src.textContent = '- ' + ids.length + ' place' + (ids.length === 1 ? '' : 's');
+  el.innerHTML =
+    line('in watched places', inPlace.length, 'a place id is a fact - this one is hard') +
+    line('mention' + (mentions.length === 1 ? '' : 's') + ' a watched word', mentions.length,
+      words.length
+        ? 'soft signal, and the words ARE the knob: ' +
+          words.map(w => '<b>' + esc(w) + '</b>').join(' - ') +
+          '. Widen them and this number rises. Naming is not addressing.'
+        : 'no words given, so nothing is being matched') +
+    '<div class="wnote">The two are never added together - they answer different questions.' +
+    (dupes > 0 ? ' <b>' + dupes + '</b> duplicate row' + (dupes === 1 ? '' : 's') + ' ignored.' : '') +
+    '</div>' +
+    (watchCfg.unanswered
+      ? '<div class="wnote">unanswered, by the definition this feed supplied: <em>' +
+        esc(watchCfg.unanswered) + '</em></div>'
+      : '<div class="wnote">no <b>unanswered</b> definition on the feed, so none is counted - ' +
+        'every version of it is arguable and this panel will not pick one for you.</div>') +
+    '<div class="wnote">newest here <b>' + (mineNewest || '-') + '</b>' +
+      (up ? ' - newest upstream <b>' + up + '</b> - behind by <b>' +
+            Math.max(0, up - mineNewest) + '</b>'
+          : ' - no upstream number on the feed') +
+      '. This screen cannot tell a working feed from a stopped one; two numbers can.</div>';
+}
+
+/* ---- reachable places, and the request queue ---------------------------
+   THE PAGE NEVER MOVES ANYTHING. It renders whatever neighbours.json says is
+   reachable and, when you click one, puts a REQUEST in a queue. Something
+   outside the page drains that queue and decides what to do with it.
+
+   That split is the whole point. A page that could act would need a
+   credential, and a credential in a page served over --lan is a credential
+   anyone on the network holds. So the page holds intent and nothing else,
+   and the drain is a message tray rather than a command line -- the same
+   contract the RECON console uses for its reply box, and for the same
+   reason: this box cannot authenticate whoever clicked it.
+
+   A queued request is shown as PENDING and stays that way. The page never
+   pretends a move happened; the row only stops being pending when a new
+   neighbours.json arrives saying you are somewhere else. If nothing drains
+   the queue, the screen shows a request that never resolved, which is the
+   honest picture of exactly that situation. */
+let nbs = [], nbLoaded = false;
+const queue = [];
+window.CITYWALK = {
+  drain() { const q = queue.splice(0, queue.length); if (q.length) renderNbs(); return q; },
+  pending() { return queue.slice(); }
+};
+async function loadNbs() {
+  try {
+    const r = await fetch('neighbours.json?t=' + Date.now());
+    if (!r.ok) { nbLoaded = true; renderNbs(); return; }
+    const j = await r.json();
+    const next = Array.isArray(j.reachable) ? j.reachable : [];
+    /* a request resolves when the place we are standing in changes */
+    if (j.from_place_id != null && j.from_place_id !== nbFrom) {
+      nbFrom = j.from_place_id;
+      queue.length = 0;
+    }
+    nbs = next; nbLoaded = true; renderNbs();
+  } catch (e) { nbLoaded = true; renderNbs(); }
+}
+let nbFrom = null;
+function renderNbs() {
+  const el = $('nbs');
+  if (!nbLoaded) { el.innerHTML = '<div id="nbnone">reading…</div>'; return; }
+  if (!nbs.length) {
+    el.innerHTML = '<div id="nbnone">no neighbours.json, or nothing reachable. ' +
+      'That is a normal state — write one from wherever your places live, and the ' +
+      'squares appear here.</div>';
+    return;
+  }
+  el.innerHTML = nbs.map(n => {
+    const req = queue.some(q => q.place_id === n.place_id);
+    const shut = n.open_to_notes === false && n.open_to_things === false;
+    const bits = [];
+    if (n.subplaces != null) bits.push(esc(n.subplaces) + ' sub');
+    if (n.things != null) bits.push(esc(n.things) + ' things');
+    if (n.notes != null) bits.push(esc(n.notes) + ' notes');
+    return '<div class="nb' + (req ? ' req' : '') + (shut ? ' shut' : '') +
+      '" data-id="' + esc(n.place_id) + '">' +
+      '<span class="rel">' + (n.rel === 'parent' ? '↑' : n.rel === 'child' ? '↓' : '·') + '</span>' +
+      '<span class="id">#' + esc(n.place_id) + '</span>' +
+      '<span class="nm">' + esc(n.name) + (shut ? ' (sealed)' : '') + '</span>' +
+      '<span class="ct">' + esc(bits.join(' · ')) + '</span>' +
+      (req ? '<span class="pend">pending</span>' : '') + '</div>';
+  }).join('');
+}
+/* One delegated listener; the id comes off a data attribute we wrote and is
+   matched against the loaded list rather than trusted as typed. */
+/* Look before you go. The description is somebody else's writing about their
+   own room, so it goes in with textContent like every other borrowed text on
+   this page. If the feed carried no description, the panel says that rather
+   than leaving a blank that reads like an empty room. */
+$('nbs').addEventListener('mouseover', e => {
+  const row = e.target.closest('.nb');
+  if (!row) return;
+  const n = nbs.find(x => Number(x.place_id) === Number(row.getAttribute('data-id')));
+  if (!n) return;
+  const p = $('peek');
+  p.textContent = '';
+  const head = document.createElement('div');
+  head.style.color = 'var(--accent)';
+  head.style.marginBottom = '4px';
+  head.textContent = '#' + n.place_id + ' ' + n.name + (n.owner ? '  · kept by ' + n.owner : '');
+  const body = document.createElement('div');
+  body.style.color = 'var(--dim)';
+  body.textContent = n.description || 'No description came through in the feed for this one.';
+  p.appendChild(head); p.appendChild(body);
+});
+
+$('nbs').addEventListener('click', e => {
+  const row = e.target.closest('.nb');
+  if (!row) return;
+  const id = Number(row.getAttribute('data-id'));
+  const n = nbs.find(x => Number(x.place_id) === id);
+  if (!n) return;
+  if (queue.some(q => q.place_id === n.place_id)) return;
+  queue.push({ ts: new Date().toISOString(), place_id: n.place_id, name: n.name, rel: n.rel });
+  renderNbs();
+});
+
+/* ---- reading one record ------------------------------------------------
+   A row with a body is clickable and opens it in a panel. The body is
+   somebody else's text and is treated as hostile input throughout: it is put
+   on the page with textContent, NEVER as markup, so there is nothing to
+   escape wrongly. Nothing in it is ever turned into a link — ledger 103 is
+   this codebase's own record of an attribution URL that RAN despite HTML
+   escaping, because href is not an HTML problem and the parser decodes
+   entities before it dispatches a URL. The safest handling of a stranger's
+   text is to render it as text and give it nowhere to go.
+
+   If the poller translated the record out of another register at ingest, the
+   panel says so on its face rather than presenting a transform as the thing
+   the author typed. */
+function openRecord(i) {
+  const e = events[i];
+  if (!e) return;
+  const hasBody = typeof e.body === 'string' && e.body.length > 0;
+  const hasDetail = e.detail && Object.keys(e.detail).length > 0;
+  if (!hasBody && !hasDetail) return;
+  $('rdwho').textContent = (e.who || '—') + ' · ' + (e.where || 'somewhere') +
+    ' · ' + (e.ts || '').slice(0, 19).replace('T', ' ') +
+    (e.note_id != null ? ' · #' + e.note_id : '') +
+    (e.event_kind ? ' · ' + e.event_kind : '');
+  $('rdflag').textContent = e.body_is_decoded
+    ? 'translated out of another register when it was read in — this is not literally what was typed'
+    : '';
+  /* A record with words shows its words. A record without them shows exactly
+     what the source logged, field by field, and NOT a sentence composed from
+     those fields. If a creation was recorded as an id and nothing else, an id
+     is what you get -- the thinness is information about what the producer
+     kept, and papering over it would be inventing a record that was never
+     written. Built with DOM nodes and textContent throughout; nothing here is
+     markup and nothing becomes a link. */
+  const body = $('rdbody');
+  body.textContent = '';
+  if (hasBody) {
+    body.textContent = e.body;
+  } else {
+    const t = document.createElement('div');
+    t.style.color = 'var(--dim)';
+    t.style.marginBottom = '8px';
+    t.textContent = 'No text was recorded for this. What the source logged:';
+    body.appendChild(t);
+    for (const k of Object.keys(e.detail)) {
+      const row = document.createElement('div');
+      const key = document.createElement('span');
+      key.style.color = 'var(--dim)';
+      key.textContent = k + '  ';
+      const val = document.createElement('span');
+      val.textContent = String(e.detail[k]);
+      row.appendChild(key); row.appendChild(val);
+      body.appendChild(row);
+    }
+  }
+  $('reader').hidden = false;
+}
+function closeRecord() { $('reader').hidden = true; }
+$('evlist').addEventListener('click', ev => {
+  const row = ev.target.closest('.ev.has');
+  if (!row) return;
+  openRecord(Number(row.getAttribute('data-i')));
+});
+$('rdclose').addEventListener('click', closeRecord);
+/* Speech is armed by a REAL tap and never before: browsers refuse to speak on
+   an untouched page, and iOS needs synthesis primed from inside a gesture. */
+$('voice').addEventListener('click', () => setVoice(!voiceOn));
+$('again').addEventListener('click', () => {
+  const D = deck();
+  if (D && D.speakAgain) { try { D.speakAgain(); } catch (err) {} }
+});
+$('reader').addEventListener('click', ev => { if (ev.target === $('reader')) closeRecord(); });
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeRecord(); });
+
+/* ---- staleness: the one thing that must never be quiet ------------------ */
+function staleness() {
+  const el = $('stale');
+  if (!lastFeed) { el.textContent = 'feed — never loaded'; el.className = 'bad'; return; }
+  const mins = Math.floor((Date.now() - lastFeed) / 60000);
+  if (mins >= 5) {
+    el.textContent = 'feed quiet ' + mins + 'm — this screen cannot tell working from stopped';
+    el.className = 'bad';
+  } else {
+    el.textContent = 'feed ' + (mins < 1 ? 'live' : mins + 'm');
+    el.className = '';
+  }
+}
+
+/* ---- the rain ----------------------------------------------------------- */
+const cv = $('rain'), g = cv.getContext('2d');
+let VW = 0, VH = 0, DPR = 1, cols = [], CH = 15;
+function sizeRain() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  VW = cv.width = cv.clientWidth * DPR;
+  VH = cv.height = cv.clientHeight * DPR;
+  CH = 15 * DPR;
+  const n = Math.max(1, Math.floor(VW / (11 * DPR)));
+  cols = [];
+  for (let i = 0; i < n; i++) {
+    cols.push({
+      x: i * 11 * DPR,
+      y: -Math.random() * VH,
+      len: 10 + (Math.random() * 30 | 0),
+      sp: 0.5 + Math.random() * 1.7,
+      /* each column reads a different offset into the SAME real bit string,
+         so the whole screen is one text seen at many depths at once */
+      off: (Math.random() * 100000) | 0
+    });
+  }
+}
+window.addEventListener('resize', sizeRain);
+
+let beatPhase = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  const D = deck();
+  const p = D && D.pulse ? D.pulse() : null;
+  const playing = !!(p && p.playing);
+  const en = playing && p.energy != null ? p.energy : 0.25;
+  const hue = playing && p.hue != null ? p.hue : 150;
+  document.documentElement.style.setProperty('--keyhue', hue);
+
+  if (playing) {
+    $('deck').textContent = (p.name ? String(p.name).slice(0, 22) : 'playing') +
+      (p.tempo ? ' · ' + Math.round(p.tempo) : '');
+    $('bar4').textContent = p.bar && p.bar.beatInBar != null ? (p.bar.beatInBar + 1) + '/4' : '—';
+    beatPhase = p.beat && p.beat.phase != null ? p.beat.phase : 0;
+  } else {
+    $('deck').textContent = 'silent';
+    $('bar4').textContent = '—';
+    beatPhase = (beatPhase + 0.012) % 1;
+  }
+  document.documentElement.style.setProperty('--beat', (1 - beatPhase).toFixed(3));
+
+  g.fillStyle = 'rgba(1,3,8,.20)';
+  g.fillRect(0, 0, VW, VH);
+  if (!BITS.length) {
+    g.fillStyle = 'hsl(0 80% 60% / .9)';
+    g.font = (13 * DPR) + 'px ui-monospace,monospace';
+    g.textAlign = 'center';
+    g.fillText('NO CORPUS — nothing to fall. This screen does not invent glyphs.', VW / 2, VH / 2);
+    return;
+  }
+  g.font = (13 * DPR) + 'px ui-monospace,monospace';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (const c of cols) {
+    c.y += c.sp * (1.2 + en * 3.6) * DPR;
+    if (c.y - c.len * CH > VH) {
+      c.y = -Math.random() * VH * 0.5;
+      c.len = 10 + (Math.random() * 30 | 0);
+      c.off = (Math.random() * BITS.length) | 0;
+    }
+    for (let k = 0; k < c.len; k++) {
+      const y = c.y - k * CH;
+      if (y < -CH || y > VH + CH) continue;
+      const head = k === 0;
+      const a = head ? 1 : Math.max(0, 1 - k / c.len) * 0.62;
+      /* THE ONLY LINE THAT MATTERS: the glyph is a real bit of a real note,
+         indexed by column offset and depth. Not a hash of position and time. */
+      const bit = BITS[(c.off + (c.y / CH | 0) - k) % BITS.length | 0] || '0';
+      g.fillStyle = head ? '#e8ffff'
+        : 'hsl(' + hue + ' 90% ' + (30 + (1 - k / c.len) * 36) + '% / ' + a.toFixed(2) + ')';
+      if (head) { g.shadowColor = 'hsl(' + hue + ' 95% 60%)'; g.shadowBlur = 10 * DPR; }
+      g.fillText(bit, c.x + CH / 2, y);
+      g.shadowBlur = 0;
+    }
+  }
+}
+
+/* ---- boot: the one real click ------------------------------------------ */
+$('go').addEventListener('click', () => {
+  $('boot').style.display = 'none';
+  $('deckwrap').classList.add('open');
+  sizeRain();
+});
+$('deckbtn').addEventListener('click', () => $('deckwrap').classList.toggle('open'));
+
+loadCorpus().then(sizeRain);
+$('feedin').value = feedPath;
+$('feedset').addEventListener('click', () => setFeed($('feedin').value));
+$('feedin').addEventListener('keydown', e => { if (e.key === 'Enter') setFeed($('feedin').value); });
+loadWalk();
+loadEvents();
+loadNbs();
+setInterval(loadWalk, 2000);
+setInterval(loadEvents, 4000);
+setInterval(loadNbs, 3000);
+setInterval(staleness, 5000);
+staleness();
+requestAnimationFrame(frame);
+</script>

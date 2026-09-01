@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Deckwave as a game soundtrack — the copy-paste example</title>
+<!--
+  THE WHOLE INTEGRATION IS THIS FILE. A same-origin page embeds Deckwave
+  in an iframe and gets two things through contentWindow:
+
+    DWEVENTS.inject('hype')   — the game tells the deck what the moment needs
+    DWEVENTS.pulse()          — the deck tells the game where the beat is
+                                (poll it from your own rAF; it reads the
+                                audio clock at call time — pull, no jitter
+                                to apologise for)
+
+  Serve the tree (python tools/serve.py) and open
+  http://localhost:8777/examples/soundtrack.html
+
+  One honest requirement: audio needs a user gesture INSIDE the deck's
+  frame — press ▶ demo (fetches a licensed set from the Internet Archive,
+  no library needed) or load a library and press ▶. After that one click,
+  everything here is driven by the game.
+
+  docs/GAME-INTEGRATION.md is the full guide.
+-->
+<style>
+  body{margin:0;background:#04010f;color:#d9d2ff;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;display:grid;grid-template-rows:auto 1fr;height:100vh}
+  header{padding:10px 14px;border-bottom:1px solid #22125c;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  header b{color:#22e8ff;letter-spacing:.06em;margin-right:auto}
+  button{font:inherit;color:inherit;background:#110838;border:1px solid #2b1a6a;border-radius:4px;padding:6px 10px;cursor:pointer}
+  button:hover{border-color:#7b5cff}
+  main{display:grid;grid-template-columns:1fr 1fr;min-height:0}
+  #game{position:relative;background:#070313}
+  canvas{width:100%;height:100%;display:block}
+  #hud{position:absolute;left:10px;bottom:10px;font-size:11px;color:#7d6eb0;white-space:pre}
+  iframe{width:100%;height:100%;border:0;border-left:1px solid #22125c}
+</style>
+
+<header>
+  <b>THE GAME</b>
+  <button id="hype">⚔ boss fight → hype</button>
+  <button id="calm">🌲 explore → calmer</button>
+  <button id="talk">💬 dialogue → duck</button>
+  <button id="next">➡ next area → change</button>
+</header>
+<main>
+  <div id="game"><canvas id="cv"></canvas><div id="hud">waiting for the deck…</div></div>
+  <iframe id="dw" src="../index.html" title="Deckwave"></iframe>
+</main>
+
+<script>
+'use strict';
+const frame = document.getElementById('dw');
+const deck = () => frame.contentWindow && frame.contentWindow.DWEVENTS;  /* same-origin: direct call */
+
+/* the game tells the deck what the moment needs */
+const say = async ev => { const d = deck(); if (d) console.log(await d.inject(ev)); };
+document.getElementById('hype').onclick = () => say('hype');
+document.getElementById('calm').onclick = () => say('calmer');
+document.getElementById('next').onclick = () => say('change');
+let talking = false;
+document.getElementById('talk').onclick = async function () {
+  talking = !talking;
+  this.textContent = talking ? '💬 …speaking… → unduck' : '💬 dialogue → duck';
+  await say(talking ? 'duck' : 'unduck');
+};
+
+/* the deck tells the game where the beat is — poll pulse() in YOUR rAF */
+const cv = document.getElementById('cv'), hud = document.getElementById('hud');
+const c = cv.getContext('2d');
+let flash = 0, lastBeat = -1;
+(function loop() {
+  requestAnimationFrame(loop);
+  const W = cv.width = cv.clientWidth, H = cv.height = cv.clientHeight;
+  c.fillStyle = '#070313'; c.fillRect(0, 0, W, H);
+  const d = deck(), p = d ? d.pulse() : null;
+  if (!p || !p.playing) { hud.textContent = 'press ▶ demo (or ▶) in the deck →'; return; }
+  if (p.beat) {
+    /* decay only BETWEEN beats — decaying on the same frame the flash is
+       set meant the 1 / .55 peaks never actually rendered (P2), and this
+       file is the copy-paste example, so the pattern propagates */
+    if (p.beat.i !== lastBeat) { lastBeat = p.beat.i; flash = p.bar && p.bar.beatInBar === 0 ? 1 : .55; }
+    else flash *= .92;
+  }
+  /* one square, breathing on the beat — replace with your game */
+  const e = p.energy != null ? p.energy : .5;
+  const base = Math.min(W, H) * (.22 + .18 * e), s = base * (1 + .25 * flash);
+  c.fillStyle = `rgba(${40 + 215 * flash},${45 + 187 * (1 - flash)},255,.92)`;
+  c.fillRect((W - s) / 2, (H - s) / 2, s, s);
+  hud.textContent = `${p.name}\n${p.tempo} bpm playing (label ${p.bpm}${p.straight ? ' · straight' : ' · ×' + p.rate.toFixed(3)})`
+                  + `\nbar ${p.bar ? p.bar.i : '—'} · beat ${p.bar ? p.bar.beatInBar + 1 : '—'}/4 · energy ${e}`;
+})();
+</script>

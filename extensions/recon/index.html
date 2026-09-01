@@ -1,0 +1,333 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>RECON — deckwave ops</title>
+<!--
+  HOW TO FEED IT — append one JSON object per line to recon.jsonl in the
+  SERVED DIRECTORY (the repo root that serve.py serves).
+
+  ONE REQUIREMENT ON THE PRODUCER, and it is a contract, not a preference:
+  APPEND IN CHRONOLOGICAL ORDER. The page does not sort — it reads the file
+  in order and prepends, so the feed reads newest-first only if you wrote it
+  oldest-first. A batch written in ingestion order with interleaved
+  timestamps renders under a newest-first heading without being newest-first.
+
+  What that actually costs, stated precisely: prepend-on-read makes DOM
+  position an exact record of ARRIVAL, so the ring eviction and the "while
+  you were away" divider stay correct whatever the timestamps say — both are
+  arrival questions. The one thing that goes wrong is THE STAGE, which asks
+  which frame is most recent in the world and answers "the last one read".
+  Stated here because the page cannot check it: the ts is yours, and this
+  screen already declines to trust that clock for age. BUILD-LOG ledger 113.
+
+  Exact line:
+
+    echo '{"ts":"2026-08-22T14:00:00Z","source":"reddit","title":"the thread","url":"https://reddit.com/r/x/abc","note":"found it - top comment is the answer"}' >> recon.jsonl
+
+  PowerShell:  Add-Content recon.jsonl '{"ts":"...","source":"mailroom","title":"...","url":"...","note":"..."}'
+  THE STAGE — one more field puts a picture on the screen:
+
+    {"ts":"...","source":"web","title":"the page","url":"https://x/y",
+     "note":"one or two lines IN YOUR WORDS - never a page body",
+     "shot":"recon-shots/shot-20260828-214500-a1b2c3.png",
+     "status":"reading","links":["https://a","https://b"]}
+
+  `python tools/recon-shot.py pic.png --url ... --note ...` copies the
+  image in under an acceptable name and appends the line for you. The
+  page renders `shot` only if it matches
+  ^recon-shots/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$ - matched, not cleaned.
+  THIS SCREEN SEES NOTHING BY ITSELF: it never screenshots, scrapes or
+  navigates; a frame is a STILL that something else chose to hand it, and
+  the stage says so and dates it. There is no field for page text.
+
+  Optional fields:  "pin":true  (lands pre-pinned)   ·   "event":"hype"
+  (any DWEVENTS intent - faster/slower/hype/calmer/change/duck/unduck -
+  injected into the deck at the same assumed downbeat the record lands on)
+  ·   "speak":true  (the page reads title+note aloud OVER the music, with
+  the deck's own duck)  or  "speak":"exact words to say"  - gated on the
+  console's `voice` toggle, off by default.
+  A line {"reload":true,"ts":"<newer-than-last>"} hot-swaps the console's
+  own logic (recon-app.js) without touching the deck - the music keeps
+  playing through upgrades. Records are immutable and append-only; the page polls every 2 s. Query
+  strings are stripped on ingest - strip them on the writing side too.
+
+  WHAT THIS IS. A read-only ops screen: the agent's activity feed IS the
+  screen, Deckwave lives in the background as the soundtrack (embedded,
+  same origin, driven through DWEVENTS.pulse()/inject() - the same public
+  surface examples/soundtrack.html uses). Records land on the next ASSUMED
+  downbeat (the engine assumes every 4th beat from the first; no downbeat
+  detection - SKILL.md). It never navigates, never fetches anything but
+  its own feed, and when it has heard nothing for five minutes it says it
+  cannot tell working from stopped, rather than looking calm.
+-->
+<style>
+  /* the DECKWAVE CONSOLE register, ported from the hosted snapshot artifact
+     (claude.ai 39b76df9) onto the LIVE screen: same face, real organs.
+     Accent hue follows the PLAYING KEY - hue = camelot*30+186, sat 74 (A) /
+     92 (B), the artifact's own mapping - and --beat is a 0..1 envelope off
+     DWEVENTS.pulse(), so the brackets and the REC lamp breathe on the music. */
+  :root{
+    --bg:#04060a; --bg2:#070b12; --panel:#080d15; --line:#12202e;
+    --fg:#a8c4d8; --dim:#4a6a80; --hot:#39ffa0; --warn:#ffb347; --alert:#ff4d7d; --cyan:#4dd8ff;
+    --keyhue:150; --keysat:80%; --beat:0;
+    --accent:hsl(var(--keyhue) var(--keysat) 62%);
+    --accentdim:hsl(var(--keyhue) calc(var(--keysat) * .7) 34%);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);height:100vh;display:grid;
+       grid-template-rows:auto 1fr;font:12px/1.5 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+       -webkit-font-smoothing:antialiased;overflow:hidden}
+  header{display:flex;gap:14px;align-items:center;padding:7px 14px;flex-wrap:wrap;
+         background:linear-gradient(180deg,#0a1119,#05080d);border-bottom:1px solid var(--line);
+         font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+  header b{color:var(--accent);font-weight:700;letter-spacing:.3em;
+           text-shadow:0 0 14px hsl(var(--keyhue) 90% 50% / .55)}
+  header b::before{content:'\25CF  ';color:var(--alert);opacity:calc(.45 + var(--beat)*.55)}
+  #stale{color:var(--dim);letter-spacing:.1em} #stale.warn{color:var(--warn)}
+  #stale.bad{color:var(--alert);font-weight:700}
+  #replybtn,#spk,#again{cursor:pointer;color:var(--dim);border:1px solid var(--line);padding:2px 8px;border-radius:2px}
+  #replybtn:hover,#spk:hover,#again:hover{border-color:var(--accentdim);color:var(--accent)}
+  #replybtn.on,#spk.on{background:var(--accent);color:#02060a;font-weight:700;border-color:var(--accent);
+               box-shadow:0 0 12px hsl(var(--keyhue) 90% 50% / .5)}
+  #deckstrip{margin-left:auto;color:var(--accent);cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #deckstrip .blink{display:inline-block;width:.7em;color:var(--accent);
+                    text-shadow:0 0 10px hsl(var(--keyhue) 95% 55% / .8)}
+  #deckstrip .dim{color:var(--dim)}
+  #composer{display:none;gap:6px;padding:6px 14px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  #composer.on{display:flex}
+  #composer input{flex:1;font:inherit;color:var(--fg);background:var(--bg);
+                  border:1px solid var(--line);border-radius:2px;padding:5px 8px}
+  #composer input:focus{outline:none;border-color:var(--accentdim)}
+  #composer button{font:inherit;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);
+                   background:#0b1420;border:1px solid var(--line);border-radius:2px;padding:5px 12px;cursor:pointer}
+  #composer button:hover{border-color:var(--accentdim);color:var(--accent)}
+  main{display:grid;grid-template-columns:1fr 300px;grid-template-rows:1fr auto;min-height:0}
+  #feed{overflow-y:auto;padding:6px 0;background:var(--panel);
+        scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  #feed::-webkit-scrollbar{width:6px}#feed::-webkit-scrollbar-thumb{background:var(--line)}
+  aside{border-left:1px solid var(--line);overflow-y:auto;padding:8px 10px;background:var(--panel);
+        scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  aside h6{margin:0 0 8px;font-size:10px;letter-spacing:.22em;color:#36586e;text-transform:uppercase;font-weight:400}
+  .rec{display:grid;grid-template-columns:8px 1fr;gap:7px;padding:6px 12px 7px;
+       border-bottom:1px solid #0b1219;cursor:pointer;position:relative;font-size:10.5px;line-height:1.45}
+  .rec::before{content:'';width:6px;height:6px;border-radius:50%;margin-top:5px;
+               background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
+  .rec.op::before{background:var(--accent);box-shadow:0 0 7px var(--accent)}
+  .rec:hover{background:#0b1420}
+  .rec>*{grid-column:2}
+  .rec .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .rec .ts{color:#2b4a5e;font-size:10px;letter-spacing:.1em;font-variant-numeric:tabular-nums}
+  .rec .src{font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:0 5px;
+            border:1px solid var(--line);border-radius:2px;color:var(--dim)}
+  .src[data-s=reddit]{color:#ff7a45}.src[data-s="mailroom"]{color:#b18aff}
+  .src[data-s=basescan]{color:#6fb0ff}.src[data-s=file]{color:var(--dim)}
+  .src[data-s=operator]{color:var(--accent);border-color:var(--accentdim)}
+  .rec .title{color:#dceaf3;font-weight:400}
+  .rec.op .title{color:var(--accent)}
+  .rec .ev{color:var(--hot);font-size:10px;letter-spacing:.1em}
+.say{cursor:pointer;border:1px solid var(--acc,#8f8);border-radius:3px;padding:0 .45em;margin-left:.5em;opacity:.85}
+.say:active{opacity:1}
+  .rec .note{color:#a9cfe0;opacity:.85;white-space:pre-wrap}
+  .rec .url{color:#3e6b83;font-size:10px;letter-spacing:.05em;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap}
+  .rec .pinbtn{position:absolute;top:5px;right:9px;opacity:.3;cursor:pointer;filter:grayscale(1)}
+  .rec .pinbtn:hover,.rec.pinned .pinbtn{opacity:1;filter:none}
+  .rec .copied{position:absolute;right:32px;top:5px;color:var(--hot);font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  /* .saymark is the voice's failure marker - its OWN class, because drain()
+     rewrites .wait spans ("picked up") and the old marker guard refused a
+     second marker wherever any .wait existed */
+  .rec .wait,.rec .saymark{color:var(--warn);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
+  .divider{display:flex;align-items:center;gap:8px;margin:8px 14px 4px;color:var(--warn);
+           font-size:9px;letter-spacing:.18em;text-transform:uppercase}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;
+    background:linear-gradient(90deg,transparent,var(--warn),transparent);opacity:.5}
+  #pending{padding:4px 14px;color:#2b4a5e;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  #empty{padding:30px 14px;color:#2b4a5e;font-size:10.5px;line-height:1.6}
+  #deckwrap{position:fixed;top:0;right:0;width:min(600px,90vw);height:100vh;background:var(--bg);
+            border-left:1px solid var(--line);display:none;flex-direction:column;z-index:50;
+            box-shadow:-14px 0 40px #000c}
+  #deckwrap.open{display:flex}
+  #deckhd{padding:7px 12px;border-bottom:1px solid var(--line);cursor:pointer;color:var(--accent);
+          font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;background:#060a11}
+  iframe{border:0;flex:1;width:100%}
+  /* ── the stage: the frame the agent was looking at ──────────────────────
+     The ORIGINAL idea for this screen was a viewport, not a log (Act 35;
+     docs/research/adjacent/surfacing-hud-for-agent-activity.md). It is
+     styled to look like a hacker's screen and it must never behave like
+     one: everything here is a STILL, and the age line and the lamp say so.
+     recon-app.js's stage block carries the reasoning. */
+  #centre{display:grid;grid-template-rows:auto 1fr;min-height:0}
+  #stage{position:relative;height:min(52vh,520px);background:#000;overflow:hidden;
+         border-bottom:1px solid var(--line)}
+  #stage[hidden]{display:none}
+  /* FOLDS BY ITS FRAME, like the deck's own pop-ups (⊕ libre folds to a title
+     bar + status line). It folds to a BAR, never to nothing: the first cut
+     hid the whole pane, which took the fold control down with it AND
+     persisted the choice - a one-way door, ledger 83. The bar is the way
+     back, and it still carries the title and the age so a folded stage does
+     not go silent about how old its frame is. */
+  #stage.folded{height:24px;background:var(--bg2)}
+  #stage.folded>*{display:none}
+  #stage.folded>#stgFold{display:block;position:static;padding:5px 14px;text-align:left;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  #stgShot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+           object-position:top center;opacity:.94;filter:saturate(.85) contrast(1.06)}
+  .stgscan{position:absolute;inset:0;pointer-events:none;
+           background:repeating-linear-gradient(180deg,rgba(0,0,0,.30) 0 1px,transparent 1px 3px)}
+  .stgvig{position:absolute;inset:0;pointer-events:none;
+          background:linear-gradient(180deg,rgba(2,6,10,.86) 0,transparent 18%,transparent 46%,rgba(2,6,10,.92) 100%)}
+  .stghud{position:absolute;left:16px;top:12px;right:16px;display:flex;gap:12px;align-items:baseline;
+          font-size:10px;letter-spacing:.16em;text-transform:uppercase;flex-wrap:wrap}
+  .stgrec{color:var(--alert);font-weight:700;white-space:nowrap}
+  .stgrec.stale{color:var(--dim)}
+  #stgUrl{color:var(--cyan);text-transform:none;letter-spacing:.04em;overflow:hidden;
+          text-overflow:ellipsis;white-space:nowrap;max-width:52%}
+  #stgTitle{color:#dceaf3;text-transform:none;letter-spacing:.02em;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap;flex:1}
+  /* stepping back through the frames. The ends are drawn AS ends - a control
+     that looks live at the end of the list is a dead click with no reason. */
+  #stgNav{margin-left:auto;display:flex;gap:9px;align-items:center;white-space:nowrap}
+  #stgNav b{cursor:pointer;color:var(--accent);font-size:14px;line-height:1;font-weight:400}
+  #stgNav b:hover{text-shadow:0 0 10px hsl(var(--keyhue) 90% 50% / .7)}
+  #stgNav b.off{color:#20384a;cursor:default;text-shadow:none}
+  #stgPos{color:var(--dim);font-variant-numeric:tabular-nums;letter-spacing:.1em}
+  #again.armed{color:var(--fg);border-color:var(--accentdim)}
+  #stgStat{position:absolute;right:16px;top:34px;font-size:10px;letter-spacing:.2em;
+           text-transform:uppercase;color:var(--accent);text-align:right;max-width:40%}
+  #stgAge{position:absolute;left:16px;top:34px;font-size:10px;letter-spacing:.16em;
+          text-transform:uppercase;color:var(--warn)}
+  #stgAge.stale{color:var(--alert);font-weight:700}
+  #stgNote{position:absolute;left:16px;bottom:34px;width:min(58%,760px);font-size:11px;
+           line-height:1.5;color:#cfe6f2;white-space:pre-wrap;max-height:34%;overflow:hidden;
+           text-shadow:0 0 10px rgba(0,0,0,.95)}
+  #stgLinks{position:absolute;right:16px;bottom:34px;width:min(30%,300px);font-size:10px;color:#4e7c94}
+  #stgLinks .lh{color:#2b4a5e;letter-spacing:.2em;text-transform:uppercase;margin-bottom:3px}
+  #stgLL div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:1px 0}
+  #stgLL div:hover{color:var(--accent)}
+  #stgFold{position:absolute;right:16px;bottom:9px;font-size:10px;letter-spacing:.16em;
+           text-transform:uppercase;color:var(--dim);cursor:pointer}
+  #stgFold:hover{color:var(--accent)}
+  #stgWhat{position:absolute;left:16px;bottom:9px;font-size:9px;letter-spacing:.16em;
+           text-transform:uppercase;color:#2b4a5e}
+  .rec .shot{cursor:pointer;border:1px solid var(--line);border-radius:3px;padding:0 .45em;
+             margin-left:.5em;opacity:.75;color:var(--cyan)}
+  .rec .shot:hover{opacity:1;border-color:var(--accentdim)}
+  /* ── the instrument column ──────────────────────────────────────────────
+     The furniture the hosted console artifact drew over a clock, drawn here
+     over the DECK. recon-app.js's instrument block carries the honesty rules
+     these boxes have to keep; the CSS only has to stay out of the way. */
+  .ins{border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:11px}
+  .ins .dim{color:var(--dim)} .ins .warn{color:var(--warn)} .ins .alert{color:var(--alert)}
+  #insNow{color:#dceaf3;font-size:11px;line-height:1.35;margin-bottom:6px;word-break:break-word}
+  #insNow.silent{color:var(--dim)}
+  .insgrid{display:grid;grid-template-columns:1fr;gap:0;font-size:10px}
+  .insgrid>div{display:flex;justify-content:space-between;gap:8px;padding:1.5px 0;
+               border-bottom:1px solid #0b1219}
+  .insgrid span{color:#36586e;letter-spacing:.14em;text-transform:uppercase;font-size:9px;white-space:nowrap}
+  .insgrid b{color:var(--fg);font-weight:400;font-variant-numeric:tabular-nums;text-align:right}
+  .insgrid b.warn{color:var(--warn)} .insgrid b.alert{color:var(--alert);font-weight:700}
+  #insNext{color:#a9cfe0;font-size:10.5px;margin:0 0 5px;word-break:break-word}
+  #insWheel{display:block;width:100%;max-width:238px;height:auto;margin:0 auto}
+  #insMove{text-align:center;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+           color:var(--dim);margin-top:4px;font-variant-numeric:tabular-nums}
+  #insMove.alert{color:var(--alert);font-weight:700}
+  #insFade{height:4px;background:#0b1219;border:1px solid var(--line);margin-top:8px;position:relative}
+  #insFade i{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--accent);
+             box-shadow:0 0 8px hsl(var(--keyhue) 90% 50% / .6)}
+  #insBtm{grid-column:1/-1;border-top:1px solid var(--line);background:var(--bg2);padding:5px 10px 4px}
+  #insRibbon{display:block;width:100%;height:58px}
+  #insRibHint{color:#2b4a5e;font-size:9px;letter-spacing:.13em;text-transform:uppercase;padding-top:3px}
+  #insRibHint .alert{color:var(--alert);font-weight:700}
+  /* the console's atmosphere: corner brackets breathing on the beat, CRT, vignette */
+  .rc{position:fixed;width:26px;height:26px;border:2px solid var(--accent);opacity:.85;z-index:55;
+      pointer-events:none;transform:scale(calc(1 + var(--beat)*.14))}
+  .rc1{top:10px;left:10px;border-right:0;border-bottom:0}
+  .rc2{top:10px;right:10px;border-left:0;border-bottom:0}
+  .rc3{bottom:10px;left:10px;border-right:0;border-top:0}
+  .rc4{bottom:10px;right:10px;border-left:0;border-top:0}
+  #crt{position:fixed;inset:0;pointer-events:none;z-index:60;mix-blend-mode:overlay;opacity:.5;
+       background:repeating-linear-gradient(180deg,rgba(255,255,255,.045) 0 1px,transparent 1px 3px)}
+  #vig{position:fixed;inset:0;pointer-events:none;z-index:59;
+       background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.72) 100%)}
+  @media (prefers-reduced-motion:reduce){.rc{transform:none}}
+</style>
+
+<header>
+  <b>◤ RECON</b>
+  <span id="stale">no records yet — waiting on recon.jsonl</span>
+  <span id="replybtn" title="a note back to the agent — optional, off by default">✎ reply</span>
+  <span id="again" title="repeat the last voice-over">&#8635; again</span>
+  <span id="spk" title="records carrying a speak field are read aloud OVER the music — the page's own voice, the deck's own duck. Off by default; the tap arms speech (browsers require one).">voice off</span>
+  <span id="deckstrip" title="the deck — tap to unfold Deckwave"><span class="dim">deck loading…</span></span>
+</header>
+<div id="composer">
+  <input id="say" maxlength="500" placeholder="a note to the agent — music words (hype, calmer, duck…) act at once; anything else waits until the agent reads it and confirms in chat">
+  <button id="send">send</button>
+</div>
+<main>
+  <div id="centre">
+    <div id="stage" hidden>
+      <img id="stgShot" alt="the frame the agent was looking at">
+      <div class="stgscan"></div><div class="stgvig"></div>
+      <div class="stghud"><span class="stgrec">● RECON</span><span id="stgUrl">—</span><span id="stgTitle"></span><span id="stgNav"><b id="stgPrev" title="an older frame">‹</b><span id="stgPos">—</span><b id="stgNext" title="a newer frame">›</b></span></div>
+      <div id="stgAge">—</div>
+      <div id="stgStat">no status fed</div>
+      <div id="stgNote"></div>
+      <div id="stgLinks"><div class="lh">outbound · click copies</div><div id="stgLL"></div></div>
+      <div id="stgWhat">a still the agent sent — this screen sees nothing by itself</div>
+      <div id="stgFold" title="fold the stage away — the feed gets the height back">▴ fold</div>
+    </div>
+    <div id="feed"><div id="empty">Nothing yet. Append a line to <b>recon.jsonl</b> in the served directory — the exact line is in this file's header comment.</div></div>
+  </div>
+  <aside>
+    <h6>now — read off the deck</h6>
+    <div class="ins">
+      <div id="insNow" class="silent">deck loading…</div>
+      <div class="insgrid" id="insGrid"></div>
+    </div>
+    <h6>next · transition</h6>
+    <div class="ins">
+      <div id="insNext">—</div>
+      <canvas id="insWheel" width="238" height="238"
+              title="the Camelot wheel — outer ring B, inner ring A. Filled: the deck. Outlined: the scheduled incoming. The chord between them is the engine's own camScore, not a second opinion."></canvas>
+      <div id="insMove">—</div>
+      <div id="insFade" title="the crossfade the engine is actually running — DW.prevDeck.prog, not a reconstruction"><i></i></div>
+    </div>
+    <h6>📌 pinned</h6><div id="pins"></div>
+  </aside>
+  <div id="insBtm">
+    <canvas id="insRibbon"
+            title="the set: energy arc (area) and playing tempo (line), playhead on the deck's own track. Read-only — it reports, it does not steer."></canvas>
+    <div id="insRibHint">the set — waiting on the deck</div>
+  </div>
+</main>
+<div id="deckwrap"><div id="deckhd">▾ fold the deck away — RECON keeps reading it in the background</div>
+  <iframe id="dw" src="../../index.html" title="Deckwave"></iframe></div>
+<b class="rc rc1"></b><b class="rc rc2"></b><b class="rc rc3"></b><b class="rc rc4"></b>
+<div id="vig"></div><div id="crt"></div>
+
+<script>
+'use strict';
+/* the shell: static DOM + this loader. The app's logic lives in
+   recon-app.js and is HOT-SWAPPABLE - a {"reload":true,"ts":"..."} line
+   in the feed makes the running app re-fetch its own code from its own
+   origin and re-boot, without touching the deck iframe (the music, and
+   the speech arming inside it, survive). Same trust as the original page
+   load: the only thing ever evaluated is ./recon-app.js from this
+   directory. */
+let app = null;
+window.__loadApp = async function () {
+  try {
+    const r = await fetch('./recon-app.js?b=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const src = await r.text();
+    if (app && app.teardown) { try { app.teardown(); } catch (e) {} }
+    (0, eval)(src);
+    app = window.RECONAPP;
+    if (app && app.boot) app.boot();
+    console.log('[recon] app booted');
+  } catch (e) { console.error('[recon] upgrade failed', e); }
+};
+window.__loadApp();
+</script>
+

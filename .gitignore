@@ -1,0 +1,42 @@
+# TLS material for tools/serve.py --lan. Keys belong OUTSIDE this repo
+# entirely (default ../deckwave-tls/); these patterns are a second line of
+# defence in case one ever lands in the tree.
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Scratch
+_tmp-*
+*.log
+__pycache__/
+
+# Claude harness worktrees (session-local)
+.claude/worktrees/
+
+# RECON feed - runtime data written by whoever narrates; never committed
+recon.jsonl
+
+# design canvas seeded output (the working .dc.html sources ARE committed)
+_design/*.html
+!_design/*.dc.html
+
+# rendered narration wavs - runtime artifacts, regenerated per line
+speech/
+
+# RECON stage frames - stills handed to the console by whatever drives the
+# browser; runtime artifacts of one session, like speech/
+recon-shots/
+extensions/citywalk/events.jsonl
+extensions/citywalk/neighbours.json
+
+# Who has the con - per-machine coordination between concurrent sessions.
+# Advisory, never product; see tools/helm.py.
+.helm.json
+
+# the citywalk denylist - the names it guards must not be in the tree
+.citywalk-denylist
+
+# launch-day operator checklist - registrar record ids, account names,
+# private paths. Useful on the day, not part of the product.
+docs/RUNBOOK.md

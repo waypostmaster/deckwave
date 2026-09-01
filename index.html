@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Deckwave.fm</title>
+<!-- Installable (add to home screen). On iOS an installed web app is exempt
+     from Safari's seven-day storage eviction, which is the analysis cache's
+     one real enemy there; it also runs without the toolbar. No service
+     worker: the page already loads nothing off-origin and works offline
+     only in the sense that it never needed the network after load. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#04010f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deckwave">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<link rel="icon" href="assets/icons/icon-180.png">
+<link rel="icon" sizes="512x512" href="assets/icons/icon-512.png">
+<link rel="stylesheet" href="themes/themes.css">
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#04010f;overflow:hidden}
+  #boot{position:fixed;inset:0;display:grid;place-items:center;color:#22e8ff;
+    font:12px/1.8 ui-monospace,Menlo,monospace;letter-spacing:.2em;text-align:center;padding:24px}
+  #boot b{display:block;font-size:20px;letter-spacing:.32em;margin-bottom:14px;
+    text-shadow:0 0 14px rgba(34,232,255,.8)}
+  #boot i{display:block;font-style:normal;color:#7d6eb0;font-size:10.5px;margin-top:14px;max-width:520px}
+  #boot u{color:#ff2d95;text-decoration:none}
+</style>
+</head>
+<body>
+<div id="boot"><b>DECKWAVE</b>loading engine&hellip;
+  <i>your music is read locally and never uploaded &middot; best on Chromium; Firefox, Safari and iOS 18.4+ can pick files</i></div>
+
+<!-- Self-hosted and PINNED. Do not load these from a CDN in production:
+     the AudioWorklet needs a same-origin URL with the right MIME type, and
+     CDN resources are blocked under COEP if you ever need WASM threads. -->
+<script src="vendor/essentia-wasm.web.js"></script>
+<script src="vendor/essentia.js-core.js"></script>
+
+<script src="assets/deckwave.js"></script>
+<script src="assets/deckwave-phrase.js"></script>
+<script src="assets/deckwave-flac.js"></script>
+<script src="assets/deckwave-score.js"></script>
+<script src="assets/deckwave-listen.js"></script>
+<script src="assets/deckwave-panels.js"></script>
+<script src="assets/deckwave-visuals.js"></script>
+<script src="assets/deckwave-messages.js"></script>
+<script src="assets/deckwave-tags.js"></script>
+<script src="assets/deckwave-nowplaying.js"></script>
+<script src="assets/deckwave-sprites.js"></script>
+<script src="assets/deckwave-cache.js"></script>
+<script src="assets/deckwave-libre.js"></script>
+<script src="assets/deckwave-phone.js"></script>
+<script src="assets/deckwave-nav.js"></script>
+<script src="assets/deckwave-nav-commit.js"></script>
+<script src="assets/deckwave-nav-fast.js"></script>
+<script src="assets/deckwave-loop.js"></script>
+<script src="assets/deckwave-popout.js"></script>
+<script src="assets/deckwave-events.js"></script>
+<script src="assets/deckwave-render.js"></script>
+<script src="assets/deckwave-dashboard.js"></script>
+<!-- patches load last: each replaces or adds one thing -->
+<script src="assets/patch-01-spectrogram.js"></script>
+<script src="assets/panel-wayposts.js"></script>
+<script src="assets/panel-centre.js"></script>
+<script src="assets/panel-route.js"></script>
+
+<script>
+(function () {
+  const boot = document.getElementById('boot');
+  const need = ['DW','DWFLAC','DWSCORE','DWLISTEN','DWPANELS','DWMSG','DWTAGS','DWCACHE','DWNAV','DWNOWPLAYING','DWSPRITES','DWLOOP','DWDASH'];
+  const missing = need.filter(k => typeof window[k] === 'undefined');
+  if (missing.length) {
+    boot.innerHTML = '<b>DECKWAVE</b>failed to load: ' + missing.join(', ') +
+      '<i>Check that assets/ and vendor/ are present and served over HTTPS.</i>';
+    return;
+  }
+  /* The gate used to be "no showDirectoryPicker, no Deckwave", which turned
+     away Firefox, desktop Safari and every browser on iOS at the door — for
+     want of a folder picker, when <input type="file"> reaches the same files
+     (and, from iOS 18.4, the same folders). What the engine actually cannot
+     run without is Web Audio with worklets and WebAssembly; everything else
+     has a fallback inside DW. Ask for those, and say plainly what this
+     browser will and will not be able to do. */
+  const P = window.DW.platform;
+  if (!P.wasm || !P.audioWorklet) {
+    boot.innerHTML = '<b>DECKWAVE</b><u>unsupported browser</u>' +
+      '<i>Deckwave needs WebAssembly and Web Audio worklets to analyse and ' +
+      'beatmatch, and this browser has ' + (!P.wasm ? 'no WebAssembly' : 'no AudioWorklet') +
+      '. Chrome, Edge, Firefox and Safari 14.1+ all do. Nothing is wrong with your setup.</i>';
+    return;
+  }
+  if (!P.fsAccess) {
+    /* not a refusal — a note, gone as soon as the dashboard mounts */
+    console.info('deckwave: no File System Access API here — ' +
+      (P.folderInputUsable ? 'folders and files come in through <input type=file>'
+                           : 'files come in through <input type=file> multi-select; this browser cannot pick a folder' +
+                             (P.android && P.chromium && P.chromium < 132 ? ' (Chrome for Android gains folders and the full folder walk at 132)' : '')) +
+      (P.ios ? ' · iOS: tab audio capture is unavailable; a long set may be suspended when the screen locks' : '') +
+      (P.android ? ' · Android: tab audio capture is unavailable (mic works)' : ''));
+  }
+  boot.remove();
+  window.DWDASH.mount(document.body);
+})();
+</script>
+</body>
+</html>

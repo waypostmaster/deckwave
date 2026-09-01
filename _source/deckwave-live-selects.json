@@ -1,0 +1,161 @@
+{
+ "theme: cyberpunk": {
+  "button": "e=>{e.stopPropagation();[...sr.querySelectorAll('.sel,.split')].forEach(o=>{if(o!==wrap)o.classList.remove('open');});wrap.classList.toggle('open');}",
+  "items": [
+   {
+    "k": "cyber",
+    "n": "cyberpunk",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "amber",
+    "n": "amber CRT",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "winamp",
+    "n": "classic green",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "paper",
+    "n": "paper",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "mono",
+    "n": "monochrome",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "ice",
+    "n": "ice",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   }
+  ]
+ },
+ "list: track list on": {
+  "button": "e=>{e.stopPropagation();[...sr.querySelectorAll('.sel,.split')].forEach(o=>{if(o!==wrap)o.classList.remove('open');});wrap.classList.toggle('open');}",
+  "items": [
+   {
+    "k": "show",
+    "n": "track list on",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "wide",
+    "n": "track list wide",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "hide",
+    "n": "track list off",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   }
+  ]
+ },
+ "density: comfortable": {
+  "button": "e=>{e.stopPropagation();[...sr.querySelectorAll('.sel,.split')].forEach(o=>{if(o!==wrap)o.classList.remove('open');});wrap.classList.toggle('open');}",
+  "items": [
+   {
+    "k": "0",
+    "n": "comfortable",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "1",
+    "n": "dense",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   }
+  ]
+ },
+ "view: default": {
+  "button": "e=>{e.stopPropagation();[...sr.querySelectorAll('.sel,.split')].forEach(o=>{if(o!==wrap)o.classList.remove('open');});wrap.classList.toggle('open');}",
+  "items": [
+   {
+    "k": "default",
+    "n": "default",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "__save",
+    "n": "⬇ save current as…",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "__reset",
+    "n": "↺ reset to default",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "__export",
+    "n": "⤓ export views",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "__import",
+    "n": "⤒ import views",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   }
+  ]
+ },
+ "layout: auto": {
+  "button": "e=>{e.stopPropagation();[...sr.querySelectorAll('.sel,.split')].forEach(o=>{if(o!==wrap)o.classList.remove('open');});wrap.classList.toggle('open');}",
+  "items": [
+   {
+    "k": "auto",
+    "n": "autoby aspect",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "mega",
+    "n": "⬛ MEGA · all 12widescreen",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "6",
+    "n": "6 across",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "5",
+    "n": "5 across",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "4",
+    "n": "4 across",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "3",
+    "n": "3 across",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "2",
+    "n": "2 × nsquare",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   },
+   {
+    "k": "1",
+    "n": "single columntall",
+    "fn": "ev=>{ev.stopPropagation();current=el.dataset.k;\n   b.textContent=label+': '+items.find(x=>x.k===current).n;wrap.classList.remove('open');paint();onPick(current);}"
+   }
+  ]
+ },
+ "_app": {
+  "cls": "app",
+  "attrs": [
+   "class=app",
+   "data-cols=mega"
+  ]
+ },
+ "_side": {
+  "cls": "side",
+  "attrs": [
+   "class=side"
+  ]
+ },
+ "_hostCls": ""
+}
