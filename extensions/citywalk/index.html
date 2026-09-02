@@ -477,7 +477,14 @@ async function loadEvents() {
     speakNew(fresh);
   } catch (e) { evLoaded = true; renderEvents(); renderWatch(); }
 }
+/* A rebuild resets the scroll, and a reader mid-body was thrown back to the
+   top every poll. Keep the offset across the rebuild. */
 function renderEvents() {
+  const _el = $('evlist'); const _st = _el.scrollTop;
+  renderEventsInner();
+  _el.scrollTop = _st;
+}
+function renderEventsInner() {
   const el = $('evlist');
   if (!evLoaded) { el.innerHTML = '<div class="none">reading…</div>'; return; }
   if (!events.length) {
@@ -966,7 +973,7 @@ function frame() {
    PARTICULAR SYSTEM IS IN THIS FILE: ids, words, the name of "us" and the
    definition of "unanswered" all arrive on the feed's own control row,
    {"watchfull":{...}}. No control row, no counts - the panel says so. */
-let full = [], fullCfg = null, fullLoaded = false, fullStamp = 0, fullFilter = 'all';
+let full = [], fullCfg = null, fullLoaded = false, fullStamp = 0, fullFilter = 'all', fullSig = '';
 const fullOpen = {};
 async function loadFull() {
   try {
@@ -978,8 +985,10 @@ async function loadFull() {
     const shown = rows.filter(x => !(x && x.watchfull));
     shown.sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
     if (shown.length !== full.length) fullStamp = Date.now();
-    full = shown; fullLoaded = true;
-    renderFull();
+    const sig = shown.length + '|' + (shown.length ? shown[shown.length - 1].ts : '') + '|' + (fullCfg && fullCfg.generated);
+    const same = fullLoaded && sig === fullSig;
+    fullSig = sig; full = shown; fullLoaded = true;
+    if (!same) renderFull();
   } catch (e) { fullLoaded = true; renderFull(); }
 }
 function fullPass(e) {
@@ -992,7 +1001,14 @@ function fullPass(e) {
   return true;
 }
 
+/* A rebuild resets the scroll, and a reader mid-body was thrown back to the
+   top every poll. Keep the offset across the rebuild. */
 function renderFull() {
+  const _el = $('flist'); const _st = _el.scrollTop;
+  renderFullInner();
+  _el.scrollTop = _st;
+}
+function renderFullInner() {
   const el = $('flist'), src = $('fsrc'), msg = $('fmsg');
   if (!fullLoaded) { el.innerHTML = '<div class="none">reading…</div>'; return; }
   if (!full.length) {
@@ -1093,7 +1109,7 @@ $('fbar').addEventListener('click', ev => {
    a still pretending to be a window. The panel takes the stage from the rain,
    which stays one tap away and keeps drawing only while it is shown. */
 let ours = [], oursCfg = null, oursPlaces = [], oursThings = [], oursLoaded = false, oursStamp = 0;
-let oursTab = 'all', oursQ = '';
+let oursTab = 'all', oursQ = '', oursSig = '';
 const oursOpen = {};
 let rainOff = true;
 function setRain(on) {
@@ -1118,8 +1134,10 @@ async function loadOurs() {
     });
     shown.sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
     if (shown.length !== ours.length) oursStamp = Date.now();
-    ours = shown; oursLoaded = true;
-    renderOurs();
+    const sig = shown.length + '|' + (shown.length ? shown[shown.length - 1].ts : '') + '|' + (oursCfg && oursCfg.generated) + '|' + oursThings.length + '|' + oursPlaces.length;
+    const same = oursLoaded && sig === oursSig;
+    oursSig = sig; ours = shown; oursLoaded = true;
+    if (!same) renderOurs();   /* an unchanged feed leaves the reader where they are */
   } catch (e) { oursLoaded = true; renderOurs(); }
 }
 function oursHit(parts) {
@@ -1146,7 +1164,14 @@ function bodyNode(e) {
   return d;
 }
 
+/* A rebuild resets the scroll, and a reader mid-body was thrown back to the
+   top every poll. Keep the offset across the rebuild. */
 function renderOurs() {
+  const _el = $('olist'); const _st = _el.scrollTop;
+  renderOursInner();
+  _el.scrollTop = _st;
+}
+function renderOursInner() {
   const el = $('olist'), src = $('osrc'), msg = $('omsg');
   if (!oursLoaded) { el.innerHTML = '<div class="none">reading…</div>'; return; }
   const me = oursCfg && oursCfg.me;
