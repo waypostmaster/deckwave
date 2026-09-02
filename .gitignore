@@ -30,6 +30,7 @@ recon-shots/
 extensions/citywalk/events.jsonl
 extensions/citywalk/neighbours.json
 extensions/citywalk/watched.jsonl
+extensions/citywalk/ours.jsonl
 
 # Who has the con - per-machine coordination between concurrent sessions.
 # Advisory, never product; see tools/helm.py.

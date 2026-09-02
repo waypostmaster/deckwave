@@ -149,6 +149,24 @@ body{font-size:12px;line-height:1.4}
 #full .tag{font-size:9px;letter-spacing:.1em;padding:0 4px;border:1px solid var(--line);color:var(--dim);margin-left:4px}
 #full .tag.u{color:var(--red);border-color:var(--red)} #full .tag.m{color:var(--accent)}
 #full .more{color:var(--dim);padding:2px 0 2px 6px;font-size:10px}
+#ours{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--panel);z-index:2}
+#stage.rain #ours{display:none}
+#ohead{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line)}
+#ohead b{letter-spacing:.22em;font-size:10px;color:var(--accent)}
+#ohead .of{padding:2px 7px;font-size:9px} #ohead .of.on{color:var(--accent);border-color:var(--accent)}
+#ohead #oq{font:inherit;background:#0b1420;color:var(--fg);border:1px solid var(--line);padding:3px 6px;width:150px}
+#ohead #rainbtn{padding:2px 7px;font-size:9px} #ohead #rainbtn.on{color:var(--accent);border-color:var(--accent)}
+#omsg{color:var(--dim);font-size:10px;line-height:1.4;padding:4px 10px}
+#olist{overflow:auto;padding:0 10px 10px;flex:1;min-height:0}
+#olist .od{color:var(--dim);letter-spacing:.18em;font-size:9px;text-transform:uppercase;margin:10px 0 3px;border-bottom:1px solid var(--line);padding-bottom:2px}
+#olist .or{padding:3px 0 3px 6px;line-height:1.4;border-left:2px solid transparent}
+#olist .or.has{cursor:pointer} #olist .or.has:hover{background:#0b1420;border-left-color:var(--accent)}
+#olist .or.open{border-left-color:var(--accent)}
+#olist .or .when{color:var(--dim)} #olist .or .where{color:var(--dim)} #olist .or .what{color:var(--fg)} #olist .or .nm{color:var(--accent)}
+#olist .ob{white-space:pre-wrap;word-break:break-word;color:var(--fg);background:#060b12;border:1px solid var(--line);padding:8px 10px;margin:4px 0 6px;font-size:11px;line-height:1.5;max-height:60vh;overflow:auto}
+#olist .ob .ok{color:var(--dim)}
+#olist .more{color:var(--dim);font-size:10px;padding:6px}
+#olist .none{color:var(--dim);line-height:1.5;padding:8px 0}
 #voice.on{color:var(--accent);border-color:var(--accent)}
 #feedbar{display:flex;gap:5px;align-items:center;margin-bottom:7px;font-size:10px;color:var(--dim)}
 #feedbar input{font:inherit;background:#0b1420;color:var(--fg);border:1px solid var(--line);padding:2px 5px}
@@ -211,6 +229,23 @@ button:hover{border-color:var(--accent);color:var(--accent)}
   <div id="mid">
     <div id="stage">
       <canvas id="rain"></canvas>
+      <div id="ours">
+        <div id="ohead">
+          <b>OUR RECORD</b> <span id="osrc" style="color:var(--dim)"></span>
+          <span class="grow"></span>
+          <button class="of on" data-t="all">all</button>
+          <button class="of" data-t="note">notes</button>
+          <button class="of" data-t="edit">edits</button>
+          <button class="of" data-t="make">makes</button>
+          <button class="of" data-t="move">moves</button>
+          <button class="of" data-t="things">things now</button>
+          <button class="of" data-t="walls">walls now</button>
+          <input id="oq" placeholder="find a word" spellcheck="false" autocomplete="off">
+          <button id="rainbtn" title="show the rain instead of the record">rain</button>
+        </div>
+        <div id="omsg"></div>
+        <div id="olist"></div>
+      </div>
       <div id="src">rain = <em id="srcname">—</em> · <em id="srcbits">0</em> real bits of this page's own design statement, falling as bytes. <em>House words only.</em> Nobody else's writing is on this screen.</div>
     </div>
     <div id="side">
@@ -885,6 +920,7 @@ function frame() {
   }
   document.documentElement.style.setProperty('--beat', (1 - beatPhase).toFixed(3));
 
+  if (rainOff) return;   /* the record has the stage; drawing to a hidden canvas is waste */
   g.fillStyle = 'rgba(1,3,8,.20)';
   g.fillRect(0, 0, VW, VH);
   if (!BITS.length) {
@@ -1045,6 +1081,174 @@ $('fbar').addEventListener('click', ev => {
 });
 
 
+
+/* ---- OUR RECORD: everything under one name, whole history -------------
+   A third feed, ours.jsonl, same directory, same bus. Three control rows
+   arrive first: {"ours":{me,counts,generated}}, {"ourplaces":[...]} - the
+   current text of the places that name is keeper of - and {"ourthings":[...]}
+   - the current bodies of the things it made or edited. Every other row is one
+   record under that name. Nothing here is fetched from anywhere but this
+   directory; the walls and bodies were read by whatever writes the file, and
+   each carries the time it was read, because a wall shown without its age is
+   a still pretending to be a window. The panel takes the stage from the rain,
+   which stays one tap away and keeps drawing only while it is shown. */
+let ours = [], oursCfg = null, oursPlaces = [], oursThings = [], oursLoaded = false, oursStamp = 0;
+let oursTab = 'all', oursQ = '';
+const oursOpen = {};
+let rainOff = true;
+function setRain(on) {
+  rainOff = !on;
+  $('stage').classList.toggle('rain', !!on);
+  $('rainbtn').className = on ? 'on' : '';
+  try { localStorage.setItem('cw-rain', on ? '1' : '0'); } catch (e) {}
+  if (on) sizeRain();
+}
+async function loadOurs() {
+  try {
+    const r = await fetch('ours.jsonl?t=' + Date.now());
+    if (!r.ok) { oursLoaded = true; renderOurs(); return; }
+    const rows = (await r.text()).split('\n').filter(l => l.trim())
+      .map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+    const shown = [];
+    rows.forEach(x => {
+      if (x.ours && typeof x.ours === 'object') oursCfg = x.ours;
+      else if (Array.isArray(x.ourplaces)) oursPlaces = x.ourplaces;
+      else if (Array.isArray(x.ourthings)) oursThings = x.ourthings;
+      else shown.push(x);
+    });
+    shown.sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
+    if (shown.length !== ours.length) oursStamp = Date.now();
+    ours = shown; oursLoaded = true;
+    renderOurs();
+  } catch (e) { oursLoaded = true; renderOurs(); }
+}
+function oursHit(parts) {
+  if (!oursQ) return true;
+  return parts.some(p => String(p || '').toLowerCase().indexOf(oursQ) > -1);
+}
+function oursGroup(e) { return e.kind === 'note' ? 'note' : (e.group || 'act'); }
+function bodyNode(e) {
+  const d = document.createElement('div');
+  d.className = 'ob';
+  if (typeof e.body === 'string' && e.body.length) { d.textContent = e.body; return d; }
+  const det = e.detail || {};
+  const keys = Object.keys(det);
+  if (!keys.length) { d.textContent = 'No text was recorded for this.'; return d; }
+  const t = document.createElement('div'); t.className = 'ok';
+  t.textContent = 'No text was recorded for this. What the source logged:';
+  d.appendChild(t);
+  keys.forEach(k => {
+    const row = document.createElement('div');
+    const key = document.createElement('span'); key.className = 'ok'; key.textContent = k + '  ';
+    const val = document.createElement('span'); val.textContent = String(det[k]);
+    row.appendChild(key); row.appendChild(val); d.appendChild(row);
+  });
+  return d;
+}
+
+function renderOurs() {
+  const el = $('olist'), src = $('osrc'), msg = $('omsg');
+  if (!oursLoaded) { el.innerHTML = '<div class="none">reading…</div>'; return; }
+  const me = oursCfg && oursCfg.me;
+  const c = (oursCfg && oursCfg.counts) || {};
+  const age = oursStamp ? Math.floor((Date.now() - oursStamp) / 60000) : null;
+  src.textContent = (me ? 'under the name ' + me + ' · ' : '') + ours.length + ' records' +
+    (age !== null && age >= 5 ? ' · quiet ' + age + 'm' : '');
+  if (!ours.length && !oursThings.length && !oursPlaces.length) {
+    msg.textContent = '';
+    el.innerHTML = '<div class="none">nothing at <b>ours.jsonl</b>, or it is empty. Something outside this ' +
+      'page has to write it - the shape is in the header of this file.</div>';
+    return;
+  }
+  msg.textContent = (c.notes != null ? c.notes + ' notes · ' + c.edits + ' edits · ' + c.makes + ' makes · ' +
+    c.moves + ' moves · ' + c.places + ' places kept · ' + c.things + ' things made or edited' : '') +
+    (oursCfg && oursCfg.generated ? ' · file written ' + String(oursCfg.generated).slice(11, 19) + 'Z' : '') +
+    (oursQ ? ' · filtered on "' + oursQ + '"' : '');
+  el.textContent = '';
+  const frag = document.createDocumentFragment();
+  const row = (cls, html) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d; };
+  if (oursTab === 'things' || oursTab === 'walls') {
+    const list = oursTab === 'things' ? oursThings : oursPlaces;
+    const items = list.filter(t => oursHit([t.name, t.body, t.description, t.purpose, t.id]));
+    if (!items.length) { frag.appendChild(row('none', 'nothing matches.')); }
+    items.forEach(t => {
+      const key = oursTab + ':' + t.id;
+      const open = !!oursOpen[key];
+      const bytes = (oursTab === 'things' ? (t.body || '') : (t.description || '')).length;
+      const d = row('or has' + (open ? ' open' : ''),
+        '<span class="nm">#' + esc(String(t.id)) + ' ' + esc(t.name || '') + '</span> ' +
+        '<span class="where">· ' + bytes + ' chars' +
+        (t.place_id != null ? ' · in #' + esc(String(t.place_id)) : '') +
+        (t.last_edit ? ' · last edit ' + esc(String(t.last_edit).slice(0, 16).replace('T', ' ')) : '') +
+        (t.fetched ? ' · read ' + esc(String(t.fetched).slice(11, 19)) + 'Z' : '') +
+        (t.error ? ' · <b>read failed: ' + esc(String(t.error)) + '</b>' : '') + '</span>');
+      d.setAttribute('data-key', key);
+      if (open) {
+        const b = document.createElement('div'); b.className = 'ob';
+        if (oursTab === 'walls') b.textContent = (t.purpose ? 'PURPOSE: ' + t.purpose + '\n\n' : '') + (t.description || '(empty)');
+        else b.textContent = t.body || '(empty)';
+        d.appendChild(b);
+      }
+      frag.appendChild(d);
+    });
+    el.appendChild(frag);
+    return;
+  }
+  const idx = [];
+  for (let i = ours.length - 1; i >= 0; i--) {
+    const e = ours[i];
+    if (oursTab !== 'all' && oursGroup(e) !== oursTab) continue;
+    if (oursTab === 'all' && oursGroup(e) === 'move' && !oursQ) continue;
+    if (!oursHit([e.what, e.where, e.body, e.detail && JSON.stringify(e.detail)])) continue;
+    idx.push(i);
+  }
+  if (!idx.length) { frag.appendChild(row('none', 'nothing matches this tab' + (oursQ ? ' and word' : '') + '. (moves are hidden from "all"; open the moves tab.)')); }
+  let day = '', shown = 0;
+  const lim = 400;
+  for (const i of idx) {
+    if (shown++ >= lim) { frag.appendChild(row('more', (idx.length - lim) + ' older records not shown; narrow with a word')); break; }
+    const e = ours[i];
+    const d0 = String(e.ts || '').slice(0, 10);
+    if (d0 !== day) { day = d0; frag.appendChild(row('od', esc(day))); }
+    const readable = (typeof e.body === 'string' && e.body.length > 0) || (e.detail && Object.keys(e.detail).length > 0);
+    const open = !!oursOpen[i];
+    const d = row('or' + (readable ? ' has' : '') + (open ? ' open' : ''),
+      '<span class="when">' + esc(String(e.ts || '').slice(11, 19)) + '</span> ' +
+      '<span class="what">' + esc(e.kind === 'note' ? 'note' + (e.note_id != null ? ' #' + e.note_id : '') : (e.what || '')) + '</span>' +
+      (e.where ? ' <span class="where">· ' + esc(e.where) + (e.place_id != null ? ' #' + esc(String(e.place_id)) : '') + '</span>' : '') +
+      (e.bytes ? ' <span class="where">· ' + esc(String(e.bytes)) + ' B</span>' : ''));
+    if (readable) d.setAttribute('data-i', String(i));
+    if (open) d.appendChild(bodyNode(e));
+    frag.appendChild(d);
+  }
+  el.appendChild(frag);
+}
+
+$('olist').addEventListener('click', ev => {
+  if (ev.target.closest('.ob')) return;            /* reading inside an open body is not a toggle */
+  const r = ev.target.closest('.or.has');
+  if (!r) return;
+  const key = r.getAttribute('data-key');
+  const i = r.getAttribute('data-i');
+  if (key) oursOpen[key] = !oursOpen[key];
+  else if (i != null) oursOpen[i] = !oursOpen[i];
+  renderOurs();
+});
+$('ohead').addEventListener('click', ev => {
+  const b = ev.target.closest('.of');
+  if (!b) return;
+  oursTab = b.getAttribute('data-t') || 'all';
+  document.querySelectorAll('#ohead .of').forEach(x => x.className = 'of' + (x === b ? ' on' : ''));
+  renderOurs();
+});
+$('oq').addEventListener('input', () => { oursQ = $('oq').value.trim().toLowerCase(); renderOurs(); });
+$('rainbtn').addEventListener('click', () => setRain(rainOff));
+(function () {
+  let want = false;
+  try { want = localStorage.getItem('cw-rain') === '1'; } catch (e) {}
+  setRain(want);
+})();
+
 /* ---- boot: the one real click ------------------------------------------ */
 $('go').addEventListener('click', () => {
   $('boot').style.display = 'none';
@@ -1065,6 +1269,8 @@ setInterval(loadEvents, 4000);
 setInterval(loadNbs, 3000);
 loadFull();
 setInterval(loadFull, 10000);
+loadOurs();
+setInterval(loadOurs, 15000);
 setInterval(staleness, 5000);
 staleness();
 requestAnimationFrame(frame);
