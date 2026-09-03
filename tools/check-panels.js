@@ -405,6 +405,67 @@ const dashSrc = fs.readFileSync('assets/deckwave-dashboard.js', 'utf8').replace(
      bad.length === 0,
      'a shipped module has a SyntaxError and every text check in this file still passes: ' + JSON.stringify(bad.slice(0, 3)));
 }
+/* PARSING IS NOT LOADING (ledger 132, 2026-09-03). 0.8.1 went to Pages with
+   two modules that PARSED and threw on load: a backtick in a comment inside
+   a CSS template literal closed the literal, and the file compiled as a
+   tagged-template call — `"…css…"(…)` — which is valid syntax and a
+   TypeError at run time. The parse sweep above was green; the boot gate on
+   deckwave.fm said "failed to load: DWNOWPLAYING, DWDASH". So this sweep
+   EXECUTES every script index.html loads, in index.html's order, in one
+   fresh vm context with a browser-shaped window — the same shape the rest
+   of this harness uses — and demands that none throws at load. Vendor
+   files are skipped (WASM), and a module that needs something the fake
+   lacks is a fake to extend, never a check to weaken: the falsifier is the
+   HEAD tree of 2026-09-03 before the fix, which fails exactly two.
+   Run from the repo root; the file list is read from index.html so a new
+   script tag is covered the day it lands. */
+{
+  const vm = require('vm');
+  const html = fs.readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n');
+  const srcs = [];
+  html.replace(/<script[^>]*\ssrc="([^"]+)"[^>]*>/g, (m, s) => { if (/^assets\//.test(s)) srcs.push(s); return m; });
+  const noop = () => {};
+  const el = () => ({ style: {}, dataset: {}, classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
+                      appendChild: noop, removeChild: noop, append: noop, remove: noop, setAttribute: noop, getAttribute: () => null,
+                      addEventListener: noop, removeEventListener: noop, querySelector: () => null, querySelectorAll: () => [],
+                      getContext: () => null, attachShadow: () => el(), textContent: '', innerHTML: '', children: [] });
+  const store = {};
+  const sb = {
+    console: { log: noop, warn: noop, error: noop, info: noop, debug: noop },
+    setTimeout: () => 0, clearTimeout: noop, setInterval: () => 0, clearInterval: noop,
+    requestAnimationFrame: () => 0, cancelAnimationFrame: noop, queueMicrotask: noop,
+    performance: { now: () => 0 },
+    localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
+    sessionStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    navigator: { userAgent: 'check-panels', platform: 'node', language: 'en', maxTouchPoints: 0 },
+    location: { origin: 'http://127.0.0.1:8777', href: 'http://127.0.0.1:8777/', protocol: 'http:', hostname: '127.0.0.1', search: '', hash: '', pathname: '/' },
+    document: Object.assign(el(), { createElement: el, createElementNS: el, getElementById: () => null, body: el(), head: el(), documentElement: el(),
+                                    hidden: false, visibilityState: 'visible', currentScript: null, readyState: 'complete' }),
+    customElements: { define: noop, get: () => undefined },
+    matchMedia: () => ({ matches: false, addEventListener: noop, addListener: noop }),
+    addEventListener: noop, removeEventListener: noop, dispatchEvent: () => true,
+    devicePixelRatio: 1, innerWidth: 1280, innerHeight: 800, screen: { width: 1280, height: 800 },
+    URL: URL, TextEncoder: TextEncoder, TextDecoder: TextDecoder, Blob: class {}, Event: class {}, CustomEvent: class {},
+    fetch: () => new Promise(noop), crypto: { getRandomValues: a => a, subtle: {} },
+    atob: s => Buffer.from(s, 'base64').toString('binary'), btoa: s => Buffer.from(s, 'binary').toString('base64'),
+    structuredClone: x => JSON.parse(JSON.stringify(x)),
+  };
+  sb.window = sb; sb.self = sb; sb.globalThis = sb;
+  vm.createContext(sb);
+  const threw = [];
+  for (const s of srcs) {
+    try { vm.runInContext(fs.readFileSync(s, 'utf8'), sb, { filename: s }); }
+    catch (e) { threw.push(s + ': ' + ((e && e.message) || e).split('\n')[0].slice(0, 120)); }
+  }
+  ok('every script index.html loads from assets/ LOADS without throwing (' + srcs.length + ' scripts, index.html order)',
+     srcs.length >= 20 && threw.length === 0,
+     'a module compiled and threw at load — the 0.8.1 boot-gate failure: ' + JSON.stringify(threw.slice(0, 3)));
+  const globals = ['DW', 'DWPANELS', 'DWMSG', 'DWNOWPLAYING', 'DWDASH', 'DWLOOP', 'DWEVENTS'];
+  const missing = globals.filter(g => typeof sb[g] === 'undefined');
+  ok('the loaded scripts hung the globals the boot gate needs (' + globals.join(', ') + ')',
+     missing.length === 0,
+     'a script ran and left its global undefined — exactly what the boot gate reports as failed to load: ' + JSON.stringify(missing));
+}
 /* The card relabels its four grid tiles in listen mode; the glossary map used
    to be POSITIONAL, so hovering `level` returned the tempo definition. Keyed
    off the label's own text since 2026-08-31, and an unrecognised label gets no

@@ -237,8 +237,10 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .tip em{font-style:normal;display:block;margin-top:4px;font-size:7.5px;color:var(--dim)}
 @media(max-width:720px){.tip{width:240px;left:auto;right:-6px}}
 
-/* NOW PLAYING — the card's rules are NOT here.
-   A whole `.np` block used to sit at this spot, duplicating the stylesheet
+/* NOW PLAYING — the card's rules are NOT here. (No backticks in this
+   comment — it sits inside the template literal; one closed it on
+   2026-09-03 and the page did not boot: ledger 132.)
+   A whole ".np" block used to sit at this spot, duplicating the stylesheet
    deckwave-nowplaying.js ships with itself. That sheet is appended to the
    same shadow root AFTER this one, so it won every property both declared
    and this copy decided nothing — while still being the place someone would

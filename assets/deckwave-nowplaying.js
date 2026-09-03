@@ -59,10 +59,13 @@ const CSS = `
 .np .blend b{color:var(--ac2)}
 .np .blend.soon b{color:var(--warn)}
 /* padding-top and border-top arrived here on 2026-09-01: they were the only
-   two declarations of the dashboard's duplicate `.np` block that this sheet
+   two declarations of the dashboard's duplicate ".np" block that this sheet
    did not already override, so deleting that dead block would have quietly
    removed the rule above "next ·". Moved, not dropped — the card's own sheet
-   is the one that renders, so every rule the card needs lives in it. */
+   is the one that renders, so every rule the card needs lives in it.
+   NO BACKTICKS IN THIS COMMENT: it sits inside the template literal, and a
+   backtick here closes it — the file then compiles as a tagged-template
+   call and throws "is not a function" on load (ledger 132, 2026-09-03). */
 .np .nx{color:var(--dim);font-size:9px;margin-top:5px;padding-top:6px;
   border-top:1px solid var(--line);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}

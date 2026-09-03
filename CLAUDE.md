@@ -176,7 +176,7 @@ of 4") to `waypostmaster/deckwave`, one commit of fresh history, tag
 `v0.8.0`, `deckwave.fm` on GitHub Pages. **0.8.1 (2026-09-03) is the review
 release:** every finding of the launch-day review (`docs/REVIEW-2026-09-01.md`)
 is resolved, measured, or written down as the keeper's call — ledgers
-122–131 in BUILD-LOG, Act 41. Nothing in it moved a threshold,
+122–132 in BUILD-LOG, Act 41. **0.8.1 as tagged did not BOOT on Pages** (two modules parsed and threw on load; the harness only parsed) — 0.8.2 is that fix plus the gate, ledger 132. Nothing in it moved a threshold,
 calibration or detector; nothing in it has been HEARD.
 
 **This block used to be 660 lines of narrative.** It was retired whole to
@@ -195,9 +195,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — fourteen of them, 990 checks, all `node tools/check-*.js`
+### Harnesses — fourteen of them, 992 checks, all `node tools/check-*.js`
 
-`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 194 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 — **990 in all, re-counted 2026-09-03 from the fourteen tally lines.**
+`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 196 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 — **992 in all, re-counted 2026-09-03 from the fourteen tally lines.**
 
 **Three go red without the library, on purpose** (`check-flac`,
 `check-pool`, `check-route` each fail ONE check that says the corpus is the
@@ -207,7 +207,7 @@ on the exact line `all passed of N checks`, as the LAST line of stdout**,
 and `check-serve` sweeps the others for the template (ledger 110: a
 prettier variant once scored zero). **A text harness cannot see a broken
 parse** (ledger 111) — any harness that reads a script it does not execute
-compiles it with `vm.Script` first. **A harness that crashes prints no
+compiles it with `vm.Script` first — **and parsing is not loading** (ledger 132): `check-panels` also EXECUTES every script index.html loads, in order, in a sandboxed window, and demands the boot gate's globals exist afterwards. **A harness that crashes prints no
 tally, which the sweep scores as zero** (ledger 130) — every call into the
 module under test goes through a catching seam. Every new check is run
 against the OLD source first (`git show HEAD:<file>` + the harness's

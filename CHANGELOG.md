@@ -3,6 +3,25 @@
 Versions are recorded here and in the package filename. Earlier packages from
 the 2026-08-17 session were overwritten in place and no longer exist — this
 file begins the lineage that will be preserved.
+## 0.8.2 — 2026-09-03 · 0.8.1 did not boot
+
+**0.8.1 as tagged went to GitHub Pages with a page that could not boot.**
+The keeper saw it within the hour: *"failed to load: DWNOWPLAYING,
+DWDASH"* on deckwave.fm. Two modules PARSED and threw on load — a comment
+inside the CSS template literal in each of `deckwave-nowplaying.js` and
+`deckwave-dashboard.js` contained backticks, which closed the literal and
+turned the file into a tagged-template call: valid syntax, a `TypeError`
+at run time. The 990-check sweep was green because the only whole-file
+check on those modules was `vm.Script`, which parses and does not execute
+(ledger 111's fix, one step short). Ledger 132.
+
+0.8.2 is the two-word fix plus the gate that was missing: `check-panels`
+now EXECUTES every script `index.html` loads, in order, in a sandboxed
+window, and demands the boot gate's globals exist afterwards. Against the
+0.8.1 tree it fails on exactly the two modules the page named; against
+this one it passes. **Harnesses 990 → 992.** The 0.8.1 package stays in
+`_source/` as the counter-example, marked as such.
+
 ## 0.8.1 — 2026-09-03 · the review release
 
 **Every finding of the launch-day review (`docs/REVIEW-2026-09-01.md`) is
