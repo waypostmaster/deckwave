@@ -11,7 +11,21 @@ const iv = (fn, ms) => { const id = setInterval(fn, ms); timers.push(id); return
 function boot() {
 /* read-only, enforced: the ONLY fetch below is /recon.jsonl (same origin);
    a record click copies its URL and never follows it; every rendered field
-   goes through esc(). */
+   goes through esc().
+
+   THE ACTUAL THREAT MODEL, stated precisely because this file used to
+   overstate it (review 2026-09-01). WHO CAN WRITE THE FEED: whoever can
+   write the filesystem on the machine serving it. serve.py has NO POST,
+   PUT or PATCH handler — it is a GET-only static server — so appending a
+   line to recon.jsonl is a local filesystem write, which is the SAME
+   privilege as editing this file. A LAN stranger who could append to the
+   feed could already replace recon-app.js, and no escaping in here would
+   matter. So: THE ESCAPING IS DEFENCE IN DEPTH, NOT A TRUST BOUNDARY. It
+   is kept because the writer is a program composing JSON out of page
+   titles and URLs it did not author, and a title with a `<` in it must
+   render as a title — not because it holds a line against an attacker.
+   Say it that way when grading it; a defence sold as a boundary is the
+   kind of claim CLAUDE.md forbids. */
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -19,6 +33,39 @@ const deck = () => { try { return $('dw').contentWindow.DWEVENTS || null; } catc
 
 /* ── state ── */
 const seen = new Set();            /* ts+hash of every record already shown */
+/* BOUNDED. `seen` used to grow for the life of the tab, one entry per line
+   in a file that only ever gets longer. 5000 IS A CHOSEN NUMBER - 25x the
+   200-row live ring, a few hundred KB of keys, and far more than a session's
+   feed. It is a memory bound, not a threshold on anything measured. What it
+   costs, said plainly: only after the offset is reset (a truncated or
+   replaced file) does the whole file get re-read, and only then could an
+   evicted key let a line past 5000 land twice. Under 5000 lines the
+   behaviour is identical to unbounded. */
+const SEEN_MAX = 5000;
+const remember = k => {
+  seen.add(k);
+  if (seen.size > SEEN_MAX) {
+    const it = seen.values();
+    let n = seen.size - SEEN_MAX;
+    while (n-- > 0) { const v = it.next().value; seen.delete(v); }
+  }
+};
+/* THE FEED IS APPEND-ONLY, so re-parsing and re-hashing every line every 2 s
+   is work proportional to the whole session, forever. Keep how far we have
+   read and parse only what is past it. A CHARACTER offset, not a byte one:
+   the text is already decoded here, so slicing by length is exact and cannot
+   split a multi-byte character.
+   The two ways the assumption breaks are handled, because a wrong offset
+   silently skips records - the calm-looking failure again:
+     · SHORTER than the offset  -> truncated, start over from 0;
+     · same length or longer but a DIFFERENT head -> rotated/replaced, start
+       over. The head anchor is the first 200 characters, compared each poll.
+   A partial final line is deliberately NOT consumed: the offset only ever
+   advances to the last newline, so a half-written record is re-read whole
+   next time. */
+const HEAD_ANCHOR = 200;
+let feedRead = 0;                  /* characters of recon.jsonl already parsed */
+let feedHead = null;               /* its first HEAD_ANCHOR characters */
 let canAct = false;                /* boot re-renders are DISPLAY ONLY: side effects
                                       (speak, sayfile, event, level, voiceCfg) fire only
                                       for records that ARRIVE after boot - otherwise
@@ -40,7 +87,7 @@ try { pins = JSON.parse(localStorage.getItem(PINKEY) || '[]'); } catch (e) { pin
    SILENTLY SKIPPED - a genuinely new frame that never rendered, with no log
    and no counter. Ledger 86. */
 const hash = r => { let h = 5381;
-  const s = [r.ts, r.title, r.url, r.note, r.event, r.sayfile, r.shot, r.status,
+  const s = [r.ts, r.title, r.url, r.note, r.noteCut, r.event, r.sayfile, r.shot, r.status,
              r.speak, r.level, (r.links || []).join('\u0001'),
              r.voiceCfg ? JSON.stringify(r.voiceCfg) : '', r.vocals ? JSON.stringify(r.vocals) : ''].join('|');
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
@@ -50,11 +97,31 @@ const stripQ = u => String(u || '').split('?')[0];
    served root, and the extension list is what an <img> can actually show. */
 const SHOTPATH = /^recon-shots\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/;
 const STALE_MS = 90000;   /* past this a frame stops claiming to be recent */
+/* THE STAGE'S NOTE IS BOUNDED, and it was the one fed field that was not.
+   status caps at 80, links at 12x120, a feed row slices its note to 400 -
+   the stage rendered `note` WHOLE, so the "there is no page-body channel"
+   promise rested entirely on the producer's manners: paste a page into
+   `note` and it is a page-body channel by another name.
+   1200 IS A CHOSEN NUMBER, not a measurement - three times the row cap,
+   and about as much prose as the stage's note box can show before its own
+   max-height clips it. Chosen, and said so. What is dropped is COUNTED and
+   printed, because a note that ends mid-sentence with nothing said about it
+   is the quiet kind of lie this screen exists to refuse. */
+const NOTE_MAX = 1200;
 
 /* ── render ── */
+/* FED OR MADE HERE, and never guessable from the fed text. `source` is a
+   string off the feed, and the badge stylesheet coloured .src[data-s=operator]
+   in the console's own accent - so a record that simply SAID "operator" wore
+   the reply tray's badge and nothing on the row distinguished it from a note
+   the operator actually typed. The class, not the string, now decides: rows
+   the APP makes (the tray, the voice marker's fallback row) carry `.local`,
+   everything ingested from the feed carries `.fed` and a ▸ before its badge.
+   The colour rules are scoped to `.local`, so the app's own badge is not
+   wearable from the feed at all. */
 function row(r, into) {
   const d = document.createElement('div');
-  d.className = 'rec' + (r.pin ? ' pinned' : '');
+  d.className = 'rec' + (r.pin ? ' pinned' : '') + (r.__local ? ' local' : ' fed');
   d.innerHTML = '<div class="top"><span class="ts">' + esc((r.ts || '').replace('T', ' ').replace(/\.\d+Z?$/, '')) + '</span>'
     + '<span class="src" data-s="' + esc(r.source) + '">' + esc(r.source || '?') + '</span>'
     + '<span class="title">' + esc(r.title) + '</span>'
@@ -97,7 +164,7 @@ function sayMark(text, el) {
        and vanished. Ledger 90. */
     const e0 = $('empty'); if (e0) e0.remove();
     rowEl = row({ ts: new Date().toISOString(), source: 'console', title: 'voice',
-                  url: '', note: '', pin: false, event: null }, $('feed'));
+                  url: '', note: '', pin: false, event: null, __local: true }, $('feed'));
   }
   const top = rowEl.querySelector('.top');
   if (!top) return;
@@ -144,6 +211,15 @@ function playSayfile(path, rowEl) {
       const ana = ctx.createAnalyser(); ana.fftSize = 2048;
       g.connect(ana); ana.connect(ctx.destination);
       window.__sayfileGain = g;
+      /* ON WINDOW, like the gain and the source, and for the same reason: a
+         take survives a hot swap (the audio graph is in the deck's context,
+         which teardown never touches) but the CARD did not - the new
+         instance booted with voice = null and hid a card while the voice was
+         still audible. The analyser, the path and a liveness flag are what
+         boot() needs to re-adopt it. */
+      window.__sayfileAna = ana;
+      window.__sayfilePath = path;
+      window.__sayfileEnded = false;
       const src = ctx.createBufferSource(); src.buffer = buf;
       /* warp: playbackRate on the rendered take - voiceCfg {"warp": n},
          0.7..1.3, default 1. HONEST: this moves pitch AND speed
@@ -181,7 +257,7 @@ function playSayfile(path, rowEl) {
         src.start();
       }
       voiceShow({ kind: 'take', who: path, ana: ana });
-      src.onended = () => { if (tok === window.__sayfileTok) voiceEnd('take'); };
+      src.onended = () => { if (tok === window.__sayfileTok) { window.__sayfileEnded = true; voiceEnd('take'); } };
     } catch (e) { sayMark('\u{1F507} voice failed \u2014 ' + String((e && e.message) || e).slice(0, 40), rowEl); }
   })();
 }
@@ -275,8 +351,19 @@ function land(r) {
   /* the amplifier: a level field sets the deck's master volume (0..1,
      clamped - the dial is labelled eleven, the electronics stop at one) */
   if (r.vocals && !r.quiet) {                   /* the keeper's-ear vocal list, patched from the feed */
-    (Array.isArray(r.vocals.add) ? r.vocals.add : []).forEach(n => { n = String(n).toLowerCase().slice(0, 80); if (n && !vocals.includes(n)) vocals.push(n); });
-    (Array.isArray(r.vocals.remove) ? r.vocals.remove : []).forEach(n => { n = String(n).toLowerCase(); vocals = vocals.filter(v => v !== n); });
+    /* A FRAGMENT MUST BE A FRAGMENT. vocalNow() matches with indexOf, so a
+       one-character entry - or a bare space, which passed the old `if (n)`
+       test intact - matches practically every track name in the library and
+       silently turns the gate on for the whole set: every narration would
+       blend the deck away first. Trim, then require at least 2 characters.
+       TWO IS A CHOSEN NUMBER, not a measurement: it is the shortest string
+       that can plausibly be a real name fragment, and nothing about the
+       library was measured to pick it. It is a floor on fed input, not a
+       detector threshold. */
+    (Array.isArray(r.vocals.add) ? r.vocals.add : []).forEach(n => {
+      n = String(n).toLowerCase().trim().slice(0, 80);
+      if (n.length >= 2 && !vocals.includes(n)) vocals.push(n); });
+    (Array.isArray(r.vocals.remove) ? r.vocals.remove : []).forEach(n => { n = String(n).toLowerCase().trim(); vocals = vocals.filter(v => v !== n); });
     saveVocals();
   }
   if (r.level != null && !r.quiet) { try { $('dw').contentWindow.DW.volume = r.level; } catch (e) {} }
@@ -435,7 +522,21 @@ async function poll() {
     if (r.ok) txt = await r.text();
   } catch (e) {}
   if (txt == null) return;
-  for (const line of txt.split('\n')) {
+  /* startsWith, NOT equality. An append-only file's stored head is always a
+     PREFIX of the new text, but a file shorter than HEAD_ANCHOR grows its own
+     head with every line - so comparing the two heads for equality declared a
+     REPLACEMENT on every ordinary append until the file passed 200 characters,
+     and the tail-only read did nothing at all. Found by running this
+     arithmetic against a simulated file rather than by reading it; the check
+     that pins it runs the same way. */
+  if (txt.length < feedRead || (feedHead !== null && !txt.startsWith(feedHead))) {
+    feedRead = 0;                   /* truncated or replaced: read it all again */
+  }
+  feedHead = txt.slice(0, HEAD_ANCHOR);
+  const tail = txt.slice(feedRead);
+  const lastNl = tail.lastIndexOf('\n');
+  if (lastNl >= 0) feedRead += lastNl + 1;   /* complete lines only */
+  for (const line of tail.split('\n')) {
     if (!line.trim()) continue;
     let o; try { o = JSON.parse(line); } catch (e) { continue; }
     /* the upgrade directive: {"reload":true,"ts":"..."} re-fetches THIS
@@ -444,7 +545,7 @@ async function poll() {
        than the last applied one (localStorage), so old lines are inert. */
     if (o.reload === true) {
       const ts = String(o.ts || ''), rk = 'reload·' + ts;
-      if (!seen.has(rk)) { seen.add(rk);
+      if (!seen.has(rk)) { remember(rk);
         /* NUMERIC, not lexical (review 2026-09-01 M9, ledger 123): as a
            string "9999-…" outranked every real date and one such line
            wedged hot-swap until localStorage was cleared by hand. A ts that
@@ -465,14 +566,26 @@ async function poll() {
                77/85's failures went to die. */
             try { localStorage.setItem('dw-recon-appts', prev); } catch (e) {}
             seen.delete(rk);
+            /* AND rewind the read offset, or forgetting the line achieves
+               nothing: the tail-only poll would never look at it again, so
+               M9's "it can land again next poll" would be a promise the
+               reader could not keep. Everything else in the file is still in
+               `seen`, so a full re-read re-lands nothing. */
+            feedRead = 0;
             swapNote = 'upgrade failed — still running the old console code (recon-app.js could not be fetched or did not run)';
           }, 50);
         } }
       continue;
     }
+    const noteRaw = o.note != null ? String(o.note) : '';
     const r = { ts: String(o.ts || ''), source: String(o.source || '?').slice(0, 16),
                 title: String(o.title || '').slice(0, 160), url: stripQ(o.url),
-                note: o.note != null ? String(o.note) : '', pin: !!o.pin,
+                /* capped HERE, not at render: pins round-trip through
+                   localStorage and the hash walks every field, so an
+                   unbounded note is unbounded memory as well as an
+                   unbounded screen. What was dropped is carried, not lost. */
+                note: noteRaw.slice(0, NOTE_MAX),
+                noteCut: Math.max(0, noteRaw.length - NOTE_MAX), pin: !!o.pin,
                 event: o.event ? String(o.event).slice(0, 24) : null,
                 speak: o.speak === true ? true : (o.speak ? String(o.speak).slice(0, 2000) : null),
                 voiceCfg: (o.voiceCfg && typeof o.voiceCfg === 'object') ? o.voiceCfg : null,
@@ -490,7 +603,7 @@ async function poll() {
     r.quiet = !canAct;                /* backlog record: render, never act */
     const key = r.ts + '·' + hash(r);
     if (seen.has(key)) continue;
-    seen.add(key);
+    remember(key);
     lastArrival = Date.now();
     r.arrivedAt = lastArrival;        /* THIS device's clock - the stage age
                                          refuses to trust the producer's alone */
@@ -528,8 +641,15 @@ iv(() => {
 
 /* ── the reply tray: a MESSAGE TRAY, not a command line ─────────────────
    THE DANGER, faced instead of shipped: this box cannot authenticate its
-   typist (over --lan, anyone on the network can reach this page), so
-   nothing here is a command channel. Two tiers, structural:
+   typist — over --lan anyone on the network can OPEN this page and type
+   in it — so nothing here is a command channel. Precisely, because the
+   first cut of this paragraph overstated the reach (review 2026-09-01):
+   the tray is localStorage, which is PER BROWSER, so a stranger's note
+   lands in the stranger's own browser and drain() never sees it. What
+   the tray actually carries is what the OPERATOR sitting at this screen
+   typed. The contract is unchanged and is not about the network: text
+   typed at a screen is attributed data, not orders, and the agent quotes
+   it back before acting. Two tiers, structural:
      · text that parses as a DWEVENTS intent steers the MUSIC immediately
        and locally — harmless, reversible, no agent involved;
      · everything else is STORED with provenance (dwrecon-inbox,
@@ -541,10 +661,21 @@ iv(() => {
 const INKEY = 'dwrecon-inbox';
 let inbox = [];
 try { inbox = JSON.parse(localStorage.getItem(INKEY) || '[]'); } catch (e) { inbox = []; }
-const saveInbox = () => { try { localStorage.setItem(INKEY, JSON.stringify(inbox.slice(-50))); } catch (e) {} };
+if (!Array.isArray(inbox)) inbox = [];
+if (inbox.length > 50) inbox = inbox.slice(-50);
+/* THE CAP IS ON THE QUEUE, NOT ONLY ON THE COPY. slice(-50) lived inside the
+   setItem call, so the PERSISTED snapshot was bounded and the in-memory array
+   was not - and drain() returns that array, so the cap the tray documented was
+   never the cap it kept. The harness check was green on exactly that: it
+   matched `inbox.slice(-50)` and the stated falsifier ("unbounded queue") was
+   true. 50 is the number already documented; it is chosen, not measured. */
+const saveInbox = () => {
+  if (inbox.length > 50) inbox = inbox.slice(-50);
+  try { localStorage.setItem(INKEY, JSON.stringify(inbox.slice(-50))); } catch (e) {}
+};
 function opRow(m, waiting) {
   const r = { ts: m.ts, source: 'operator', title: waiting ? 'note to the agent' : 'note (picked up)',
-              url: '', note: m.text, pin: false, event: null };
+              url: '', note: m.text, pin: false, event: null, __local: true };
   const el = row(r, $('feed'));
   el.classList.add('op');
   if (waiting) { const w2 = document.createElement('span'); w2.className = 'wait';
@@ -780,8 +911,23 @@ function vcDraw() {
   }
   g.strokeStyle = cssv('--accent') || '#39ffa0'; g.lineWidth = Math.max(1, 1.2 * dpr); g.stroke();
 }
+/* RE-ADOPT A TAKE THAT OUTLIVED THE SWAP. __sayfileSrc/__sayfileGain live on
+   window by design so an upgrade cannot cut a playing take off mid-word - but
+   the card is DOM the new instance rebuilds, so it hid while the voice was
+   still coming out of the speakers (review 2026-09-01). If a take is still
+   audible, show its card again with its OWN analyser, so the wave stays real
+   rather than being redrawn from somewhere else. `=== false` on purpose: an
+   older app version, or no take at all, leaves the flag undefined. */
+if (window.__sayfileSrc && window.__sayfileAna && window.__sayfileEnded === false) {
+  voiceShow({ kind: 'take', who: window.__sayfilePath || 'a take already playing',
+              ana: window.__sayfileAna });
+}
 iv(() => {
   if (!voice) return;
+  /* a take ends by its source's onended, which sets this flag on window - the
+     one signal that crosses a swap. It also covers the re-adopted case, whose
+     onended belongs to the previous instance's closure. */
+  if (voice.kind === 'take' && !voice.ended && window.__sayfileEnded === true) voice.ended = Date.now();
   if (voice.kind === 'tts' && !voice.ended) {
     /* the OS voice reports through speechSynthesis only; same seen-grace as
        the boost poller - iOS takes a beat between speak() and speaking */
@@ -931,6 +1077,11 @@ function stageShow(r, opts) {
   $('stgTitle').textContent = r.title || '';
   $('stgStat').textContent = r.status || 'no status fed';
   $('stgNote').textContent = r.note || '';
+  /* the cap, said. textContent like every other fed field. */
+  const more = $('stgMore');
+  if (more) more.textContent = r.noteCut
+    ? '… ' + r.noteCut + ' more characters not shown — the stage caps a fed note at ' + NOTE_MAX
+    : '';
   const ll = $('stgLL'); ll.innerHTML = '';
   (r.links || []).forEach(l => {
     const e2 = document.createElement('div');
@@ -1242,26 +1393,36 @@ function instrumentTick() {
   } else {
     nowEl.className = '';
     if (nowEl.textContent !== p.name) nowEl.textContent = p.name;
+    /* LEDGER 82, closed on this surface. `st.idx === 0 && p.rate === 1` was a
+       GUESS at the question a stretch figure actually answers - is this deck
+       being beatmatched against anything? It is true of the first deck and
+       FALSE of every other deck play() builds, so a jump to row 7 runs at
+       rate 1 with nothing to match and printed `+0.00%`: the tightest
+       beatmatch on screen while no match is being attempted. The engine
+       answers it directly now - pulse() carries `matched` (and `origin`)
+       straight off DW.deck, where makeDeck stamps them.
+       UNDEFINED IS NOT FALSE. A deck too old to say leaves `matched`
+       absent, and "cannot tell" must not be printed as "not matched", so
+       the old predicate survives for exactly that case and nothing else. */
+    const unmatched = p.matched === false
+      || (p.matched === undefined && !!st && st.idx === 0 && p.rate === 1);
+    /* the CARD's words, not new ones: two surfaces describing the same deck
+       state differently is how an operator learns to distrust both. */
+    const unmatchedName = st && st.idx === 0 ? '∿ first' : '∿ jumped';
     const rows = [
       ['playing', p.tempo + ' bpm', '', 'the tempo in the room: the track label times the stretch the deck is running'],
       ['label', p.bpm + ' bpm', '', "Essentia's figure for the track itself"],
       ['key', p.camelot || '?'],
       /* A track played STRAIGHT is not being beatmatched - never a percentage.
-         Nor is the FIRST deck of a set: it has no predecessor, so it runs at
-         rate 1.0 and "+0.00%" would read as the tightest beatmatch on screen
-         when no match is being attempted at all. Same reading hazard as the
-         straight rule, one step earlier; found by running this column against
-         a real set rather than by reasoning about it. AND idx alone was not
-         the claim: placeNext decrements idx when a row before the playing
-         track is queued away, so a stretched chained deck can sit at idx 0
-         mid-set - the rate is the other half (ledger 91). A chained deck at
-         exactly 1.0 with idx 0 would still be mislabelled; both fields
-         agreeing is the strongest claim available from outside. */
+         Nor is a deck play() built, first or jumped-to: see `unmatched`
+         above. Same reading hazard as the straight rule, one step earlier. */
       p.straight ? ['speed', 'straight · own speed', 'warn',
                     'unstretched because it is not being beatmatched — not a worse track']
-      : (st && st.idx === 0 && p.rate === 1)
-                 ? ['speed', 'first deck · nothing to match', 'warn',
-                    'the set has no predecessor here, so the deck runs at its own speed — not a beatmatch']
+      : unmatched
+                 ? ['speed', unmatchedName + ' · nothing to match', 'warn',
+                    st && st.idx === 0
+                      ? 'first deck — the set has no predecessor here, so the deck runs at its own speed and there is nothing to match'
+                      : 'jumped to — this deck was started, not mixed into, so it runs at its own speed and there is nothing to match']
                  : ['stretch', (p.rate >= 1 ? '+' : '') + ((p.rate - 1) * 100).toFixed(2) + '%'],
       ['energy idx', p.energy == null ? '—' : p.energy.toFixed(2), '',
        'energy is a constructed index — 45% loudness, 25% brightness, 30% tempo, normalised across this corpus. Not a measurement.'],

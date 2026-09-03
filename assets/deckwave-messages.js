@@ -9,12 +9,29 @@
      2. The UI uses vocabulary — crossfade, downbeat, Camelot, spectral flux —
         that is opaque unless you already know it.
      3. Nothing was translatable; strings were scattered through the code.
-   A message catalogue fixes all three. Terms are data, so a rebuild cannot
-   lose them, and a translator can replace the file without touching logic.
+   A message catalogue fixes all three for the VOCABULARY. Terms are data, so
+   a rebuild cannot lose them, and a translator can replace them without
+   touching logic.
+
+   WHAT THIS FILE DOES NOT COVER, said plainly (corrected 2026-09-01; it used
+   to claim "a translator can replace the file", full stop).
+   The 30 `ui.*` strings below are NOT the interface. Two of them are read —
+   `ui.verified` and `ui.unverified`, by the glossary pop-up. Every other
+   label on screen is a literal in its own module: the transport builds its
+   buttons with `btn('scan', …)`, `btn('build set', …)`, `btn('▸ play', …)`
+   and so on; the status line, the log lines, the panel labels and the
+   now-playing card are the same. Translating Deckwave TODAY means replacing
+   this catalogue AND editing those literals, and no `DWMSG.use()` call will
+   reach them. The `ui.*` block is kept because it is the right shape and the
+   keys are stable — it is the destination, not the current state. Wiring the
+   transport through `DWMSG.ui()` is the work that would make the sentence
+   above true of the whole interface; until someone does it, the honest claim
+   is TERMS, not UI.
 
    TRANSLATION
    Ship `en.js` as the reference. A translation is the same object with the
-   values replaced. `DWMSG.use(catalogue)` swaps it at runtime.
+   values replaced. `DWMSG.use(catalogue)` swaps it at runtime — the terms
+   and the two `ui.*` strings that are read, per the note above.
    For translatewiki.net or Weblate, export with `DWMSG.exportJSON()` — flat
    key/value JSON, which is the format both expect. Keys are stable and
    dotted; do not renumber them.
@@ -96,7 +113,7 @@ const TERMS = {
   'term.harmonic-mixing': {
     t: 'Harmonic mixing',
     d: 'Choosing the next track partly by musical key so the overlap sounds intentional. Deckwave scores every candidate on key compatibility alongside tempo and energy.',
-    w: 'https://en.wikipedia.org/wiki/Special:Search?search=Special:Search?search=harmonic+mixing', verified: false
+    w: 'https://en.wikipedia.org/wiki/Special:Search?search=harmonic+mixing', verified: false
   },
 
   /* analysis */
@@ -113,12 +130,12 @@ const TERMS = {
   'term.spectral-flux': {
     t: 'Spectral flux',
     d: 'How much the spectrum CHANGED between two frames, counting only increases. It detects onsets where a loudness threshold cannot: sidechained dance music holds bass energy near constant, so "is it loud" never fires, but "did it suddenly change" does.',
-    w: 'https://en.wikipedia.org/wiki/Special:Search?search=Special:Search?search=spectral+flux+onset', verified: false
+    w: 'https://en.wikipedia.org/wiki/Special:Search?search=spectral+flux+onset', verified: false
   },
   'term.onset': {
     t: 'Onset',
     d: 'The instant a sound begins — the attack of a kick, a snare, a note. Detecting onsets is how software finds the beat.',
-    w: 'https://en.wikipedia.org/wiki/Special:Search?search=Special:Search?search=onset+detection+audio', verified: false
+    w: 'https://en.wikipedia.org/wiki/Special:Search?search=onset+detection+audio', verified: false
   },
   'term.confidence': {
     t: 'Confidence',
@@ -138,7 +155,7 @@ const TERMS = {
   'term.register': {
     t: 'Register',
     d: 'How bright the music currently is, measured as the spectral centroid — the magnitude-weighted mean frequency. When register colour is on, this drives the whole palette: violet when dark, cyan when bright.',
-    w: 'https://en.wikipedia.org/wiki/Special:Search?search=Special:Search?search=spectral+centroid', verified: false
+    w: 'https://en.wikipedia.org/wiki/Special:Search?search=spectral+centroid', verified: false
   },
   'term.chromagram': {
     t: 'Chromagram',
@@ -168,7 +185,7 @@ const TERMS = {
   'term.lufs': {
     t: 'LUFS',
     d: 'The broadcast standard for perceived loudness. Broadcast targets \u221223, streaming about \u221214. Deckwave\u2019s reading is RELATIVE — the proper weighting is approximated, so trends are meaningful but the number is not comparable to a real meter.',
-    w: 'https://en.wikipedia.org/wiki/Special:Search?search=Special:Search?search=LUFS+loudness', verified: false
+    w: 'https://en.wikipedia.org/wiki/Special:Search?search=LUFS+loudness', verified: false
   },
   'term.oscilloscope': {
     t: 'Oscilloscope',
@@ -261,7 +278,10 @@ const TERMS = {
   }
 };
 
-/* ── interface strings, separated from terms so translators see the split ── */
+/* ── interface strings, separated from terms so translators see the split ──
+   ONLY `ui.verified` and `ui.unverified` are read by anything (the glossary
+   pop-up in deckwave-dashboard.js). The other 28 are a destination, not a
+   description: the transport hard-codes its own labels. See the header. */
 const UI = {
   'ui.scan': 'scan', 'ui.build': 'build set', 'ui.library': 'library',
   'ui.play': 'play', 'ui.pause': 'pause', 'ui.next': 'next', 'ui.stop': 'stop',

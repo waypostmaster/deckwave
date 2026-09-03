@@ -189,13 +189,14 @@
     if (deck) {
       const p = deck.stretchPct;
       const straight = !!(deck.meta && deck.meta._unlocked);
-      /* FIRST DECK — nothing precedes step 1, so `0.0%` here reads as the
-         tightest beatmatch on screen (ledger 82). Same predicate as RECON,
-         the header and the card. */
-      const first = st.idx === 0 && deck.rate === 1 && !straight;
+      /* AN UNMATCHED DECK — nothing precedes it, so `0.0%` here reads as the
+         tightest beatmatch on screen (ledger 82). The engine's own fact since
+         2026-09-01: `origin === 'play'` is the first ▶, a jumped-to row or
+         back(); the old `idx === 0 && rate === 1` guess missed every jump. */
+      const first = deck.origin === 'play' && !straight;
       c.fillStyle = deck.settling ? T.ac2 : (!straight && !first && Math.abs(p) > 8 ? T.bad : T.dim);
       c.fillText((deck.settling ? '⤳ settling ' + Math.round(deck.settleLeft) + 's · ' : '') +
-                 (straight ? '∿ straight · ' : first ? '∿ first · ' : (p > 0 ? '+' : '') + p.toFixed(1) + '% · ') +
+                 (straight ? '∿ straight · ' : first ? (st.idx === 0 ? '∿ first · ' : '∿ jumped · ') : (p > 0 ? '+' : '') + p.toFixed(1) + '% · ') +
                  Math.round(deck.playedBpm) + ' bpm', w - 6, h - 4);
     } else {
       c.fillText('not playing', w - 6, h - 4);

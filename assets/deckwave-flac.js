@@ -146,7 +146,15 @@ function decode(arrayBuffer, opts) {
         k++;
       }
       if (opts.onProgress && total) opts.onProgress(Math.min(1, filled / total));
-      if (more && !err) yieldNow().then(step); else finish();
+      /* A THROW AFTER THE FIRST STEP MUST REJECT THE DECODE, not vanish
+         (review 2026-09-01). `step` runs inside a `.then` from the second
+         chunk on, so anything that threw there — a libflac state the
+         unpacker refuses, an allocation failure on a phone, a caller's own
+         onProgress — rejected an intermediate promise nobody held: the
+         decode promise never settled, the scan sat on that track forever
+         and no failure was ever counted. `.catch(no)` is the whole fix;
+         `finish()` is inside the chain too, so it is covered as well. */
+      if (more && !err) yieldNow().then(step).catch(no); else finish();
     };
     step();
   });

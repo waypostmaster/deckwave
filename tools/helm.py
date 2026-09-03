@@ -162,19 +162,33 @@ def main(argv):
     if cmd == "release":
         return release()
     if cmd == "take":
-        rest = [a for a in argv[2:] if not a.startswith("--")]
-        task = rest[0] if rest else "(unstated)"
-        who = "unnamed session"
-        hours = 4.0
-        for i, a in enumerate(argv):
-            if a == "--who" and i + 1 < len(argv):
-                who = argv[i + 1]
-            if a == "--hours" and i + 1 < len(argv):
+        # ONE PASS, AND A FLAG EATS ITS VALUE.
+        # The first version collected positionals as "every token not starting
+        # with --", which is true of `--who`'s VALUE as well. So
+        #     helm.py take --who "session-name" "the task"
+        # recorded task="session-name" and dropped the real task on the floor
+        # -- the con said who held it and lied about what for, which is the
+        # single question the file exists to answer. Argument order should not
+        # decide whether the record is true.
+        who, hours, task = "unnamed session", 4.0, None
+        rest = argv[2:]
+        i = 0
+        while i < len(rest):
+            a = rest[i]
+            if a == "--who" and i + 1 < len(rest):
+                who = rest[i + 1]; i += 2; continue
+            if a == "--hours" and i + 1 < len(rest):
                 try:
-                    hours = float(argv[i + 1])
+                    hours = float(rest[i + 1])
                 except ValueError:
                     pass
-        return take(task, who, hours, "--force" in argv)
+                i += 2; continue
+            if a.startswith("--"):
+                i += 1; continue          # --force, and anything unrecognised
+            if task is None:
+                task = a
+            i += 1
+        return take(task or "(unstated)", who, hours, "--force" in rest)
     print("unknown command: %s (try status / take / release)" % cmd)
     return 1
 

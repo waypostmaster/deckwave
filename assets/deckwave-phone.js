@@ -365,7 +365,13 @@ async function routeToMedia(on) {
     if (a.srcObject !== stream) a.srcObject = stream;
     try { await a.play(); } catch (e) { /* needs a gesture — the tap handler below retries */ }
   } else {
-    await window.DW.outputStream(false);
+    /* ONLY UNWIRE A SINK THAT IS WIRED (review 2026-09-01). Every mode but
+       `media` ends up here, including the saved mode the dashboard
+       re-applies at load — and `DW.outputStream()` awaits boot(), so asking
+       it to turn OFF a stream that was never on BUILT THE AUDIOCONTEXT
+       outside any user gesture, on every page load, for a no-op. Reading
+       `DW.outputVia` costs nothing and boots nothing. */
+    if (window.DW.outputVia === 'stream') await window.DW.outputStream(false);
     if (audioEl) { try { selfPauseAt = Date.now(); audioEl.pause(); } catch (e) {} audioEl.srcObject = null; }
   }
 }
@@ -391,20 +397,37 @@ function fields(m) {
 /* (re)send the metadata object — with the current artwork when it belongs
    to the track now playing, without when it does not (a stale poster on a
    new title is wrong for the length of a blob encode; no poster is not) */
+/* THE STATE IS THE CONTEXT'S, NOT "IS A TRACK LOADED" (review 2026-09-01).
+   `playbackState = m ? 'playing' : 'none'` said playing whenever a track was
+   loaded, so a paused set kept a ▶-less card claiming to play — and the card
+   is the whole interface on a locked phone. `ctx` is the AudioContext state
+   the engine already publishes; nothing new is measured. */
+function sessionState() {
+  const DW = window.DW;
+  if (!DW || !DW.nowMeta) return 'none';
+  return (DW.state && DW.state.ctx === 'running') ? 'playing' : 'paused';
+}
+function updateState() {
+  if (!cap.mediaSession) return;
+  const st = sessionState();
+  try { if (navigator.mediaSession.playbackState !== st) navigator.mediaSession.playbackState = st; } catch (e) {}
+}
 function push(m) {
   if (!cap.mediaSession) return;
   try {
     const f = m ? fields(m) : null;
     if (f && artUrl && artMeta === m) f.artwork = [{ src: artUrl, sizes: '512x512', type: 'image/png' }];
     navigator.mediaSession.metadata = f ? new MediaMetadata(f) : null;
-    navigator.mediaSession.playbackState = m ? 'playing' : 'none';
+    navigator.mediaSession.playbackState = m ? sessionState() : 'none';
   } catch (e) {}
 }
 function updateSession() {
   if (!cap.mediaSession) return;
   const m = window.DW && window.DW.nowMeta;
   const title = m ? m.name : null;
-  if (title === lastTitle) return;
+  /* the title gate is what keeps this cheap at 1 Hz; the STATE has to be
+     free to change without it (pause does not change the track) */
+  if (title === lastTitle) return updateState();
   lastTitle = title;
   push(m || null);
 }
@@ -496,6 +519,17 @@ async function apply() {
     /* the silent element must be playing for the card to be ours; it can
        only start inside a gesture, so this just keeps it going once it has */
     if (mode === 'controls' && silentEl && silentEl.paused && playing() && !interrupted && window.DW.state.ctx === 'running') silentEl.play().catch(() => {});
+    /* …AND IT MUST STOP WHEN THE SET DOES (review 2026-09-01). `proxySync`
+       tidies the focus proxy away in every mode except `controls`, and
+       nothing else ever paused it, so a silent 30 s loop went on looping
+       (and on Android went on holding audio focus) for as long as the tab
+       lived after the last track ended, with a Now Playing card still on
+       the lock screen for a set that is over. Marked as ours, so the call
+       watcher does not read it as a ring; the line above restarts it when
+       a set plays again. */
+    if (mode === 'controls' && silentEl && !silentEl.paused && !playing()) {
+      selfPauseAt = Date.now(); try { silentEl.pause(); } catch (e) {}
+    }
   }, 1000);
 }
 

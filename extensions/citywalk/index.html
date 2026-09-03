@@ -126,6 +126,12 @@ body{font-size:12px;line-height:1.4}
 #events .ev{padding:2px 0;line-height:1.35}
 #events .who{color:var(--accent)} #events .what{color:var(--fg)} #events .where{color:var(--dim)}
 #events .none{color:var(--dim);line-height:1.5}
+/* An hour rule. A feed row may declare itself a SEPARATOR rather than an
+   event: it is drawn as a rule, never as a record, is never read aloud, and
+   carries no place so nothing counts it. The producer decides where the
+   breaks fall — this page only agrees to draw one. */
+#events .evsep{padding:7px 0 2px;color:var(--dim);border-top:1px solid var(--line);
+  margin-top:5px;letter-spacing:.14em;font-size:10px}
 #watch{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:8px 10px}
 #watch h2{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
 #watch .none{color:var(--dim);line-height:1.5}
@@ -249,7 +255,7 @@ button:hover{border-color:var(--accent);color:var(--accent)}
       <div id="src">rain = <em id="srcname">—</em> · <em id="srcbits">0</em> real bits of this page's own design statement, falling as bytes. <em>House words only.</em> Nobody else's writing is on this screen.</div>
     </div>
     <div id="side">
-      <h2>reachable — hover to look, click to request a move</h2>
+      <h2>reachable — hover to look. clicking queues a request nothing drains</h2>
       <div id="nbs"></div>
       <div id="peek"><span id="peekhint">hover a place to read what is there before you go</span></div>
       <h2 style="margin-top:16px">the ladder — one rung per level of nesting</h2>
@@ -399,6 +405,13 @@ function render() {
    an attribute; nothing here is ever turned into a link. Missing or empty is
    a normal state and the panel says which. */
 let events = [], evLoaded = false, evStamp = 0;
+let feedSwitched = false;          /* the next load's backlog is history, not news */
+/* A CONTROL ROW IS APPLIED ONCE. voiceCfg rows used to be re-applied on every
+   4 s poll for as long as one sat in the file: each call writes dw-speech and
+   overwrites the deck's own status line (ledger 107's line), forever. Keyed by
+   row identity - ts plus the config itself - so a producer that appends a NEW
+   voiceCfg still lands, and the same row never lands twice. */
+const voiceCfgDone = new Set();
 
 /* THE FEED PATH IS THE USER'S TO SET, AND IT CANNOT LEAVE THIS DIRECTORY.
    A free-text box that accepted any URL would quietly destroy the one promise
@@ -409,8 +422,22 @@ let events = [], evLoaded = false, evStamp = 0;
    The choice is remembered per browser, and never leaves it. */
 const FEED_DEFAULT = 'events.jsonl';
 function safeFeed(p) {
-  const s = String(p == null ? '' : p).trim();
-  if (!s) return { ok: false, why: 'empty' };
+  const raw = String(p == null ? '' : p).trim();
+  if (!raw) return { ok: false, why: 'empty' };
+  /* DECODE BEFORE TESTING. The gate refused a literal `..` and let `%2e%2e`
+     walk straight past it: fetch() sends the string as typed, the server
+     percent-decodes it once, and the path that was CHECKED was not the path
+     that was REQUESTED. One decode, matching the server's one decode - a
+     double-encoded `%252e%252e` decodes to the literal characters `%2e%2e`,
+     which names a file and traverses nothing, so decoding twice would refuse
+     a legal name. A malformed escape is REFUSED, never guessed at, and the
+     decoded string is what gets stored and fetched so the two can never
+     drift apart again. */
+  let s;
+  try { s = decodeURIComponent(raw); }
+  catch (e) { return { ok: false, why: 'bad percent-escape' }; }
+  if (!s.trim()) return { ok: false, why: 'empty' };
+  s = s.trim();
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return { ok: false, why: 'no scheme — same directory only' };
   if (s.startsWith('//')) return { ok: false, why: 'no protocol-relative path' };
   if (s.startsWith('/')) return { ok: false, why: 'no absolute path — relative only' };
@@ -432,6 +459,13 @@ function setFeed(p) {
   feedPath = v.path;
   try { localStorage.setItem('citywalk.feed', feedPath); } catch (e) {}
   msg.textContent = ''; events = []; evLoaded = false; evStamp = 0;
+  /* SWITCHING A FEED IS NOT NEWS ARRIVING. `events` is emptied here, so every
+     row of the new file counted as fresh and, with the voice on, the page
+     recited the entire file end to end - the seance, one panel over. The
+     backlog is marked spoken SILENTLY on the next load; only rows that arrive
+     AFTER the switch are read aloud. Same rule setVoice() already keeps when
+     the voice is armed: what is already there is history. */
+  feedSwitched = true;
   renderEvents(); loadEvents();
   return true;
 }
@@ -460,6 +494,15 @@ async function loadEvents() {
     ctrl.forEach(r => {
       if (r.watch && typeof r.watch === 'object') watchCfg = r.watch;
       if (r.voiceCfg && typeof r.voiceCfg === 'object') {
+        /* GATED ON THE VOICE, like RECON's, and applied ONCE. Not gated, a
+           speech-character row retuned a voice that is off; not keyed, it
+           retuned it every 4 s and stamped the deck's status line each time.
+           Skipped-while-off is deliberately NOT marked done, so turning the
+           voice on applies the file's rows once, in order, last wins. */
+        if (!voiceOn) return;
+        const k = (r.ts || '') + '|' + JSON.stringify(r.voiceCfg);
+        if (voiceCfgDone.has(k)) return;
+        voiceCfgDone.add(k);
         const D = deck();
         if (D && D.configureSpeech) { try { D.configureSpeech(r.voiceCfg); } catch (err) {} }
       }
@@ -470,7 +513,13 @@ async function loadEvents() {
        re-reads the backlog */
     const had = {};
     events.forEach(e => { const k = evKey(e); if (k) had[k] = 1; });
-    const fresh = shown.filter(e => { const k = evKey(e); return k && !had[k]; });
+    /* A separator is furniture, not a record: it must never be read aloud.
+       Reading a rule out is how a voice ends up saying "dash dash dash". */
+    const fresh = shown.filter(e => { const k = evKey(e); return k && !had[k] && !e.sep; });
+    /* the first load after a feed switch: the whole file is backlog. Marked
+       spoken without speaking, so nothing is recited and the next arrival
+       still is. */
+    if (feedSwitched) { feedSwitched = false; shown.forEach(e => spokenKeys.add(evKey(e))); }
     if (shown.length !== events.length) evStamp = Date.now();
     events = shown; evLoaded = true;
     renderEvents(); renderWatch();
@@ -498,11 +547,16 @@ function renderEventsInner() {
   $('evsrc').textContent = '· ' + events.length + (age !== null && age >= 5 ? ' · quiet ' + age + 'm' : '');
   el.innerHTML = events.slice(-40).reverse().map((e, i) => {
     const idx = events.length - 1 - i;
+    /* A SEPARATOR ROW IS NOT A RECORD. It declares itself with sep:true and is
+       drawn as a rule with no body, no click and no place. Newest-first means
+       a rule the producer wrote AFTER an hour's last record lands directly
+       above that hour's block, which is where a heading belongs. */
+    if (e.sep) return '<div class="evsep">' + esc(e.what || '') + '</div>';
     const readable = (typeof e.body === 'string' && e.body.length > 0) ||
       (e.detail && Object.keys(e.detail).length > 0);
     return '<div class="ev' + (readable ? ' has' : '') + '"' +
       (readable ? ' data-i="' + idx + '" title="click to read"' : '') + '>' +
-      '<span class="where">' + esc((e.ts || '').slice(11, 16)) + '</span> ' +
+      '<span class="where">' + esc((e.ts || '').slice(11, 19)) + 'Z</span> ' +
       '<span class="who">' + esc(e.who || '—') + '</span> ' +
       '<span class="what">' + esc(e.what || '') + '</span>' +
       (e.where ? ' <span class="where">· ' + esc(e.where) + '</span>' : '') + '</div>';

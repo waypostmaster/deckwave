@@ -887,7 +887,8 @@ against this panel before inventing cases.
 ### The prompt has to carry VALUE RANGES, or the output is wrong on the first try
 
 **Written, 2026-08-18: `docs/PROMPTS.md` §1.** It carries the shapes and
-ranges for all 14 `D` entries, the proposed schema, the hard constraints, and
+ranges for all `D` entries (14 when written; 20 since the six deck-truth
+entries of 2026-08-19 — the list above is current), the proposed schema, the hard constraints, and
 `panel-centre.js` expressed in it as the case to validate against.
 
 

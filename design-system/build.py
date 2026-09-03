@@ -16,6 +16,14 @@ audio file, no autoplay permission, and the same picture every time.
 Cards are fully self-contained: DWV and the theme block are inlined into each
 one, so nothing depends on relative paths or load order inside the viewer.
 
+THE OUTPUT IS TRACKED IN GIT, ON PURPOSE. The 16 .html files this writes are
+committed rather than gitignored because they ARE the published pages -
+GitHub Pages serves what is in the repository, so a generated file that is
+not committed is a page that does not exist. A reader finding generated
+artefacts under version control should read it as a decision, not as
+somebody forgetting a .gitignore line. Re-run this after changing DWV or
+themes.css, and commit what it rewrites.
+
     python design-system/build.py
 """
 import io

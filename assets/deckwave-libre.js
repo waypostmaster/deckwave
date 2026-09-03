@@ -95,6 +95,20 @@ const ORIGIN = 'https://archive.org';
 const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 const CACHE_NAME = 'deckwave-libre';
 const MAX_INFLIGHT = 2, GAP_MS = 250, TRIES = 3;
+/* A RESOURCE CAP, CHOSEN — not a threshold, not a calibration, and nothing
+   about the music depends on it (review 2026-09-01 M4). 256 MB, because a
+   fetched track is held roughly four times over before it is music: the
+   chunk list, the concatenated copy, the cache.put clone, and the decoded
+   PCM. The largest single track either source plausibly offers is a
+   lossless master — 256 MB is about 40 minutes of stereo FLAC or 25 of
+   16-bit/44.1 WAV, past any track in this catalogue (the biggest in the
+   keeper's own library is 55 MB) — while the multi-GB WAVs and archival
+   uploads on Commons, which could never be held four times on a phone,
+   are refused BEFORE the body is read instead of being downloaded three
+   times to fail three times. Refusal is not a retry. */
+const MAX_BYTES = 256 * 1024 * 1024;
+/* an error the retry loop must NOT try again: refusing is the answer */
+function fatal(msg) { const e = new Error(msg); e.dwFatal = true; return e; }
 
 /* The Archive's format strings, in the order each preference tries them. A
    release that lacks the preferred derivative falls through to the next;
@@ -152,23 +166,65 @@ function searchURL(opts) {
 /* ── licences ────────────────────────────────────────────────────────── */
 /* Short, honest names for the URLs the Archive records. Unknown → the URL
    itself is shown; nothing is ever called "free" that this table does not
-   recognise. */
-function licenceName(url) {
-  const s = String(url || '').toLowerCase();
+   recognise.
+
+   RECOGNITION IS BY HOST, NOT BY SUBSTRING (review 2026-09-01 M3). The old
+   table matched the PATH anywhere in the string, so
+   `https://example.com/licenses/by/4.0/` came back "CC BY 4.0" and any URL
+   containing the letters cc0 came back "CC0" — a name with legal weight
+   (it reaches the card, the score and the .cue's REM ATTRIBUTION) issued
+   on an uploader-supplied string that Creative Commons never saw. The host
+   is parsed with the URL parser, not regexed out; a string that will not
+   parse as a URL with a dotted host gets no name at all. */
+const LICENCE_HOSTS = {
+  'creativecommons.org': 'cc',
+  'gnu.org': 'gpl',
+  'fsf.org': 'gpl',
+  'artlibre.org': 'artlibre'
+};
+function licenceHost(url) {
+  const s = String(url || '').trim();
   if (!s) return null;
-  if (/publicdomain\/zero|\/cc0\b|cc0/.test(s)) return 'CC0';
-  if (/publicdomain|public-domain/.test(s)) return 'public domain';
-  const m = /licenses\/(by[a-z-]*)\/([0-9.]+)/.exec(s);
+  let h = null;
+  try { h = new URL(s).hostname; }
+  catch (e) {
+    /* a scheme-less `creativecommons.org/licenses/by/4.0/` is what some
+       records carry; only retry when the string STARTS with a dotted host */
+    if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(\/|$)/i.test(s)) return null;
+    try { h = new URL('https://' + s).hostname; } catch (e2) { return null; }
+  }
+  h = String(h || '').toLowerCase().replace(/^www\./, '');
+  return LICENCE_HOSTS[h] ? { family: LICENCE_HOSTS[h], host: h } : null;
+}
+function licenceName(url) {
+  const H = licenceHost(url);
+  if (!H) return null;
+  if (H.family === 'gpl') return 'GPL';
+  if (H.family === 'artlibre') return 'Free Art Licence';
+  /* creativecommons.org: the path names the deed */
+  let p = '';
+  try { p = new URL(/^[a-z]+:/i.test(String(url)) ? String(url) : 'https://' + String(url)).pathname.toLowerCase(); }
+  catch (e) { return null; }
+  if (/\/publicdomain\/zero|\bcc0\b/.test(p)) return 'CC0';
+  if (/publicdomain|public-domain/.test(p)) return 'public domain';
+  const m = /\/licenses\/(by[a-z-]*)\/([0-9.]+)/.exec(p);
   if (m) return 'CC ' + m[1].toUpperCase() + ' ' + m[2];
-  if (/gnu\.org|gpl/.test(s)) return 'GPL';
-  if (/artlibre|art-libre/.test(s)) return 'Free Art Licence';
   return null;
 }
 /* CC BY-ND and BY-NC-ND forbid adaptations — a beatmatched, crossfaded,
    stretched mix is arguably one. The track still plays; the score and the
    card carry the term so the decision about publishing a mix that contains
-   it is made with the term in view, not found later. */
-const noDerivs = url => /-nd\b|-nd\//.test(String(url || '').toLowerCase());
+   it is made with the term in view, not found later.
+
+   THE SHORT NAME COUNTS TOO (review 2026-09-01 M3): a Commons file whose
+   extmetadata carries `LicenseShortName: "CC BY-ND 4.0"` and NO LicenseUrl
+   was read from the URL alone and came through unflagged. Either surface
+   saying no-derivatives is enough to flag it; neither saying it is the
+   only way through. */
+function noDerivs(url, shortName) {
+  const nd = s => /-nd\b|-nd\/|\bnoderiv/.test(String(s || '').toLowerCase());
+  return nd(url) || nd(shortName);
+}
 
 /* ── fetch pipeline: limiter · cache · retry ──────────────────────────── */
 let inflight = 0, lastStart = 0; const waiting = [];
@@ -203,7 +259,7 @@ const stats = { fetched: 0, cacheHits: 0, bytes: 0, retries: 0, errors: 0 };
 const fetchWatchers = new Set();
 function watchFetch(fn) { fetchWatchers.add(fn); return () => fetchWatchers.delete(fn); }
 function reportFetch(ev) { for (const w of fetchWatchers) { try { w(ev); } catch (e) {} } }
-async function readBody(r, url, name) {
+async function readBody(r, url, name, expect) {
   if (!r.body || typeof r.body.getReader !== 'function') return r.arrayBuffer();
   const total = +(r.headers && r.headers.get && r.headers.get('content-length')) || 0;
   const rd = r.body.getReader();
@@ -212,7 +268,28 @@ async function readBody(r, url, name) {
     const { done, value } = await rd.read();
     if (done) break;
     chunks.push(value); loaded += value.byteLength;
+    /* the cap again, against bytes actually read: a chunked response
+       declares no length, so the header check above cannot see it */
+    if (loaded > MAX_BYTES) {
+      try { await rd.cancel(); } catch (e) {}
+      reportFetch({ url, name, loaded, total, done: true });
+      throw fatal('too big: over ' + Math.round(MAX_BYTES / 1048576) + ' MB and still arriving — ' + url);
+    }
     reportFetch({ url, name, loaded, total, done: false });
+  }
+  /* A TRUNCATED BODY IS NOT A FILE (review 2026-09-01). A stream that ends
+     early with a Content-Length set, or short of the size the item metadata
+     recorded, used to be concatenated, cached and analysed as if complete —
+     a half track in the corpus with a permanent cache entry behind it. The
+     comparison is one-sided (short only, never long) because a
+     content-encoded body counts DECODED bytes against an ENCODED total and
+     would legitimately overshoot; audio from both sources is served
+     identity. With neither a length header nor a recorded size there is
+     nothing to compare against and this cannot tell — said, not hidden. */
+  const want = total || +expect || 0;
+  if (want && loaded < want) {
+    reportFetch({ url, name, loaded, total: want, done: true });
+    throw new Error('short body: ' + loaded + ' of ' + want + ' bytes — ' + url);
   }
   reportFetch({ url, name, loaded, total: loaded, done: true });
   const out = new Uint8Array(loaded);
@@ -227,7 +304,14 @@ async function cacheOpen() {
 
 /* Whole-file fetch through the limiter, cached. A Range request bypasses the
    cache (it is the audit's 16-byte probe; not worth storing). */
-async function fetchBytes(url, range, name) {
+async function fetchBytes(url, range, name, expect) {
+  /* the cap before a byte is asked for: an item whose recorded size is
+     already over it is never requested at all */
+  if (!range && +expect > MAX_BYTES) {
+    stats.errors++;
+    throw fatal('too big: ' + Math.round(+expect / 1048576) + ' MB, over the '
+      + Math.round(MAX_BYTES / 1048576) + ' MB limit — ' + url);
+  }
   const c = range ? null : await cacheOpen();
   if (c) {
     const hit = await c.match(url).catch(() => null);
@@ -241,17 +325,37 @@ async function fetchBytes(url, range, name) {
       let r;
       try {
         r = await fetch(url, { mode: 'cors', credentials: 'omit',
-          headers: range ? { Range: 'bytes=' + range[0] + '-' + range[1] } : {} });
+          headers: range ? { Range: 'bytes=' + range[0] + '-' + (range[1] == null ? '' : range[1]) } : {} });
       } catch (e) { lastErr = e; continue; }           /* network / CORS: try again */
       if (r.status === 503 || r.status === 429 || r.status >= 500) { lastErr = new Error('HTTP ' + r.status); continue; }
       if (!r.ok && r.status !== 206) throw new Error('HTTP ' + r.status + ' ' + url);
+      /* the length the server declares, checked BEFORE the body is read and
+         before the cache clone is started — refusing costs one round trip,
+         retrying a file that can never be held costs three whole downloads */
+      const len = +((r.headers && r.headers.get && r.headers.get('content-length')) || 0);
+      if (!range && len > MAX_BYTES) {
+        stats.errors++;
+        throw fatal('too big: ' + Math.round(len / 1048576) + ' MB, over the '
+          + Math.round(MAX_BYTES / 1048576) + ' MB limit — ' + url);
+      }
       let putP = null;                              /* quota failures land in the catch below */
       if (c && !range && r.status === 200) { try { putP = c.put(url, r.clone()); } catch (e) { putP = null; } }
       let ab;
-      try { ab = range ? await r.arrayBuffer() : await readBody(r, url, name); }
+      try { ab = range ? await r.arrayBuffer() : await readBody(r, url, name, expect); }
       catch (e) {                                    /* the body died mid-stream — retry like a 5xx */
-        lastErr = e; reportFetch({ url, name, loaded: 0, total: 0, done: true });
         if (putP) await putP.catch(() => {});
+        /* The put was started from a CLONE before the read, so a body that
+           ended early but cleanly (the truncation case) can have landed in
+           the cache as a complete entry — the exact permanence this is
+           meant to prevent. Drop it; a miss just re-fetches. */
+        if (c && !range && typeof c.delete === 'function') await c.delete(url).catch(() => {});
+        /* …unless the failure is the SIZE, not the network. A refusal and an
+           allocation failure (RangeError from `new Uint8Array(loaded)` on a
+           file too big to hold) both used to be retried as mid-body deaths:
+           three full downloads of a file that cannot exist here. Neither is
+           a "later" — both are answers. */
+        if (e && (e.dwFatal || e instanceof RangeError)) { stats.errors++; throw e; }
+        lastErr = e; reportFetch({ url, name, loaded: 0, total: 0, done: true });
         continue;
       }
       if (putP) await putP.catch(() => {});
@@ -294,11 +398,23 @@ class RemoteFile {
     this.url = o.url; this.source = o.source || null;
     this.remote = true;
   }
-  arrayBuffer() { return fetchBytes(this.url, null, this.name); }
+  /* the recorded size travels with the request: it is both the cap check
+     before a byte is asked for and the only way a body with no
+     Content-Length can be known to have arrived whole (see readBody) */
+  arrayBuffer() { return fetchBytes(this.url, null, this.name, this.size); }
   slice(a, b) {
     const url = this.url, size = this.size;
-    const lo = Math.max(0, a | 0), hi = Math.min(size || Infinity, b == null ? size : b) - 1;
-    return { size: Math.max(0, hi - lo + 1), arrayBuffer: () => fetchBytes(url, [lo, hi]) };
+    const lo = Math.max(0, a | 0);
+    /* Blob.slice() with no end means "to the end of the file". With a known
+       size that is size-1; with an UNKNOWN size (a record the Archive gave
+       no size for) there is no last byte to name, and the old arithmetic
+       produced -1 — `Range: bytes=0--1`, which no server answers. An
+       open-ended `bytes=lo-` is HTTP's own way to say the same thing
+       (review 2026-09-01). */
+    const end = b == null ? (size || null) : Math.min(size || Infinity, b);
+    const hi = (end == null || !isFinite(end)) ? null : end - 1;
+    return { size: hi == null ? 0 : Math.max(0, hi - lo + 1),
+             arrayBuffer: () => fetchBytes(url, [lo, hi]) };
   }
   text() { return this.arrayBuffer().then(ab => new TextDecoder().decode(ab)); }
 }
@@ -423,6 +539,14 @@ async function searchCommons(text, rows) {
     const p = byTitle.get(h.title);
     const ii = p && p.imageinfo && p.imageinfo[0];
     if (!ii || !ii.url) continue;
+    /* THE MIME MUST SAY AUDIO (review 2026-09-01 M4). `filetype:audio` is a
+       search hint, not a guarantee — the same query surfaces .ogv video and
+       the odd PDF transcript, and a Commons row's + button hands its file
+       straight to DW.ingest, where the only defence left is decodeAudioData
+       failing after the bytes are on the wire. `application/ogg` is allowed
+       beside `audio/*` because MediaWiki genuinely reports it for some Ogg
+       audio; video/ogg, image/* and everything else is refused here. */
+    if (!/^audio\//i.test(ii.mime || '') && String(ii.mime || '').toLowerCase() !== 'application/ogg') continue;
     const em = ii.extmetadata || {};
     const val = k => em[k] && em[k].value;
     const name = p.title.replace(/^File:/, '');
@@ -438,13 +562,13 @@ async function searchCommons(text, rows) {
       source: {
         kind: 'commons.wikimedia.org', item: p.title, page: ii.descriptionurl || null,
         release: 'Wikimedia Commons', creator,
-        licence, licenceName: licShort, noDerivatives: noDerivs(licence),
+        licence, licenceName: licShort, noDerivatives: noDerivs(licence, licShort),
         format: ii.mime || '', file: name, original: null, bytes: +ii.size || 0,
         length: null, track: null
       }
     });
     items.push({ kind: 'commons', id: p.title, title: name.replace(/\.[^.]+$/, ''),
-      creator, licence, licenceName: licShort, noDerivatives: noDerivs(licence),
+      creator, licence, licenceName: licShort, noDerivatives: noDerivs(licence, licShort),
       page: ii.descriptionurl || null, bytes: +ii.size || 0, mime: ii.mime || '', file });
   }
   return { found: (s1.query && s1.query.searchinfo && s1.query.searchinfo.totalhits) || items.length, items };
@@ -742,7 +866,7 @@ async function doSearch() {
     for (const it of r.items) {
       const row = document.createElement('div'); row.className = 'it';
       row.innerHTML = `<span class="t">${esc(it.title || it.id)}</span><span class="bts"><button data-id="${esc(it.id)}">+ add</button><button class="rm" title="remove this release's tracks from the corpus — the analysis cache and the fetched bytes keep them for next time. The Archive holds some albums under more than one item (Digital Memories twice), and the two editions' names never match, so fetching both doubles every song and the set builder cannot fold them.">⊖</button></span>
-        <span class="m">${esc(it.creator || '—')}${it.year ? ' · ' + esc(it.year) : ''} · <span class="lic">${esc(it.licenceName || it.licence)}</span>${it.noDerivatives ? ' <span class="nd">no-derivatives</span>' : ''} · ${it.downloads} downloads · <a href="${esc(it.page)}" target="_blank" rel="noopener" style="color:inherit">page ↗</a></span>`;
+        <span class="m">${esc(it.creator || '—')}${it.year ? ' · ' + esc(it.year) : ''} · <span class="lic">${esc(it.licenceName || it.licence)}</span>${it.noDerivatives ? ' <span class="nd">no-derivatives</span>' : ''} · ${esc(it.downloads)} downloads · <a href="${esc(it.page)}" target="_blank" rel="noopener" style="color:inherit">page ↗</a></span>`;
       /* ⊖ undo for a fetched release, by the source stamp on the records.
          Splices the shared corpus array in place (it is exposed by getter,
          not settable) and re-runs normalise: energy is scaled to the corpus

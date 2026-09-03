@@ -109,8 +109,12 @@ const tick = () => new Promise(r => setTimeout(r, 0));
   await PH.set('background'); await tick();
   ok('background sets navigator.audioSession.type = playback', navigatorFake.audioSession.type === 'playback',
      'type is ' + navigatorFake.audioSession.type + ' — the override WebKit keys on was never set');
-  ok('background keeps the mix on the speakers', outputCalls[outputCalls.length - 1] === false && DW.outputVia === 'speakers',
-     'last outputStream call was ' + outputCalls[outputCalls.length - 1] + ' — background must not swap the sink');
+  /* the sink test is "where is the output", not "was the setter called":
+     since the review's pre-gesture-boot fix the module only calls
+     outputStream(false) when a stream is actually wired, because that call
+     awaits boot() and would build the AudioContext outside a gesture */
+  ok('background keeps the mix on the speakers', DW.outputVia === 'speakers' && !outputCalls.includes(true),
+     'output via ' + DW.outputVia + ' · calls ' + JSON.stringify(outputCalls) + ' — background must not swap the sink');
   ok('status carries the type read back', PH.status.audioSession === 'playback' && PH.status.audioSessionAvailable === true,
      'status.audioSession is ' + PH.status.audioSession);
   ok('background registers play and pause', typeof handlers.play === 'function' && typeof handlers.pause === 'function',
@@ -188,6 +192,72 @@ const tick = () => new Promise(r => setTimeout(r, 0));
      'a handler is missing in media mode');
   await PH.set('off'); await tick();
   ok('off puts the speakers back', DW.outputVia === 'speakers', 'output via ' + DW.outputVia);
+
+  /* ── the pre-gesture boot (review 2026-09-01) ───────────────────────────
+     DW.outputStream() awaits boot(), so the dashboard re-applying a saved
+     mode at load walked every non-media path into building an AudioContext
+     outside any user gesture — for a call that could only ever be a no-op.
+     Control pair: the no-op must be skipped AND a real unwiring must still
+     happen. */
+  outputCalls.length = 0;
+  await PH.set('wake'); await tick();
+  await PH.set('background'); await tick();
+  await PH.set('controls'); await tick();
+  await PH.set('off'); await tick();
+  ok('applying a saved mode never asks the engine to unwire a sink that was never wired (no pre-gesture boot)',
+     outputCalls.length === 0 && DW.outputVia === 'speakers',
+     'outputStream calls ' + JSON.stringify(outputCalls) + ' — each one awaits boot() and builds the AudioContext outside a gesture');
+  outputCalls.length = 0;
+  await PH.set('media'); await tick();
+  await PH.set('background'); await tick();
+  ok('CONTROL: leaving media DOES unwire the stream (the skip is conditional, not a deletion)',
+     outputCalls.join(',') === 'true,false' && DW.outputVia === 'speakers',
+     'calls ' + JSON.stringify(outputCalls) + ' via ' + DW.outputVia);
+  await PH.set('off'); await tick();
+
+  /* ── the card's playbackState is the CONTEXT's, not "a track is loaded" ── */
+  DW.state.now = { name: 'S - T' }; DW.nowMeta = { name: 'S - T', bpm: 120, camelot: '8A', dur: 100 };
+  DW.state.ctx = 'running';
+  await PH.set('background'); await tick();
+  ok('a playing set says playing on the card', navigatorFake.mediaSession.playbackState === 'playing',
+     'playbackState ' + navigatorFake.mediaSession.playbackState);
+  DW.state.ctx = 'suspended';
+  runTick(); await tick();
+  ok('a PAUSED set says paused on the card — the same track is still loaded',
+     navigatorFake.mediaSession.playbackState === 'paused',
+     'playbackState ' + navigatorFake.mediaSession.playbackState
+     + ' — the lock screen is the whole interface there, and it claimed to be playing');
+  DW.state.ctx = 'running';
+  runTick(); await tick();
+  ok('CONTROL: resuming says playing again (the state follows, it is not stuck)',
+     navigatorFake.mediaSession.playbackState === 'playing',
+     'playbackState ' + navigatorFake.mediaSession.playbackState);
+  DW.state.now = null; DW.nowMeta = null;
+  runTick(); await tick();
+  ok('nothing loaded is none', navigatorFake.mediaSession.playbackState === 'none',
+     'playbackState ' + navigatorFake.mediaSession.playbackState);
+  await PH.set('off'); await tick();
+
+  /* ── the focus-holding silent loop stops when the set does ───────────── */
+  DW.state.now = { name: 'S - T' }; DW.nowMeta = { name: 'S - T', bpm: 120, camelot: '8A', dur: 100 };
+  DW.state.ctx = 'running';
+  await PH.set('controls'); await tick();
+  const loopEl = elements[elements.length - 1];
+  await loopEl.play();
+  runTick(); await tick();
+  ok('while a set plays, the silent Now Playing loop keeps running', loopEl.paused === false,
+     'the card is only ours while that element plays');
+  DW.state.now = null; DW.nowMeta = null;
+  runTick(); await tick();
+  ok('when the set ends the silent loop is paused, not left looping for the life of the tab',
+     loopEl.paused === true && PH.status.silentElement === 'paused',
+     'silentElement ' + PH.status.silentElement + ' — 30 s of zeros looping forever, holding Android audio focus, under a card for a set that is over');
+  DW.state.now = { name: 'S - T' }; DW.nowMeta = { name: 'S - T', bpm: 120, camelot: '8A', dur: 100 };
+  runTick(); await tick();
+  ok('CONTROL: a new set starts it again (paused, not torn down)', loopEl.paused === false,
+     'silentElement ' + PH.status.silentElement);
+  await PH.set('off'); await tick();
+  DW.state.now = null; DW.nowMeta = null;
 
   let bad = null; try { await PH.set('nope'); } catch (e) { bad = e; }
   ok('an unknown mode throws and names the modes', bad && /background/.test(bad.message), bad ? bad.message : 'no throw');

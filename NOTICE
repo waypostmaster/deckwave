@@ -93,6 +93,7 @@ butterchurn-presets — MIT per its repository  (version 2.4.7, PINNED)
   freely in the Winamp community and ship in the Internet Archive's webamp
   under the same package. Vendored unmodified as
   vendor/butterchurn-presets.min.js.
+  Licence text: vendor/LICENSE.butterchurn-presets.txt.
 
 INFLUENCES (no code used or copied)
 -----------------------------------

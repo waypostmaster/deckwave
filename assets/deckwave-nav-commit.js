@@ -72,7 +72,12 @@ window.DWNAV.commit = function (set, opts) {
   /* every _stretch after the splice is now wrong; recompute exactly as the
      sequencer would */
   const DRIFT = this.DRIFT;
-  let T = st.tempo || out[at].bpm;
+  /* the UNROUNDED rolling target: this loop RE-PLANS from it (every
+     `_stretch` below is target / bpm), and `st.tempo` is Math.round for
+     display, so re-planning from it put the printed plan up to 0.4% away
+     from what the deck would actually do. `tempoExact` is the engine's own
+     number; the fallback keeps an older Player working. */
+  let T = st.tempoExact || st.tempo || out[at].bpm;
   for (let i = at + 1; i < out.length; i++) {
     out[i]._stretch = T / out[i].bpm;
     /* Clear any dwell left by a previous route. A track that was a stepping
@@ -203,7 +208,9 @@ window.DWNAV.commitAndRepair = function (set) {
   const q = this.queue;
   const stones = (q && q.mode === 'route' && q.hops) ? q.hops.slice() : [];
   const dest = set[q ? q.idx : -1] || null;
-  let T = window.DW.state.tempo || set[window.DW.state.idx].bpm;
+  /* unrounded, for the same reason as commit()'s loop above — this walks the
+     drift forward to seed resequenceTail(), which plans stretches from it */
+  let T = window.DW.state.tempoExact || window.DW.state.tempo || set[window.DW.state.idx].bpm;
   for (let i = window.DW.state.idx + 1; i <= c.resequenceFrom && i < c.set.length; i++) {
     T = T + (c.set[i].bpm - T) * this.DRIFT;
   }

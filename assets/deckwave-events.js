@@ -76,11 +76,27 @@ const INTENTS = [
 ];
 const KINDS = INTENTS.map(i => i.kind);
 
+/* A NEGATION IS NOT A DIRECTION (review 2026-09-01). The table is a lookup,
+   and a lookup reads "don't speed up" as `speed` → faster: the exact
+   opposite of what was asked, acted on immediately, through the real blend.
+   There is no way to invert an intent correctly without parsing the
+   sentence, which this module deliberately does not do — so a matched
+   intent carrying a negation is REFUSED and says why, rather than guessed.
+   That is the honest half of a known ceiling; the other half (word order —
+   "drop it down" reads `drop` as hype, "speak faster" is a duck because
+   duck/unduck are matched first) is documented in docs/GAME-INTEGRATION.md
+   and NOT patched here: re-tuning the word lists is the keeper's, and every
+   one of those words was chosen for a reason. */
+const NEG = /\b(don'?t|do not|not|no|never)\b/i;
+function matchKind(s) { for (const i of INTENTS) if (i.re.test(s)) return i.kind; return null; }
+const negated = s => NEG.test(String(s || ''));
+
 function parse(input) {
   const s = String(input || '').trim();
   if (KINDS.includes(s.toLowerCase())) return s.toLowerCase();
-  for (const i of INTENTS) if (i.re.test(s)) return i.kind;
-  return null;
+  const k = matchKind(s);
+  if (!k) return null;
+  return negated(s) ? null : k;
 }
 
 const say = s => { if (W && W.log) { try { W.log('inject: ' + s); } catch (e) {} } return s; };
@@ -149,7 +165,14 @@ async function steer(kind) {
 
 async function inject(input, opts) {
   const kind = parse(input);
-  if (!kind) return say('unknown event "' + String(input).slice(0, 40) + '" — the vocabulary is: ' + KINDS.join(' · '));
+  if (!kind) {
+    const s = String(input || '').trim();
+    if (negated(s) && matchKind(s))
+      return say('refusing "' + s.slice(0, 40) + '" — it reads as "' + matchKind(s)
+        + '" with a "no" in front, and this is a lookup table, not a parser: acting on it would do the opposite of what you asked. '
+        + 'Say the intent you DO want: ' + KINDS.join(' · '));
+    return say('unknown event "' + String(input).slice(0, 40) + '" — the vocabulary is: ' + KINDS.join(' · '));
+  }
   const DW = window.DW;
   if (kind === 'duck') {
     if (!DW) return say('duck: engine not loaded');
@@ -273,7 +296,18 @@ function speak(text, opts) {
   if (o.voice) { const tmp = speechCfg.voice; speechCfg.voice = String(o.voice);
                  const hit = pickVoice(); speechCfg.voice = tmp; if (hit) u.voice = hit; }
   else if (v) u.voice = v;
+  /* RESTORE-TO-PRE-DUCK IS THE DESIGN, not an oversight (review
+     2026-09-01). `ducked` is the volume the music had when the voice
+     started and it is what comes back — so a fader moved or a feed `level`
+     sent WHILE a take is speaking is discarded when it ends. That is the
+     behaviour the keeper locked by ear on the voice night ("our duck
+     restored exactly"): the deck must land back exactly where it was, and
+     a duck that returned to "wherever the volume happens to be now" would
+     make a mid-sentence nudge permanent. Set the level before or after the
+     voice, not under it. */
+  let guard = null;
   const done = () => {
+    if (guard) { clearTimeout(guard); guard = null; }
     if (speaking !== u) return;                   /* a newer utterance took over - it restores */
     speaking = null;
     if (speechDucked && window.DW && ducked != null) { window.DW.volume = ducked; ducked = null; speechDucked = false; }
@@ -281,6 +315,17 @@ function speak(text, opts) {
   u.onend = done; u.onerror = done;
   speaking = u;
   try { speechSynthesis.speak(u); } catch (e) { done(); return say('speak: ' + String((e && e.message) || e)); }
+  /* AND A DEAD MAN'S HANDLE ON `onend`. Chrome drops the event outright for
+     some utterances (a tab backgrounded mid-speech, a voice that never
+     loads, speechSynthesis wedged after a cancel) and the duck then has no
+     end: the music stays at 0.55x until somebody types unduck, which on a
+     phone mid-set means nobody. The timeout is CHOSEN and deliberately
+     generous — 10 characters per second is slower than any real voice
+     (English synthesis runs 12-16 at rate 1), divided by the rate, plus a
+     4 s margin for queueing — so it can only ever fire AFTER an utterance
+     that has really finished, never across a live one. */
+  const guardMs = 4000 + (t.length / 10) * 1000 / Math.max(0.5, u.rate || 1);
+  guard = setTimeout(() => { guard = null; done(); }, guardMs);
   last = { kind: 'speak', chars: t.length, duck: depth };
   return say('speaking ' + t.length + ' chars over the set - ducked to ' + depth + 'x, restored when the voice ends');
 }
@@ -301,7 +346,15 @@ function speak(text, opts) {
        grids carry runs at another spacing; a bar figure inside one of
        those runs is off, and that is the grid's known limit, not a bug
        here);
-     · `tempo` is the PLAYING tempo (bpm × rate); `bpm` is the label.
+     · `tempo` is the PLAYING tempo (bpm × rate); `bpm` is the label;
+     · `origin` and `matched` are the ENGINE's own facts about the deck,
+       passed through untouched (deckwave.js `DW.deck`): 'play' is the
+       first ▶, a jumped-to row or back(), 'chain' is the only path that
+       beatmatches, and `matched` answers the question every surface
+       printing a stretch figure actually has — is this deck being
+       beatmatched against anything? A jumped-to deck runs at rate 1 and
+       is NOT, so `rate === 1` is not that answer (ledger 82); read
+       `matched`, never the rate. Both are absent while nothing plays.
 
    A straight track pulses too (rate 1, its own grid). Nothing playing →
    { playing: false } and nothing else, so a game can gate on one field. */
@@ -313,6 +366,11 @@ function pulse() {
   const out = { playing: true, name: m.name, bpm: m.bpm, tempo: +(m.bpm * rate).toFixed(2),
                 rate, straight: !!m._unlocked, energy: m.energy != null ? m.energy : null,
                 camelot: m.camelot || null, pos: +pos.toFixed(3), dur: m.dur || null };
+  /* read from the deck, never derived here: this module translates, it does
+     not decide. Undefined when the engine offers no deck, so a consumer can
+     tell "not matched" from "the engine is too old to say". */
+  if (dk.origin !== undefined) out.origin = dk.origin;
+  if (dk.matched !== undefined) out.matched = dk.matched;
   const B = m.beats;
   if (Array.isArray(B) && B.length > 1) {
     /* binary search: first beat index at or after pos */
@@ -334,6 +392,14 @@ function pulse() {
    also just call DWEVENTS.pulse() directly — an iframe on the same
    origin reaches it via contentWindow, which is the better path). */
 window.addEventListener('message', e => {
+  /* "null" IS NOT AN ORIGIN (review 2026-09-01). On a file:// page — and in
+     a sandboxed frame, and after some redirects — location.origin is the
+     STRING "null", and so is e.origin for every other opaque origin on the
+     machine: the equality below passes and any local page, from anywhere,
+     could steer the deck. Same-origin means a real origin. Worklets need a
+     server so file:// cannot play today, which is why this is a gate and
+     not an incident. */
+  if (location.origin === 'null' || e.origin === 'null') return;
   if (e.origin !== location.origin) return;
   const d = e.data;
   if (!d || !d.deckwave) return;

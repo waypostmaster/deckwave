@@ -93,10 +93,21 @@ function plan(set, opts) {
          beats disagree with its tempo label) or 'reach' (the set could not
          stretch to it) — or null for a locked, beatmatched track. stretchPct
          is NULL rather than 0 for a straight track: 0 reads as "the best
-         transition in the set" and it is not a transition of that kind. */
+         transition in the set" and it is not a transition of that kind.
+
+         AND NULL FOR STEP 0, added 2026-09-01 for exactly the same reason
+         (ledger 82's class, on the two surfaces that still carried it): the
+         first track of a set has nothing before it, so its rate is 1 by
+         construction and not by a good match, and `STRETCH 0%` against it
+         read as the tightest transition in the score. `rate` stays 1 —
+         that IS the rate, and it is a fact about playback. `stretchPct` is
+         a claim about a transition, and there is no transition here.
+         summary.maxStretchPct already skips nulls; `matched` says plainly
+         which steps are beatmatched at all. */
       straight: straight ? (m._unlockReason || 'grid') : null,
+      matched: !straight && i > 0,
       rate: +rate.toFixed(4),
-      stretchPct: straight ? null : +((rate - 1) * 100).toFixed(2),
+      stretchPct: (straight || i === 0) ? null : +((rate - 1) * 100).toFixed(2),
       entrySec: +entry.toFixed(3), exitSec: +exit.toFixed(3),
       dwellSec: m._dwell ? +Math.max(floor, m._dwell) : null,
       /* phrase mode only: the detected 8-bar offset (0–7) and its contrast,
@@ -190,9 +201,13 @@ function cue(sc, title) {
   sc.steps.forEach((s, i) => {
     o += '  TRACK ' + String(i + 1).padStart(2, '0') + ' AUDIO\n';
     o += '    TITLE "' + s.name.replace(/"/g, "'") + '"\n';
-    /* never a percentage against a straight track — see plan() */
+    /* never a percentage against a track that is not being beatmatched — a
+       straight one, or the first, which has nothing before it. Keyed on
+       `stretchPct == null` rather than on the index so the cue cannot drift
+       from the plan's own rule. See plan(). */
     o += '    REM BPM ' + s.bpm + ' KEY ' + s.camelot +
          (s.straight ? ' STRAIGHT ' + s.straight + ' (no beatmatch)'
+          : s.stretchPct == null ? ' RATE ' + s.rate + ' FIRST (nothing to match)'
                      : ' RATE ' + s.rate + ' STRETCH ' + s.stretchPct + '%') + '\n';
     /* a libre track's terms travel with the cue sheet too */
     if (s.source) o += '    REM ATTRIBUTION "' + String((s.source.creator || '') + ' / ' + (s.source.release || '') + ' / '

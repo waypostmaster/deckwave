@@ -44,6 +44,18 @@ So reuse is off on Windows, and a start probes the port first: if Deckwave is
 already answering there, this says so and exits 0 instead of stacking a second
 copy. A PID file next to the system temp directory — never in the repo, which
 is served — lets --stop find it.
+
+WHAT IT SERVES, AND HOW
+Content types come from MIME_TYPES below, not from the `mimetypes` module:
+on Windows that module reads the registry, so what a .js file is served as
+would depend on this machine's HKEY_CLASSES_ROOT. With `nosniff` on every
+response, one bad registry entry refuses every module. The table wins.
+
+/music/ answers a single `Range: bytes=a-b` with 206 so an interrupted
+download of a multi-gigabyte library resumes. One range only; multi-range and
+malformed ranges are ignored (200, per RFC 7233), unsatisfiable ones are 416,
+`If-Range` is not honoured and no ETag is sent. Repo files have no Range
+branch — they are kilobytes and nothing resumes them.
 """
 import argparse
 import atexit
@@ -83,9 +95,44 @@ DENY_FILES = {"docs/runbook.md"}
 # resolved and checked against the real directory, the same discipline as
 # _forbidden(). Your own files, over your own LAN, to your own phone.
 MUSIC = None
-AUDIO_EXT = (".flac", ".mp3", ".wav", ".aiff", ".m4a", ".ogg")
-AUDIO_TYPES = {".flac": "audio/flac", ".mp3": "audio/mpeg", ".wav": "audio/wav",
-               ".aiff": "audio/aiff", ".m4a": "audio/mp4", ".ogg": "audio/ogg"}
+# .opus and .aac joined 2026-09-03 (review, Low): a Commons Opus dropped into
+# the music folder was invisible in the listing AND 403 on GET, which reads as
+# a broken server rather than an unlisted extension.
+AUDIO_EXT = (".flac", ".mp3", ".wav", ".aiff", ".m4a", ".ogg", ".opus", ".aac")
+
+# THE CONTENT TYPES ARE OURS, NOT THE REGISTRY'S.
+# SimpleHTTPRequestHandler asks `mimetypes`, and on Windows `mimetypes` reads
+# HKEY_CLASSES_ROOT: the type a .js file is served as depends on what some
+# installer last wrote into the registry of THIS machine. Combined with the
+# `nosniff` header sent below, a box whose HKCR maps `.js` to `text/plain`
+# refuses every module in assets/ and the page dies with no useful error.
+# Not reproduced here — and that is exactly why it is worth removing as a
+# variable rather than waiting to meet it on someone else's machine.
+# This table wins; the registry is the fallback for anything not listed.
+# `audio/ogg` is the registered type for .opus (RFC 7845 §9), not audio/opus.
+MIME_TYPES = {
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".html": "text/html; charset=utf-8",
+    ".htm": "text/html; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".jsonl": "application/json; charset=utf-8",
+    ".map": "application/json; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".ico": "image/x-icon",
+    ".webmanifest": "application/manifest+json",
+    ".wasm": "application/wasm",
+    ".mem": "application/octet-stream",
+    ".onnx": "application/octet-stream",
+    ".flac": "audio/flac", ".mp3": "audio/mpeg", ".wav": "audio/wav",
+    ".aiff": "audio/aiff", ".m4a": "audio/mp4", ".ogg": "audio/ogg",
+    ".opus": "audio/ogg", ".aac": "audio/aac",
+}
+AUDIO_TYPES = MIME_TYPES          # kept as the old name; one table now
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -177,11 +224,117 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if not mp.lower().endswith(AUDIO_EXT):
                 self.send_error(403, "Only audio is served from /music/")
                 return None
-            return super().send_head()
+            return self._send_music_file(mp)
         if self._forbidden(self.path):
             self.send_error(403, "Not served")
             return None
         return super().send_head()
+
+    # -- Range: one byte range, for a download that dropped ----------------
+    @staticmethod
+    def _parse_range(header, size):
+        """(start, end) inclusive for a single satisfiable range,
+        False when the range cannot be satisfied (caller sends 416),
+        None when there is no range to honour (caller sends the whole file).
+
+        RFC 7233 is explicit that a MALFORMED Range header must be IGNORED,
+        not rejected — so a header this cannot read comes back None and the
+        client gets 200, never 416. Multi-range (`bytes=0-9,20-29`) is also
+        None: answering a multipart request with one part would be a wrong
+        answer, and the spec permits ignoring it. `If-Range` is NOT honoured
+        and this server sends no ETag; a file edited between two halves of a
+        resumed download would be spliced. It is a LAN dev server serving a
+        read-only folder, and that is the whole guarantee."""
+        if not header or not header.strip().lower().startswith("bytes="):
+            return None
+        spec = header.split("=", 1)[1].strip()
+        if "," in spec:
+            return None
+        if "-" not in spec:
+            return None
+        first, _, last = spec.partition("-")
+        first, last = first.strip(), last.strip()
+        try:
+            if not first:                       # bytes=-N  (the last N bytes)
+                n = int(last)
+                if n <= 0:
+                    return False
+                if size == 0:
+                    return False
+                return (max(0, size - n), size - 1)
+            start = int(first)
+            end = int(last) if last else size - 1
+        except ValueError:
+            return None                         # unreadable -> ignore, not 416
+        if start < 0 or end < start:
+            return None
+        if size == 0 or start >= size:
+            return False
+        return (start, min(end, size - 1))
+
+    def _send_music_file(self, mp):
+        """One audio file out of /music/, with single-range support.
+
+        SimpleHTTPRequestHandler has no Range branch: it answers 200 with the
+        whole body for every request, so a phone download that dies at 90 %
+        restarts at byte zero. Whole-library downloads here are gigabytes over
+        a LAN, which is precisely where a resume is worth having. The 200 path
+        below is the base class's own (the file object is handed back for
+        do_GET to copy); only 206 and 416 are written here, and 206 writes
+        exactly `end - start + 1` bytes because copyfile() would run to EOF."""
+        try:
+            st = os.stat(mp)
+            f = open(mp, "rb")
+        except OSError:
+            self.send_error(404, "No such file")
+            return None
+        size = st.st_size
+        rng = self._parse_range(self.headers.get("Range"), size)
+
+        if rng is False:
+            f.close()
+            self.send_response(416)
+            self.send_header("Content-Range", "bytes */%d" % size)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+
+        ctype = self.guess_type(mp)
+        if rng is None:
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(size))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Last-Modified", self.date_time_string(st.st_mtime))
+            self.end_headers()
+            return f                       # do_GET copies it; do_HEAD closes it
+
+        start, end = rng
+        self.send_response(206)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Last-Modified", self.date_time_string(st.st_mtime))
+        self.end_headers()
+        if self.command == "HEAD":
+            f.close()
+            return None
+        try:
+            f.seek(start)
+            left = end - start + 1
+            while left > 0:
+                chunk = f.read(min(65536, left))
+                if not chunk:
+                    break                  # file shrank under us; stop honestly
+                self.wfile.write(chunk)
+                left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        finally:
+            f.close()
+        return None
 
     def _audio_under(self, top):
         """Every audio file under `top`, recursively, as (abs path, arcname)."""
@@ -230,7 +383,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def guess_type(self, path):
         ext = os.path.splitext(path)[1].lower()
-        return AUDIO_TYPES.get(ext) or super().guess_type(path)
+        return MIME_TYPES.get(ext) or super().guess_type(path)
 
     def list_directory(self, path):
         mp = self._music_path()
@@ -412,8 +565,16 @@ def main():
     with open(pf, "w") as f:
         f.write(str(os.getpid()))
     atexit.register(lambda: os.path.exists(pf) and os.remove(pf))
-    # SIGTERM is how --stop asks; without a handler the atexit hook never runs
-    # and the next start would find a stale pid file.
+    # SIGTERM is how --stop asks -- ON POSIX. This handler makes the atexit
+    # hook run there so the pid file is removed by the process that wrote it.
+    #
+    # ON WINDOWS IT NEVER RUNS, and the comment here used to claim it did.
+    # os.kill(pid, SIGTERM) on Windows is TerminateProcess: the process is
+    # killed by the kernel, no signal is delivered, no handler fires, no
+    # atexit hook runs. Nothing is lost, because stop() removes the pid file
+    # itself after the kill -- but the cleanup on this platform is the
+    # CALLER's, not this line's, and a reader should not have to find that
+    # out from the OS. Corrected 2026-09-03 (review, Tools/Low).
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 
     if args.lan:

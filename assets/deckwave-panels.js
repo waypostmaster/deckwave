@@ -69,44 +69,113 @@ return {
 };
 })();
 
+/* ONE title cleaner for every panel in this file — LEDGER 104, third time.
+   `Artist - Album - NN Title` reads as `Title` in a panel that has no room
+   for the rest, and falls back to the raw name when the pattern does not
+   match. Both halves of the strip are GATED, and both gates were paid for:
+   `[^-]+-\s*` (no space required) ate the `8-` out of `LukHash - 8-Bit
+   Warrior` and left `Bit Warrior`, and `\d+\s*` then ate a bare leading
+   digit off whatever survived. A SPACED ` - ` separator and a `\d+\s+`
+   number strip keep the title whole, and `LukHash - GLITCH - 02 DOOMSDAY`
+   still comes back `DOOMSDAY`. The card and the track list carry the same
+   two gates; three more copies of the ungated form were living in this file
+   until 2026-09-01, which is why there is now one of it. Change it here or
+   not at all — and RUN it, do not read it (ledger 104's own lesson). */
+const DWP_clean = n => String(n || '')
+  .replace(/^[^-]+ - /, '').replace(/^[^-]+ - /, '').replace(/^\d+\s+/, '') || String(n || '');
+
 /* ── the four later panels ────────────────────────────────────────────── */
 
 /* SPECTROGRAM — calibrated against a MEASURED distribution, not a guess.
    Real material: p10 -23dB, median -10dB, peak -3.7dB. An earlier -62dB floor
    mapped the median to 0.84 and produced a solid block. Floor -50, ceiling -3,
-   gamma 3 to spread the mids. See the saturation table in the build log. */
+   gamma 3 to spread the mids. See the saturation table in the build log.
+
+   THE DEVICE-PIXEL BUG, worth understanding before touching this again:
+   getImageData/putImageData work in DEVICE pixels and IGNORE the canvas
+   transform. fillRect HONOURS the transform. The first version scrolled its
+   history in CSS coordinates while drawing the new column in transformed
+   ones — so on a devicePixelRatio of 1.75 it scrolled a 233x259 corner of a
+   455x453 buffer and drew the new column somewhere else entirely, and the
+   right-edge pixel read [0,0,0,0]. It would have worked perfectly on a
+   non-retina display, which is what made it hard to see. Fix: do the whole
+   panel untransformed, in device pixels.
+
+   THAT FIX LIVED IN A PATCH FILE UNTIL 2026-09-01. patch-01-spectrogram.js
+   re-registered the panel at load and this registration was still the old
+   one, so a page that failed to load one script silently got the broken
+   panel back with the boot gate none the wiser (review M12). The patch's
+   implementation IS this one now; every calibration number is carried over
+   unchanged (floor/ceiling/gamma, 40-16000 Hz, the hue ramp, padL 26, the
+   octave list, the .28 rule alpha).
+
+   ONE CHANGE FROM THE PATCH, and it is plumbing rather than calibration: the
+   scale comes from `canvas.width / w` instead of `window.devicePixelRatio`.
+   The drawing functions live in the OPENER, so a panel popped out onto a
+   second screen read the laptop's ratio and not the projector's; and the
+   box is w x h, which in the popout is smaller than the canvas (the title
+   strip sits below it). Deriving the ratio from the canvas is exact in both
+   places and keeps the panel inside the box it was given. */
 window.DWPANELS.register('waterfall', 'spectrogram', function (c, w, h, T, D) {
   if (!D.freq) return;
-  const FLOOR = -50, CEIL = -3, GAMMA = 3, padL = 26;
-  try { const img = c.getImageData(padL + 1, 0, Math.max(1, w - padL - 1), h);
-        c.putImageData(img, padL, 0); } catch (e) {}
-  const x = w - 1, SR = 44100, N = D.freq.length * 2;
-  const FMIN = 40, FMAX = 16000, lmin = Math.log2(FMIN), lspan = Math.log2(FMAX) - lmin;
-  for (let y = 0; y < h; y++) {
-    const fr = 1 - (y / h), f = Math.pow(2, lmin + fr * lspan);
-    const raw = D.freq[Math.min(D.freq.length - 1, Math.max(1, Math.round(f * N / SR)))] / 255;
+  const FLOOR = -50, CEIL = -3, GAMMA = 3;
+  const cv = c.canvas;
+  /* device pixels per CSS pixel, measured off THIS canvas — never off a
+     window, which may be the opener's rather than the one being drawn on */
+  const dpr = (cv && cv.width && w) ? cv.width / w : 1;
+  const W = Math.max(1, Math.round(w * dpr)), H = Math.max(1, Math.round(h * dpr));
+  const padL = Math.round(26 * dpr);
+
+  c.save();
+  c.setTransform(1, 0, 0, 1, 0, 0);            /* device pixels from here */
+
+  try {
+    const img = c.getImageData(padL + 1, 0, Math.max(1, W - padL - 1), H);
+    c.putImageData(img, padL, 0);
+  } catch (e) { /* tainted canvas — degrade to a static column */ }
+
+  const x = W - 1, SR = 44100, N = D.freq.length * 2;
+  const FMIN = 40, FMAX = 16000;
+  const lmin = Math.log2(FMIN), lspan = Math.log2(FMAX) - lmin;
+
+  for (let y = 0; y < H; y++) {
+    const fr = 1 - (y / H), f = Math.pow(2, lmin + fr * lspan);
+    const bin = Math.min(D.freq.length - 1, Math.max(1, Math.round(f * N / SR)));
+    const raw = D.freq[bin] / 255;
     const db = raw > 0.0005 ? 20 * Math.log10(raw) : -90;
-    let v = Math.pow(Math.max(0, Math.min(1, (db - FLOOR) / (CEIL - FLOOR))), GAMMA);
+    const v = Math.pow(Math.max(0, Math.min(1, (db - FLOOR) / (CEIL - FLOOR))), GAMMA);
     if (v < 0.03) c.fillStyle = T.bg;
     else {
       const reg = window.DWREGISTER && window.DWREGISTER.mode;
       const base = (reg && reg.on) ? reg.hue : 225;
       c.fillStyle = 'hsl(' + (base - v * 135).toFixed(0) + ','
-        + (40 + v * 50).toFixed(0) + '%,' + (3 + Math.pow(v, 0.6) * 66).toFixed(0) + '%)';
+                  + (40 + v * 50).toFixed(0) + '%,'
+                  + (3 + Math.pow(v, 0.6) * 66).toFixed(0) + '%)';
     }
     c.fillRect(x, y, 1, 1);
   }
-  c.fillStyle = T.bg; c.fillRect(0, 0, padL, h);
-  c.font = '7px ' + T.fn; c.textAlign = 'right'; c.textBaseline = 'middle';
-  [[55,'A1'],[110,'A2'],[220,'A3'],[440,'A4'],[880,'A5'],[1760,'A6'],[3520,'A7'],[7040,'A8']]
-    .forEach(([fq, lab]) => {
-      const fr = (Math.log2(fq) - lmin) / lspan; if (fr < 0 || fr > 1) return;
-      const y = h - fr * h;
-      c.strokeStyle = T.line; c.globalAlpha = .28; c.lineWidth = 1;
-      c.beginPath(); c.moveTo(padL, y); c.lineTo(w, y); c.stroke(); c.globalAlpha = 1;
-      c.fillStyle = T.dim; c.fillText(lab, padL - 3, y);
-    });
-}, { note: 'dB, octave axis' });
+
+  /* octave axis — so you can locate what you are looking at */
+  c.fillStyle = T.bg; c.fillRect(0, 0, padL, H);
+  c.font = (7 * dpr).toFixed(0) + 'px ' + T.fn;
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  [[55,'A1'],[110,'A2'],[220,'A3'],[440,'A4'],
+   [880,'A5'],[1760,'A6'],[3520,'A7'],[7040,'A8']].forEach(function (p) {
+    const fr = (Math.log2(p[0]) - lmin) / lspan;
+    if (fr < 0 || fr > 1) return;
+    const y = H - fr * H;
+    c.strokeStyle = T.line; c.globalAlpha = .28; c.lineWidth = dpr;
+    c.beginPath(); c.moveTo(padL, y); c.lineTo(W, y); c.stroke();
+    c.globalAlpha = 1;
+    c.fillStyle = T.dim; c.fillText(p[1], padL - 3 * dpr, y);
+  });
+
+  c.restore();
+  /* THE HINT IS NOT A UNIT. The series is 20*log10(byte/255) of a byte the
+     analyser has already mapped through its own min/max decibel range, so
+     "dB" would name a quantity this is not; no number is printed against
+     the colour anywhere on the panel. A word, not an axis label. */
+}, { note: 'relative level, octave axis' });
 
 /* POLYGRAPH — five pens on ruled chart paper. The lie-detector look, and
    every channel is a real signal rather than decoration. */
@@ -193,7 +262,7 @@ window.DWPANELS.register('position', 'track position', function (c, w, h, T, D) 
   c.textAlign = 'right';
   c.fillText((B ? 'blend at ' : 'blend ~') + mmss(exitAt) + (t._unlocked ? ' · straight' : ''), w - pad, y - 20);
   c.textAlign = 'center'; c.fillStyle = T.ac2;
-  c.fillText(t.name.replace(/^[^-]+-\s*/, '').slice(0, 40), w / 2, y + 22);
+  c.fillText(DWP_clean(t.name).slice(0, 40), w / 2, y + 22);
 }, { note: 'progress + exit point' });
 
 /* LOUDNESS — RELATIVE. Proper K-weighting per ITU-R BS.1770 is approximated
@@ -290,8 +359,13 @@ window.DWPANELS.EXTRA = ['timeline','drops','loudtime'];
    that nothing had registered. The loop's `if (!p) return;` then skipped them
    in silence and four of the six default cells stayed blank forever.
 
-   Recovered latest-wins, not first-found: the spectrogram above is already the
-   newest version and is untouched here. Calibration constants are carried
+   Recovered latest-wins, not first-found. The line that used to sit here said
+   "the spectrogram above is already the newest version"; it was NOT — the
+   device-pixel fix lived only in patch-01-spectrogram.js, which re-registered
+   the panel over this one at load, and the claim went unchallenged for as
+   long as the patch kept loading. The patch's implementation is the one
+   above now and the patch is a no-op (review 2026-09-01, M12). Calibration
+   constants are carried
    over exactly as they were measured — the chroma visibility thresholds
    (.12/.6) and its 55-5000 Hz band, the goniometer's 900-point decimation,
    the VU ballistics, the 45% bass-swap point. Not one number was re-chosen. */
@@ -835,12 +909,11 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
   const top = Math.max(pad, (h - blockH) / 2);
   const y1 = top + 12 + rowH / 2, y2 = y1 + rowH / 2 + gap + rowH / 2;
   const span = 8, t = performance.now() / 1000;
-  /* Same shape as the now-playing card's cleaner: drop the artist and album
-     prefixes and any leading track number, so "LukHash - GHOSTS - 05 TAKE
-     CONTROL" reads as "TAKE CONTROL" in a panel that has no room for the
-     rest. Falls back to the raw name if the pattern does not match. */
-  const clean = n => String(n || '')
-    .replace(/^[^-]+-\s*/, '').replace(/^[^-]+-\s*/, '').replace(/^\d+\s*/, '') || String(n || '');
+  /* The file's one cleaner (DWP_clean, top of file). This used to be a
+     private ungated copy and rendered "LukHash - 8-Bit Warrior" as
+     "Bit Warrior" on the transition monitor — ledger 104's exact bug,
+     two surfaces further on. */
+  const clean = DWP_clean;
   const fit = (s, max) => {
     if (c.measureText(s).width <= max) return s;
     let lo = 0, hi = s.length;
@@ -856,10 +929,13 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
     c.textAlign = 'right'; c.fillStyle = colr;
     /* never a ratio against a track played straight — ×1.000 reads as a
        perfect match, and no match is being claimed.
-       NOR against the FIRST deck, for the same reason: nothing precedes
-       step 1, so its rate is 1 by construction. This guard covered only
-       `_unlocked` until 2026-08-30, which is ledger 82 half-applied — the
-       harness case for it existed and simply was not asserting. */
+       NOR against a deck that was STARTED rather than mixed into, for the
+       same reason: nothing precedes it, so its rate is 1 by construction.
+       This guard covered only `_unlocked` until 2026-08-30, which is ledger
+       82 half-applied — the harness case for it existed and simply was not
+       asserting — and until 2026-09-01 `first` was inferred from the list
+       index, which is false for a jumped-to deck. The caller now reads the
+       engine's `origin`. */
     const meta = bpm.toFixed(1) + ' bpm · ' + m.camelot + ' · ' +
       (m._unlocked ? '∿ straight' : first ? '∿ first · nothing to match' : '×' + (rate || 1).toFixed(3));
     c.fillText(meta, w - pad, yLab);
@@ -890,10 +966,22 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
   };
   const left = D.transLeft;
   const blending = fading;
-  /* the OUTGOING row is the first deck when the set is at step 1 and it runs
-     at exactly rate 1 — the same predicate RECON, the header, the card and
-     the route panel now share */
-  const firstDeck = st.idx === 0 && (rateA === 1 || rateA == null);
+  /* WHICH ROW IS UNMATCHED — read from the engine, not guessed from the
+     index. `origin === 'play'` means the deck was STARTED (first ▶, a
+     jumped-to row, back()) rather than mixed into, so its rate is 1 because
+     nothing preceded it and `×1.000` against it reads as a perfect beatmatch
+     of an event that never happened (ledger 82). The old predicate here was
+     `st.idx === 0 && rateA === 1`, which missed BOTH open cases: a jumped-to
+     deck (idx is 7, rate is still 1) and the outgoing row of the very first
+     fade (idx has already moved to 1 while the first deck is still audible).
+
+     While FADING, OUTGOING is the handed-over deck (DW.prevDeck carries its
+     own origin) and INCOMING is the live one; otherwise OUTGOING is the live
+     deck and INCOMING is the scheduled next, which chain() always builds. */
+  const pdk = (window.DW && window.DW.prevDeck) || null;
+  const deckFirst = !!(D.deck && D.deck.origin === 'play');
+  const firstA = fading ? !!(pdk && pdk.origin === 'play') : deckFirst;
+  const firstB = fading ? deckFirst : false;
   /* NOTHING ON A DECK: `nowM` falls back to S[st.idx], which survives
      stop(), so this panel drew a full transition - labelled rows, ticking
      bars and a lock verdict - byte-identical to the playing case, while
@@ -904,8 +992,8 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
      about to hear) and only the LOCK CLAIM is dishonest, because no deck
      is making the transition it is claiming to have measured. */
   const notPlaying = !D.now;
-  const perA = row(cur, rateA, y1, notPlaying ? T.dim : (DWP_col(60) || T.ac2), 'OUTGOING', blending ? 1 - prog : 1, firstDeck);
-  const perB = nxt ? row(nxt, rateB, y2, notPlaying ? T.dim : (DWP_col(72) || T.ac), 'INCOMING', blending ? prog : 0) : null;
+  const perA = row(cur, rateA, y1, notPlaying ? T.dim : (DWP_col(60) || T.ac2), 'OUTGOING', blending ? 1 - prog : 1, firstA);
+  const perB = nxt ? row(nxt, rateB, y2, notPlaying ? T.dim : (DWP_col(72) || T.ac), 'INCOMING', blending ? prog : 0, firstB) : null;
   const by = y2 + rowH / 2 + 18;
   /* The marker is drawn whenever nothing is on a deck, INDEPENDENT of
      whether a next track exists — at the last track of a set `nxt` is
@@ -916,7 +1004,14 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
     c.textAlign = 'center'; c.font = '9px ' + fn; c.fillStyle = T.dim;
     c.fillText('cued · not playing', w / 2, by);
   } else if (nxt && perA && perB) {
-    const straight = !!(cur._unlocked || nxt._unlocked);
+    /* An UNMATCHED side is the same class as a straight one for the verdict:
+       a deck play() started was never beat-aligned to the other, so a drift
+       figure measures an event that did not happen and `◉ PHASE LOCKED`
+       against two decks both running at rate 1 is a tick under nothing.
+       That is exactly what a jump to row 7 produced (ledger 82's reading on
+       the monitor); read the engine's `origin`, do not infer it. */
+    const unmatched = firstA || firstB;
+    const straight = !!(cur._unlocked || nxt._unlocked) || unmatched;
     const drift = Math.abs(perA - perB) / Math.max(perA, perB), locked = !straight && drift < 0.005;
     c.textAlign = 'center'; c.font = '9px ' + fn;
     c.fillStyle = straight ? T.dim : locked ? (DWP_col(74) || '#3ee68a') : '#ffb02e';
@@ -924,7 +1019,9 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
     /* a straight transition claims no lock, so it gets no lock readout —
        a DRIFT figure against it would be measuring an event that does not
        happen, and LOCKED on a distrusted grid would be a lie with a tick */
-    c.fillText(straight ? '∿ STRAIGHT · no beat alignment claimed'
+    c.fillText(unmatched && !(cur._unlocked || nxt._unlocked)
+        ? '∿ NOT MIXED · this deck was started, not blended into'
+      : straight ? '∿ STRAIGHT · no beat alignment claimed'
       : locked ? '◉ PHASE LOCKED · periods match'
       : '△ DRIFT ' + (drift * 100).toFixed(2) + '%', w / 2, by);
     c.shadowBlur = 0; c.font = '8px ' + fn;
@@ -1221,17 +1318,38 @@ function dwpEnergyWindow(minutes) {
       c.textAlign = 'center'; c.font = '9px ' + T.fn;
       c.fillText('energy · last ' + minutes + ' min — sampling…', w / 2, h / 2); return;
     }
-    /* level: dim area, a measurement */
-    c.beginPath(); c.moveTo(X(DWP_EW.t[i0]), Y(0));
-    for (let i = i0; i < n; i++) c.lineTo(X(DWP_EW.t[i]), Y(DWP_EW.l[i]));
-    c.lineTo(X(DWP_EW.t[n - 1]), Y(0)); c.closePath();
-    c.fillStyle = T.dim; c.globalAlpha = .18; c.fill(); c.globalAlpha = 1;
+    /* PEN-LIFT ACROSS A HOLE, not a straight line through it.
+       tick() is called from paint(), and a hidden page runs sample() without
+       paint() — so the buffer simply stops while the tab is in the
+       background, and joining t[i-1] to t[i] drew a confident straight line
+       across minutes nothing measured. That is ledger 87's shape: a
+       plausible-looking fallback standing in for missing data. A gap wider
+       than two sample intervals breaks both series. The number is the
+       buffer's own `every`, doubled to allow for a late frame; it is a
+       structural tolerance on the sampling clock, not a calibration of any
+       signal, and it is not compared against anything measured. */
+    const GAP = DWP_EW.every * 2;
+    const broke = i => i > 0 && (DWP_EW.t[i] - DWP_EW.t[i - 1]) > GAP;
+    /* level: dim area, a measurement — one filled run per unbroken stretch */
+    c.fillStyle = T.dim; c.globalAlpha = .18;
+    for (let i = i0; i < n; ) {
+      let j = i + 1;
+      while (j < n && !broke(j)) j++;
+      if (j - i >= 2) {
+        c.beginPath(); c.moveTo(X(DWP_EW.t[i]), Y(0));
+        for (let k = i; k < j; k++) c.lineTo(X(DWP_EW.t[k]), Y(DWP_EW.l[k]));
+        c.lineTo(X(DWP_EW.t[j - 1]), Y(0)); c.closePath(); c.fill();
+      }
+      i = j;
+    }
+    c.globalAlpha = 1;
     /* energy: accent staircase, the constructed index per track */
     c.strokeStyle = T.ac; c.lineWidth = 1.6; T.g(c, T.ac, 6); c.beginPath();
     let pen = false;
     for (let i = i0; i < n; i++) {
       const e = DWP_EW.e[i];
       if (e == null) { pen = false; continue; }
+      if (broke(i)) pen = false;
       const x = X(DWP_EW.t[i]), y = Y(e);
       if (!pen) { c.moveTo(x, y); pen = true; }
       else { c.lineTo(x, DWP_EW.e[i - 1] != null ? Y(DWP_EW.e[i - 1]) : y); c.lineTo(x, y); }
@@ -1244,7 +1362,7 @@ function dwpEnergyWindow(minutes) {
         const x = X(DWP_EW.t[i]);
         c.strokeStyle = T.ac2; c.globalAlpha = .55; c.beginPath(); c.moveTo(x, padT); c.lineTo(x, padT + gh); c.stroke(); c.globalAlpha = 1;
         c.fillStyle = T.ac2;
-        c.fillText(String(DWP_EW.name[i]).replace(/^[^-]+-\s*/, '').replace(/^[^-]+-\s*/, '').replace(/^\d+\s*/, '').slice(0, 14), x + 2, padT + 1);
+        c.fillText(DWP_clean(DWP_EW.name[i]).slice(0, 14), x + 2, padT + 1);
       }
     }
     c.fillStyle = T.dim; c.font = '7.5px ' + T.fn; c.textBaseline = 'bottom';

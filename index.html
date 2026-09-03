@@ -45,9 +45,15 @@
 <script src="assets/deckwave-score.js"></script>
 <script src="assets/deckwave-listen.js"></script>
 <script src="assets/deckwave-panels.js"></script>
-<script src="assets/deckwave-visuals.js"></script>
 <script src="assets/deckwave-messages.js"></script>
-<script src="assets/deckwave-tags.js"></script>
+<!-- deckwave-visuals.js (DWV) and deckwave-tags.js (DWTAGS) are NOT loaded
+     here. Both were shipped on every page and called by nothing — DWTAGS was
+     even in the boot gate below, so a page could refuse to start over a
+     module no code reaches (ROADMAP R7b, review 2026-09-01). The files stay
+     in the tree: DWV is the design system's component source
+     (design-system/build.py inlines it into sixteen generated pages) and
+     DWTAGS is the FLAC tag reader R7b will wire up. When either gets a
+     caller, its tag comes back here AND its global goes into `need`. -->
 <script src="assets/deckwave-nowplaying.js"></script>
 <script src="assets/deckwave-sprites.js"></script>
 <script src="assets/deckwave-cache.js"></script>
@@ -61,8 +67,13 @@
 <script src="assets/deckwave-events.js"></script>
 <script src="assets/deckwave-render.js"></script>
 <script src="assets/deckwave-dashboard.js"></script>
-<!-- patches load last: each replaces or adds one thing -->
-<script src="assets/patch-01-spectrogram.js"></script>
+<!-- patches load last: each replaces or adds one thing.
+     patch-01-spectrogram.js is GONE from this list: it re-registered the
+     'waterfall' panel over deckwave-panels.js's copy, so the page only got
+     the device-pixel-correct spectrogram if that one extra request
+     succeeded, and the panels file carried a comment claiming otherwise.
+     The implementation moved into deckwave-panels.js and the patch file is
+     now empty (review 2026-09-01, M12). One panel, one place. -->
 <script src="assets/panel-wayposts.js"></script>
 <script src="assets/panel-centre.js"></script>
 <script src="assets/panel-route.js"></script>
@@ -70,7 +81,20 @@
 <script>
 (function () {
   const boot = document.getElementById('boot');
-  const need = ['DW','DWFLAC','DWSCORE','DWLISTEN','DWPANELS','DWMSG','DWTAGS','DWCACHE','DWNAV','DWNOWPLAYING','DWSPRITES','DWLOOP','DWDASH'];
+  /* EVERY global this page loads SYNCHRONOUSLY above, and nothing else.
+     It used to list DWTAGS — a module with zero callers, so the page could
+     refuse to start over something it never used — while omitting six that
+     it does use (DWPHRASE, DWLIBRE, DWPHONE, DWPOPOUT, DWEVENTS, DWRENDER):
+     a missing one of those showed no failed-to-load screen, it just made a
+     button do nothing later. Corrected 2026-09-01. The panel modules loaded
+     after the dashboard (panel-wayposts / panel-centre / panel-route) hang
+     no global at all — they call DWPANELS.register and the slot machinery
+     falls back when an id is missing, so they are deliberately not here.
+     butterchurn is lazy (the popout fetches it on the first party request)
+     and is deliberately not here either. */
+  const need = ['DW','DWPHRASE','DWFLAC','DWSCORE','DWLISTEN','DWPANELS','DWMSG','DWCACHE',
+                'DWLIBRE','DWPHONE','DWNAV','DWNOWPLAYING','DWSPRITES','DWLOOP','DWPOPOUT',
+                'DWEVENTS','DWRENDER','DWDASH'];
   const missing = need.filter(k => typeof window[k] === 'undefined');
   if (missing.length) {
     boot.innerHTML = '<b>DECKWAVE</b>failed to load: ' + missing.join(', ') +

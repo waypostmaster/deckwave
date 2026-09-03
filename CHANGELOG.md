@@ -3,6 +3,75 @@
 Versions are recorded here and in the package filename. Earlier packages from
 the 2026-08-17 session were overwritten in place and no longer exist — this
 file begins the lineage that will be preserved.
+## 0.8.1 — 2026-09-03 · the review release
+
+**Every finding of the launch-day review (`docs/REVIEW-2026-09-01.md`) is
+resolved, measured, or written down as the keeper's call.** Nothing moved a
+threshold, calibration or detector; nothing in it has been heard.
+BUILD-LOG Act 41 and ledgers 122–131 are the record.
+
+What a user could notice, in order:
+
+- **Security and manners.** `serve.py` no longer serves `.git` through NTFS
+  8.3 short names (`/GIT~1/HEAD` is 403 — under `--lan` that was the
+  private history one request away); `docs/RUNBOOK.md` is denied;
+  content types come from an explicit table, not the Windows registry;
+  `/music/` answers `Range` requests so a phone download can resume.
+  `⊕ libre` recognises a licence by its HOST, not a substring of an
+  uploader's URL (a wrong name reached the card, the score and the
+  `.cue`'s `REM ATTRIBUTION`); reads a no-derivatives term from the short
+  name too; refuses a file over 256 MB (chosen) once instead of
+  downloading it three times; refuses a truncated body instead of caching
+  it as the track; and gates Commons hits on an audio MIME type.
+- **Memory and the deck.** A handed-over deck is released (the worklet
+  kept every deck alive — measured, five handovers went 691 → 1,956 MB
+  before, flat after); the handover timer re-arms from the audio clock
+  after a pause; a `setPhrase()` re-chain can no longer schedule an exit
+  in the past; the attribution link on the card can be clicked by a
+  human (it was rebuilt every frame).
+- **Ledger 82 closed on all five surfaces.** A jumped-to deck used to
+  print `+0.00%` / `×1.000` / `PHASE LOCKED` as the tightest beatmatch on
+  screen; the engine now stamps every deck with `origin: 'play' | 'chain'`
+  and a derived `matched`, carried through `DWEVENTS.pulse()`, and every
+  surface reads the fact. The score and cue say `FIRST (nothing to
+  match)` for track 01 instead of `STRETCH 0%`.
+- **Events and the voice.** A negated instruction ("don't speed up") is
+  refused with a sentence instead of steering the wrong way; a stuck
+  utterance releases the duck on a chosen guard; a zero in `voiceCfg` is
+  honoured (a fader at 0% used to speak at full volume); `speak()`'s
+  0.55× duck and the 0.3× event duck are documented as separate.
+- **Panels.** One spectrogram implementation instead of a live patch
+  quietly overriding a stale copy; the dashboard's five unreachable panel
+  copies (with their own copies of four calibrated numbers) deleted; the
+  energy window lifts its pen across a hidden-page gap; a panel shown in
+  the projector no longer advances twice; the projector uses its own
+  screen's pixel ratio and releases butterchurn on close; five glossary
+  links fixed; the boot gate lists the modules the page actually needs.
+- **Phone.** The lock-screen card says paused when the set is paused;
+  the focus-holding loop stops when the set ends; no AudioContext is
+  built at load by a saved mode.
+- **RECON and citywalk.** The threat model is stated at its real level
+  (the feed is a filesystem write on the host, the tray is per-browser);
+  the feed is read by tail offset; a blank vocals fragment no longer
+  matches every track; notes are capped on the stage; fed rows cannot
+  wear the operator badge; a rendered take keeps its card across a hot
+  swap; citywalk applies `voiceCfg` once and does not recite a switched
+  feed. Every voiceCfg key the parser reads is documented with its range.
+- **Tools.** `package.py --force` no longer silently waives the
+  dirty-tree refusal (`--dirty` is its own explicit flag); `helm.py take
+  --who` records the task, not the session name; `speak.py --out` is
+  gated to `speech/`; `.gitattributes` makes line endings a rule instead
+  of twelve `.replace()` calls.
+
+**Harnesses 694 → 990 across fourteen** — `check-loop` is new (the
+bundle every panel is written against had no harness), `check-serve`
+starts the real server and sweeps every other harness for the exact
+tally line, and every new check was shown failing against the previous
+source first. **CLAUDE.md is a quarter of its size**; the retired
+narrative is whole in `docs/CLAUDE-STATE-2026-09-01.md`. Left for the
+keeper's ear, stated at both sites: whether a grid-unlocked track should
+leave on the clock or on its distrusted downbeat when `next ▶` is pressed.
+
 
 ## 0.8.0 — 2026-09-01 · public
 

@@ -31,10 +31,18 @@ function start(dash) {
   lastT = performance.now();
   const host = dash.host, sr = dash.shadow;
   const css = k => getComputedStyle(host).getPropertyValue(k).trim();
-  const g = (c, col, b) => {
-    const s = parseFloat(css('--glow'));
-    c.shadowBlur = b * (isNaN(s) ? 1 : s); c.shadowColor = col;
-  };
+  /* THE GLOW SCALE IS READ ONCE PER BUNDLE, not once per call.
+     T.g is the panels' glow helper and it is called on the order of a
+     hundred times a frame across the slots and the fixed strips; each call
+     used to run getComputedStyle(host) and parse `--glow`, which is a style
+     resolution per call for a number that cannot change inside one frame.
+     sample() refreshes it alongside the rest of T, so a theme switch is
+     picked up on the very next bundle — the value is identical to what the
+     old code would have read, only measured once. Not a calibration: --glow
+     is a theme token, and nothing here chooses or clamps it. */
+  let glow = 1;
+  const readGlow = () => { const s = parseFloat(css('--glow')); glow = isNaN(s) ? 1 : s; };
+  const g = (c, col, b) => { c.shadowBlur = b * glow; c.shadowColor = col; };
 
   function frame() {
     raf = requestAnimationFrame(frame);
@@ -156,6 +164,7 @@ function start(dash) {
       }
     } catch (e) {}
 
+    readGlow();                 /* once per bundle, with the rest of T */
     const T = { bg: css('--bg') || '#04010f', line: css('--line') || '#22125c',
       dim: css('--dim') || '#7d6eb0', ac: css('--ac') || '#22e8ff',
       ac2: css('--ac2') || '#ff2d95', bad: css('--bad') || '#ff5470',
@@ -207,12 +216,36 @@ function start(dash) {
        (the energy-window buffer samples for 90 minutes) */
     if (window.DWPANELS.tick) { try { window.DWPANELS.tick(D); } catch (e) {} }
 
-    /* slots — errors STASHED, never discarded */
+    /* ONE ADVANCE PER FRAME, per panel.
+       Several panels are STATEFUL — the polygraph writes into a ring buffer,
+       the jam spinner steps its angle, the per-draw histories push a sample
+       — and they do it when they DRAW. The popout runs its own rAF and calls
+       the very same P.draw, so a panel open in both windows advanced twice
+       per frame: the chart paper scrolled at double speed and the histories
+       sampled twice, which makes an instrument read wrong rather than merely
+       look odd. The projector wins (it is the screen someone put there on
+       purpose) and the slot SAYS where its panel went — a frozen tile would
+       be indistinguishable from a dead loop, which this file exists to keep
+       from happening again. `showing` is null whenever the popout is closed
+       or in party mode, so nothing is suppressed by a window that is not
+       drawing. */
+    const popped = (window.DWPOPOUT && window.DWPOPOUT.showing) || null;
     dash.slots.slots.forEach(slot => {
       if (slot.el.classList.contains('collapsed')) return;
       const p = window.DWPANELS.get(slot.panel); if (!p) return;
       const r = slot.canvas.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) return;
+      if (slot.panel === popped) {
+        try {
+          const c = slot.ctx;
+          c.fillStyle = T.bg; c.fillRect(0, 0, r.width, r.height);
+          c.fillStyle = T.dim; c.font = '9px ' + T.fn;
+          c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText('in the projector window', r.width / 2, r.height / 2);
+          slot.err = null;
+        } catch (e) { slot.err = e.message; }
+        return;
+      }
       try { p.draw(slot.ctx, r.width, r.height, T, D); slot.err = null; }
       catch (e) { slot.err = e.message; }
     });

@@ -61,8 +61,9 @@ This is exactly the problem tracker modules have always had: without a normative
 | `energy` | composite index — **constructed, not measured** (see below) |
 | `conf` | detector confidence, Essentia scale 0–5.32 |
 | `straight` | **added 2026-08-19.** `null` for a beatmatched track; `"grid"` when its beat grid disagrees with its tempo label by more than `engine.maxGridErrPct`, `"reach"` when the set could not stretch to it. A straight track plays at its own speed from `0`, crossfades on the clock with no beat alignment, and — if `"reach"` — repositions the rolling tempo to its own BPM |
-| `rate` | tempo multiplier applied at playback. `1` for a straight track |
-| `stretchPct` | the same as a percentage, for humans. **`null` for a straight track** — not `0`, because `0` reads as the best transition in the set and a straight track is not a transition of that kind |
+| `matched` | **added 2026-09-01.** `true` when this step is beatmatched against the one before it — i.e. not straight and not step 0. The one question every reader printing a stretch figure actually has |
+| `rate` | tempo multiplier applied at playback. `1` for a straight track, and `1` for step 0 |
+| `stretchPct` | the same as a percentage, for humans. **`null` whenever `matched` is false** — for a straight track, and (since 2026-09-01) for **step 0**, which has nothing before it. Not `0`: `0` reads as the best transition in the set, and neither of those is a transition of that kind. `rate` stays `1` in both cases because that IS the rate; `stretchPct` is a claim about a transition, and there is no transition to claim |
 | `entrySec` | seek offset — the track's first detected beat; in phrase mode (`engine.phrase`) the first 8-bar phrase start when one is known; `0` for a straight track |
 | `exitSec` | when to begin the outgoing fade, snapped to a downbeat (phrase mode: the last phrase start; straight: on the clock) |
 | `dwellSec` | **added 2026-08-19.** Only on a stepping stone of a committed fast route: how long it plays before the next blend, after the engine floor is applied. `null` otherwise |
@@ -87,7 +88,7 @@ Additive fields a reader of the original shape will not have seen: `mode` (`all`
 
 **`stretchPct` past ±15% will audibly wobble.** That is a perceptual limit, not a style preference. The sequencer gates at 8% for that reason.
 
-**`summary.maxStretchPct` is over beatmatched tracks only.** A straight track is unstretched because it is not being beatmatched; folding its zero in would pull the figure toward "everything is fine", which is a different fact. `summary.straight` counts them.
+**`summary.maxStretchPct` is over beatmatched tracks only.** A straight track is unstretched because it is not being beatmatched; folding its zero in would pull the figure toward "everything is fine", which is a different fact. `summary.straight` counts them. Step 0 is excluded too, for the same reason — it is not beatmatched against anything.
 
 ## Loading
 
@@ -95,7 +96,7 @@ Additive fields a reader of the original shape will not have seen: `mode` (`all`
 
 ## Companion cue sheet
 
-A standard `.cue` is emitted alongside, with BPM, key and stretch as REM lines — `STRAIGHT grid|reach (no beatmatch)` in place of a stretch for a straight track. It opens in VLC and foobar2000 and gives track navigation over a rendered mix.
+A standard `.cue` is emitted alongside, with BPM, key and stretch as REM lines — `STRAIGHT grid|reach (no beatmatch)` in place of a stretch for a straight track, and `FIRST (nothing to match)` in place of one for step 0. It opens in VLC and foobar2000 and gives track navigation over a rendered mix.
 
 ## Version
 

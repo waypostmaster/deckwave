@@ -30,7 +30,11 @@ const ok = (name, cond, falsifier) => {
 /* CRLF-proof. core.autocrlf=true checks the source out with CRLF on
    Windows, and every regex below is written against LF; on a fresh clone
    all three harnesses died with FATAL before testing anything. */
-const src = fs.readFileSync('assets/deckwave.js', 'utf8').replace(/\r\n/g, '\n');
+/* DECKWAVE_SRC / DECKWAVE_SCORE_SRC: point this harness at another copy of
+   the engine or the score writer. Every new check here is run against the
+   PREVIOUS source through these seams and has to fail there first — a check
+   that cannot fail is decoration (ledgers 98, 110, 111). */
+const src = fs.readFileSync(process.env.DECKWAVE_SRC || 'assets/deckwave.js', 'utf8').replace(/\r\n/g, '\n');
 const grab = (re, what) => {
   const m = src.match(re);
   if (!m) { console.log('FATAL: could not extract ' + what); process.exit(1); }
@@ -57,8 +61,12 @@ eval([
    functions above can see LOCK and this file cannot. Hand it out deliberately
    rather than re-typing the numbers here -- a copy would let the test and the
    code disagree about the very threshold under test. */
-].join('\n') + '\nglobalThis.__LOCK = LOCK;');
+].join('\n') + '\nglobalThis.__LOCK = LOCK; globalThis.__arc = arc;');
 const LOCK = globalThis.__LOCK;
+/* the energy arc, handed out for the same reason LOCK is: the opener check
+   below needs arc(0, n) and re-typing `.22` here would let the test and the
+   code disagree about the very curve under test */
+const arc = globalThis.__arc;
 
 const normf = s => s.toLowerCase().replace(/\.(flac|mp3|wav|aiff|m4a|ogg)$/, '')
                     .replace(/[^a-z0-9]/g, '');
@@ -299,12 +307,27 @@ console.log('\n── build modes ───────────────�
    track after which the next step's rate is not computed from ITS bpm. */
 console.log('\n── the score describes the player as it is ──────────────────');
 global.DW = { dwellFloor: 45, lock: LOCK };
-eval(fs.readFileSync('assets/deckwave-score.js', 'utf8'));
+eval(fs.readFileSync(process.env.DECKWAVE_SCORE_SRC || 'assets/deckwave-score.js', 'utf8'));
 const S = global.DWSCORE;
 const steps = S.plan(set, { xfade: 16 });
 const lied = steps.filter((s, i) => set[i]._unlocked && s.stretchPct != null);
 ok('no step prints a stretch against a track that plays straight', lied.length === 0,
    lied.length + ' straight tracks carry a stretchPct, e.g. ' + (lied[0] && lied[0].name.slice(-30) + ' ' + lied[0].stretchPct + '%'));
+/* STEP 0 IS NOT A TRANSITION (review 2026-09-01, ledger 82's class on the two
+   surfaces that still carried it). The first track of a set has nothing before
+   it, so its rate is 1 by construction and `STRETCH 0%` in the score and the
+   .cue read as the tightest transition in the mix. `rate` stays 1 — that IS
+   the rate — and `stretchPct` goes null, the same shape a straight track
+   already had. Falsifier: step 0 carrying a stretchPct at all, or the cue
+   printing STRETCH against track 01. Both were true before this date. */
+ok('the score prints no stretch figure against step 0 — nothing precedes it',
+   steps[0].stretchPct === null,
+   'step 0 carries stretchPct ' + steps[0].stretchPct + ' — 0% against the opener reads as the best transition in the set');
+ok('…and step 0 still carries its real rate (1), because that is a fact about playback',
+   steps[0].rate === 1, 'step 0 rate ' + steps[0].rate);
+ok('…and `matched` says which steps are beatmatched at all: false for step 0 and every straight track',
+   steps[0].matched === false && steps.every((s, i) => s.matched === (!set[i]._unlocked && i > 0)),
+   'matched disagrees with straight/index on ' + steps.filter((s, i) => s.matched !== (!set[i]._unlocked && i > 0)).length + ' steps');
 const flagged = steps.filter((s, i) => !!s.straight !== !!set[i]._unlocked ||
                                      (s.straight && s.straight !== set[i]._unlockReason));
 ok('every step carries the same straight/why as the set', flagged.length === 0,
@@ -330,6 +353,13 @@ const cueLied = straightNames.filter(n => {
 });
 ok('the .cue writes STRAIGHT, not a STRETCH %, for every straight track', cueLied.length === 0,
    cueLied.length + ' cue entries carry STRETCH against a straight track');
+/* …and the same for TRACK 01. The cue's own rule is keyed on stretchPct being
+   null so it cannot drift from plan(); the falsifier is the literal that a
+   reader of the cue sees. */
+const t01 = cueTxt.slice(cueTxt.indexOf('  TRACK 01 AUDIO'), cueTxt.indexOf('  TRACK 02 AUDIO'));
+ok('the .cue writes FIRST, not STRETCH 0%, against TRACK 01',
+   !/STRETCH/.test(t01) && /FIRST \(nothing to match\)/.test(t01),
+   'TRACK 01 reads: ' + JSON.stringify(t01.split('\n').find(l => /REM BPM/.test(l)) || t01.slice(0, 120)));
 /* round trip: loading the score back restores the classification the
    player reads, so a loaded straight track is still played straight */
 const fresh = corpus.map(t => Object.assign({}, t));
@@ -461,6 +491,40 @@ ok('…and the two lists are the SAME list, not two lists that happen to agree t
    && normList.split('|').sort().join(',') ===
       extList.split(',').map(s => s.trim().replace(/['.]/g, '')).sort().join(','),
    'norm(): ' + normList + ' vs AUDIO_EXT: ' + extList + ' — the comment above norm() says "keep this list in step with AUDIO_EXT below" and this is that comment\'s failure mode');
+
+/* ── the opener's tie-break, on a corpus built to force the tie ────────────
+   `pool.filter(t => t._locked).concat(pool)` before a distance sort reads like
+   a preference for a locked opener and is not one: Array#sort is stable, so
+   the duplication only reorders entries whose distances are EXACTLY equal.
+   That is worth PINNING rather than leaving to be "simplified" away, because
+   energy is stored to three decimals and exact ties are common — and because
+   a set that opens on a track played straight opens on no beatmatch at all.
+
+   Two tracks, both at exactly arc(0, n), the UNLOCKED one first in the array
+   so it wins the sort outright if the tie-break is dropped. Falsifier: the
+   set opening on the unlocked track. Measured on the real library the same
+   day, both openers agree — the tie-break fires here because this corpus was
+   built to make it fire, which is the point of a control. */
+console.log('\n── the opener prefers a locked grid on an exact tie ─────────');
+{
+  const want = arc(0, 3);
+  /* a grid whose spacing agrees with the bpm label is LOCKED; one at half
+     that spacing is 100% out and is not */
+  const beats = (n, step) => Array.from({ length: n }, (_, i) => +(i * step).toFixed(4));
+  const tie = [
+    { id: 'u', name: 'unlocked opener', bpm: 120, conf: 3, dur: 200, camelot: '8A', energy: want, beats: beats(64, 1.0) },
+    { id: 'l', name: 'locked opener',   bpm: 120, conf: 3, dur: 200, camelot: '8A', energy: want, beats: beats(64, 0.5) },
+    { id: 'x', name: 'filler',          bpm: 122, conf: 3, dur: 200, camelot: '8A', energy: 0.9,  beats: beats(64, 60 / 122) }
+  ];
+  const gu = gridError(tie[0]), gl = gridError(tie[1]);
+  ok('the tie corpus really does hold one locked and one unlocked track at the same energy',
+     gu > LOCK.maxGridErrPct && gl <= LOCK.maxGridErrPct && tie[0].energy === tie[1].energy,
+     'gridError ' + gu + ' / ' + gl + ' against a cut of ' + LOCK.maxGridErrPct + '% — the corpus does not pose the question');
+  const tied = sequence(tie, { length: 3 });
+  ok('an exact tie for the opening energy is broken toward the LOCKED track',
+     tied.length && tied[0].id === 'l',
+     'the set opened on ' + (tied[0] && tied[0].name) + ' — a set opening on a track played straight opens on no beatmatch at all; the locked-first concat before the stable sort is what prevents it');
+}
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);

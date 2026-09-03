@@ -58,7 +58,13 @@ const CSS = `
 .np .blend{margin-top:7px;padding-top:6px;border-top:1px solid var(--line);font-size:9px;color:var(--dim)}
 .np .blend b{color:var(--ac2)}
 .np .blend.soon b{color:var(--warn)}
-.np .nx{color:var(--dim);font-size:9px;margin-top:5px;white-space:nowrap;
+/* padding-top and border-top arrived here on 2026-09-01: they were the only
+   two declarations of the dashboard's duplicate `.np` block that this sheet
+   did not already override, so deleting that dead block would have quietly
+   removed the rule above "next ·". Moved, not dropped — the card's own sheet
+   is the one that renders, so every rule the card needs lives in it. */
+.np .nx{color:var(--dim);font-size:9px;margin-top:5px;padding-top:6px;
+  border-top:1px solid var(--line);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .np .nx s{text-decoration:none;color:var(--ac)}
 `;
@@ -357,15 +363,20 @@ return {
       $('gStr').title = t._unlockReason === 'reach'
         ? 'out of reach of the stretch gate — plays at its own speed, then the set follows it'
         : 'beat grid disagrees with its tempo label — plays at its own speed, not beatmatched';
-    } else if (dk && st.idx === 0 && dk.rate === 1) {
-      /* FIRST DECK — the same defect one state over, and the reason the
-         comment above exists. Nothing precedes step 1, so the deck runs at
-         its own speed and `+0.0%` would read as the tightest beatmatch on
-         screen. Ledger 82 fixed this in RECON and left the card; the
-         predicate is RECON's, so the surfaces agree. */
-      $('gStr').textContent = '∿ first';
+    } else if (dk && dk.origin === 'play') {
+      /* UNMATCHED DECK — the same defect one state over, and the reason the
+         comment above exists. Nothing precedes this deck, so it runs at its
+         own speed and `+0.0%` would read as the tightest beatmatch on screen.
+         READ THE ENGINE'S FACT, not `idx === 0 && rate === 1`: that guess is
+         also true of the first deck and FALSE of every other deck play()
+         builds, so a jump to row 7 — same rate 1, same nothing to match —
+         printed `+0.00%` (ledger 82, still open on four surfaces at the
+         2026-09-01 review). `origin` is stamped by makeDeck. */
+      $('gStr').textContent = st.idx === 0 ? '∿ first' : '∿ jumped';
       $('gStr').className = '';
-      $('gStr').title = 'first deck — the set has no predecessor here, so the deck runs at its own speed and there is nothing to match';
+      $('gStr').title = st.idx === 0
+        ? 'first deck — the set has no predecessor here, so the deck runs at its own speed and there is nothing to match'
+        : 'jumped to — this deck was started, not mixed into, so it runs at its own speed and there is nothing to match';
     } else {
       const sp = (rate - 1) * 100;
       $('gStr').textContent = (sp >= 0 ? '+' : '') + sp.toFixed(1) + '%';

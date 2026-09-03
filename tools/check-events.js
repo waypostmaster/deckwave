@@ -116,6 +116,38 @@ E.wire({ log: s => calls.logs.push(s), set: () => SET,
      calls.route.length === 1 && /out of reach/.test(r6) && /no stones below 100/.test(r6), r6);
   DW.state.tempo = 120; DW.nowMeta = SET[1] = mk('NOW', 120, .50);
 
+  /* ── negation, and the ceiling that stays (review 2026-09-01) ───────────
+     The table is a lookup. "don't speed up" contained `speed` and STEERED
+     THE DECK FASTER — the opposite of the ask, acted on at once through the
+     real blend. Refusing is the only honest answer without a parser. */
+  const blendsBefore = calls.blend.length;
+  const neg = await E.inject("don't speed up");
+  ok('a negated intent is REFUSED, not inverted', E.parse("don't speed up") === null
+     && /refusing/.test(neg) && calls.blend.length === blendsBefore,
+     neg + ' · blends ' + (calls.blend.length - blendsBefore) + ' — it read "speed" and blended faster');
+  ok('…and the refusal names what it read and what to say instead',
+     /faster/.test(neg) && /lookup table/.test(neg) && /calmer/.test(neg), neg);
+  ok('the other negations too: "not", "no"',
+     E.parse('not so fast') === null && E.parse('no more energy') === null && E.parse('never speed up') === null,
+     'not→' + E.parse('not so fast') + ' no→' + E.parse('no more energy'));
+  ok('CONTROL: the same sentences WITHOUT the negation still steer',
+     E.parse('speed up') === 'faster' && E.parse('so fast') === 'faster' && E.parse('more energy') === 'hype',
+     'negation handling swallowed the vocabulary itself: ' + E.parse('speed up') + ' / ' + E.parse('more energy'));
+  /* THE CEILING, pinned as it stands and written down where a game
+     developer reads it. These three are word-order artefacts of a lookup,
+     they are NOT fixed here (the word lists are the keeper's and every word
+     in them was chosen), and this check exists so that the day one of them
+     changes, the guide has to change with it. */
+  const guide = fs.readFileSync('docs/GAME-INTEGRATION.md', 'utf8').replace(/\r\n/g, '\n');
+  ok('the known word-order ceiling is exactly this, and the guide says so',
+     E.parse('drop it down') === 'hype' && E.parse('speak faster') === 'duck' && E.parse('quiet') === 'calmer'
+     && /drop it down/.test(guide) && /speak faster/.test(guide) && /lookup/i.test(guide),
+     'parse: ' + [E.parse('drop it down'), E.parse('speak faster'), E.parse('quiet')].join('/')
+     + ' — either the table changed or GAME-INTEGRATION no longer names the ceiling it has');
+  ok('the guide separates the two ducks (0.3x for an event, 0.55x for the voice)',
+     /0\.3/.test(guide) && /0\.55/.test(guide) && /speak/i.test(guide),
+     'a game that reads only "0.3x" will be surprised by how far speak() ducks');
+
   console.log('\n── duck / unduck ────────────────────────────────────────────');
   const d1 = await E.inject('duck');
   ok('duck drops volume to the chosen factor and says both numbers', Math.abs(vol - .85 * .3) < 1e-9 && /0\.85/.test(d1) && E.status.ducked === true, d1 + ' vol ' + vol);
@@ -226,6 +258,32 @@ E.wire({ log: s => calls.logs.push(s), set: () => SET,
   ok('a straight track pulses at rate 1 with the flag up', E.pulse().straight === true && E.pulse().rate === 1,
      'straight tracks are not beatmatched but they still have a grid');
   delete DW.nowMeta._unlocked;
+
+  /* ledger 82, carried to the game surface: a jumped-to deck runs at
+     rate 1 and is matched to NOTHING, so `rate === 1` is not the question.
+     The engine publishes origin/matched on DW.deck; pulse() passes them
+     through untouched — this module translates, it does not decide. */
+  DW.deck = { rate: 1, origin: 'play', matched: false };
+  const pj = E.pulse();
+  ok('pulse carries the engine\'s deck FACTS: a jumped-to deck is origin play, matched false — at rate 1',
+     pj.origin === 'play' && pj.matched === false && pj.rate === 1,
+     JSON.stringify({ origin: pj.origin, matched: pj.matched, rate: pj.rate })
+     + ' — a game keying "beatmatched" on rate 1 draws the tightest match on screen against nothing');
+  DW.deck = { rate: 1.06, origin: 'chain', matched: true };
+  ok('CONTROL: a chained deck says chain/true, so the fields are read and not hard-coded',
+     E.pulse().origin === 'chain' && E.pulse().matched === true,
+     JSON.stringify({ origin: E.pulse().origin, matched: E.pulse().matched }));
+  DW.deck = { rate: 1 };
+  const pOld = E.pulse();
+  ok('an engine that publishes neither leaves both ABSENT, not false',
+     !('origin' in pOld) && !('matched' in pOld),
+     JSON.stringify(pOld) + ' — a consumer must be able to tell "not matched" from "nothing said"');
+  ok('nothing playing still answers { playing: false } and nothing else',
+     (() => { const nm = DW.nowMeta, nw = DW.state.now; DW.nowMeta = null; DW.state.now = null;
+              const p = E.pulse(); DW.nowMeta = nm; DW.state.now = nw;
+              return p.playing === false && Object.keys(p).length === 1; })(),
+     'the new fields leaked into the silent answer a game gates on');
+  DW.deck = { rate: 1.06 };
   /* postMessage sync: answered to the sender, same-origin only */
   const answers = [];
   messages[0]({ origin: 'http://localhost:8777', source: { postMessage: (m, o) => answers.push({ m, o }) },
@@ -238,6 +296,86 @@ E.wire({ log: s => calls.logs.push(s), set: () => SET,
                 data: { deckwave: 'pulse' } });
   ok('a cross-origin pulse request gets silence', answers.length === 1,
      'the deck\'s position leaked to an arbitrary page');
+  /* review 2026-09-01: on file:// (and in a sandboxed frame) location.origin
+     IS the string "null" — and so is every other opaque origin's, so the
+     equality passed and any local page could steer the deck. */
+  const originWas = global.location.origin;
+  global.location.origin = 'null';
+  const volNull = vol, ducksNull = E.status.ducked;
+  messages[0]({ origin: 'null', data: { deckwave: 'inject', event: 'duck' } });
+  messages[0]({ origin: 'null', source: { postMessage: m => answers.push({ m }) }, data: { deckwave: 'pulse' } });
+  await new Promise(r => setTimeout(r, 0));
+  ok('on an opaque origin ("null" === "null") a message is refused, not accepted as same-origin',
+     E.status.ducked === ducksNull && vol === volNull && answers.length === 1,
+     'ducked ' + E.status.ducked + ' answers ' + answers.length + ' — any file:// page on the machine could steer the deck');
+  global.location.origin = originWas;
+  const nBefore = answers.length;
+  messages[0]({ origin: originWas, source: { postMessage: m => answers.push({ m }) }, data: { deckwave: 'pulse' } });
+  await new Promise(r => setTimeout(r, 0));
+  ok('CONTROL: a real same-origin message still works after the "null" guard', answers.length === nBefore + 1,
+     'the guard refused a legitimate origin too');
+
+  console.log('\n── the voice cannot leave the music ducked forever ──────────');
+  /* review 2026-09-01: Chrome drops `onend` for some utterances (a
+     backgrounded tab, a wedged synthesiser) and the duck then has no end —
+     0.55x until somebody types unduck, which mid-set on a phone is nobody.
+     The guard delay is CHOSEN: 10 chars/sec (slower than any real voice)
+     over the rate, + 4 s. Driven with a swapped clock, not by waiting. */
+  global.speechSynthesis = { cancel() {}, speak(u) { utts.push(u); }, getVoices: () => [] };
+  global.SpeechSynthesisUtterance = function (t) { this.text = t; };
+  const timers = [];
+  const realST = global.setTimeout, realCT = global.clearTimeout;
+  const swap = () => { global.setTimeout = (fn, ms) => timers.push({ fn, ms, live: true });
+                       global.clearTimeout = id => { if (timers[id - 1]) timers[id - 1].live = false; }; };
+  const unswap = () => { global.setTimeout = realST; global.clearTimeout = realCT; };
+  vol = .85;
+  const words = 'a hundred characters of narration that Chrome will never tell us has finished speaking, not once';
+  swap(); E.speak(words); unswap();
+  const g = timers[timers.length - 1];
+  ok('speak arms a dead man\'s handle sized to the utterance, not a fixed guess',
+     !!g && g.live && g.ms >= 4000 + (words.length / 10) * 1000 && Math.abs(vol - .85 * .55) < 1e-3,
+     'timer ' + JSON.stringify(g && { ms: g.ms }) + ' vol ' + vol);
+  g.fn();
+  ok('when onend never comes, the guard restores the exact pre-duck volume',
+     vol === .85 && E.status.ducked === false && E.status.speaking === false,
+     'vol ' + vol + ' ducked ' + E.status.ducked + ' — the set stays under the voice until someone types unduck');
+  swap();
+  E.speak('a normal line');
+  const g2 = timers[timers.length - 1];
+  utts[utts.length - 1].onend();          /* still on the swapped clock: clearTimeout must reach THIS table */
+  unswap();
+  ok('CONTROL: a normal onend cancels the guard, so it cannot unduck a later voice',
+     g2 && g2.live === false && vol === .85,
+     'guard live ' + (g2 && g2.live) + ' — a stale timer firing during the NEXT take would unduck mid-sentence');
+  delete global.speechSynthesis; delete global.SpeechSynthesisUtterance;
+
+  console.log('\n── the copy-paste example is real code ──────────────────────');
+  /* ledger 111's rule, applied to the one file no harness read: a text
+     check cannot see a broken parse, and examples/soundtrack.html IS the
+     integration guide's "the whole integration is this file". */
+  const vm = require('vm');
+  /* seam: a deliberately broken copy must turn these red, or they are
+     decoration (DECKWAVE_EXAMPLE_SRC=<path>) */
+  const ex = fs.readFileSync(process.env.DECKWAVE_EXAMPLE_SRC || 'examples/soundtrack.html', 'utf8').replace(/\r\n/g, '\n');
+  const blocks = [...ex.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  ok('every <script> block in examples/soundtrack.html was found and COMPILES',
+     blocks.length >= 1 && blocks.every(b => b.trim().length > 50)
+     && blocks.every(b => { try { new vm.Script(b); return true; } catch (e) { return false; } }),
+     'blocks ' + blocks.length + ' · ' + blocks.map(b => { try { new vm.Script(b); return 'ok'; } catch (e) { return e.message; } }).join(' | '));
+  const code = blocks.join('\n');
+  const used = [...code.matchAll(/\b(?:d|deck\(\))\.([a-zA-Z]+)\(/g)].map(m => m[1]);
+  const allowed = ['inject', 'pulse'];
+  ok('the example drives the deck through inject / pulse ONLY — the two documented verbs',
+     used.length >= 2 && used.every(u => allowed.includes(u))
+     && used.includes('inject') && used.includes('pulse'),
+     'called on the deck handle: ' + JSON.stringify(used) + ' — anything else is a private surface a game would copy');
+  ok('CONTROL: the recogniser would catch a third verb', (() => {
+       const bad = [...'const d = deck(); d.speak("hi"); d.pulse();'.matchAll(/\b(?:d|deck\(\))\.([a-zA-Z]+)\(/g)].map(m => m[1]);
+       return bad.includes('speak') && !bad.every(u => allowed.includes(u));
+     })(), 'the regex matches nothing, so the check above is decoration');
+  ok('any postMessage the example sends carries the documented {deckwave:…} shape',
+     !/postMessage\s*\(/.test(code) || /postMessage\s*\(\s*\{\s*deckwave/.test(code),
+     'a postMessage with another shape would be silently ignored by the deck, and copied by every reader');
 
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);

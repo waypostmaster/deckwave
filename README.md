@@ -1,6 +1,6 @@
 # Deckwave
 
-**Version 0.8.0 · public from 2026-09-01** — August 32nd, eight bars of four: a date that exists only in music.
+**Version 0.8.1 · public from 2026-09-01, the review release 2026-09-03** — August 32nd, eight bars of four: a date that exists only in music.
 
 Analyse your whole local music library in the browser, build a beat-locked harmonically-mixed DJ set from it, and save the mix as data rather than audio.
 
@@ -107,13 +107,13 @@ deckwave-app {
 }
 ```
 
-Six presets ship in `themes/themes.css`. Structural elements expose `part=` for `::part()` overrides.
+Ten presets ship in `themes/themes.css`. Structural elements expose `part=` for `::part()` overrides.
 
 ---
 
 ## Known limits, all real
 
-- **Harnesses need the library for two of their checks.** `node tools/check-*.js` runs thirteen offline harnesses (694 checks — pool 44, route 19, player 70, panels 97, phone 67, phrase 48, libre 89, flac 11, popout 16, events 45, recon 113, citywalk 50, serve 25); **Run them from the repo root** — they resolve paths against the working directory, so `cd tools && node check-route.js` throws a raw `ENOENT` stack. Ten of the thirteen need nothing but `node`; `check-serve` also needs `python`, because it starts the real `tools/serve.py` on a free port and asks it over a socket. The other three look for the developer's library at `C:/Claude/Music/LukHash` (override with `DECKWAVE_LIB`) and **each reports one failure without it, on purpose.** `check-pool.js` and `check-route.js` fall back to every cached record rather than the chiptune corpus, still run every check on that fallback so the output is informative, and fail the one check that says the corpus is the one under test. `check-flac.js` reports `1 FAILED of 2 checks`, because its last check asserts that at least two files were really decoded — a guard against the harness passing while testing nothing. Without a library those guards are doing their job, so on a fresh clone with no music, expect ten green harnesses and those three red. It is not a defect in the code under test.
+- **Harnesses need the library for two of their checks.** `node tools/check-*.js` runs fourteen offline harnesses (990 checks — pool 50, route 21, player 80, panels 194, phone 76, phrase 48, libre 109, flac 13, popout 27, events 64, recon 137, citywalk 58, serve 67, loop 46); **Run them from the repo root** — they resolve paths against the working directory, so `cd tools && node check-route.js` throws a raw `ENOENT` stack. Ten of the fourteen need nothing but `node`; `check-serve` also needs `python`, because it starts the real `tools/serve.py` on a free port and asks it over a socket. The other three look for the developer's library at `C:/Claude/Music/LukHash` (override with `DECKWAVE_LIB`) and **each reports one failure without it, on purpose.** `check-pool.js` and `check-route.js` fall back to every cached record rather than the chiptune corpus, still run every check on that fallback so the output is informative, and fail the one check that says the corpus is the one under test. `check-flac.js` reports `1 FAILED of 2 checks`, because its last check asserts that at least two files were really decoded — a guard against the harness passing while testing nothing. Without a library those guards are doing their job, so on a fresh clone with no music, expect ten green harnesses and those three red. It is not a defect in the code under test.
 - **Chromium is the full experience, including Chrome for Android 132+.** Elsewhere: no folder walk (files/folders via `<input type=file>`, which on iOS below 18.4 and Chrome Android below 132 means tracks not folders); no tab/system listen mode on any phone (no `getDisplayMedia` on iOS or Android — mic works); on iOS a locked set does not auto-resume after an interruption (an alarm dismissed from the lock screen leaves the page hidden — the lock card's play button restarts it; unlocked, it resumes on its own); Apple Watch controls do not work at all (our title reaches the Watch, the commands do not come back — a watchOS routing limit with no web-side lever, ledger 80); and whether the whole-track analysis of a long FLAC fits in an iOS tab is **unmeasured** — the analyser now releases the decoded buffer before the WASM pass, which is the structural part, but nobody has run it on an iPhone.
 - **Phrase alignment exists and is an estimate.** `build · phrase match` leaves the outgoing track at its last 8-bar phrase start, enters the incoming at its first, and fades exactly one phrase — but the 8-bar offset is found by least within-phrase variance over a whole track, and **half-split agreement across the library is 13.8% against 12.5% chance.** Real arrangements shift mid-track. It beats a bar-shuffle null on 96% of tracks and it is not a phrase *detector*; the contrast figure printed beside every transition is a ratio of that detector's own sums, comparable to nothing, and no threshold is applied to it. The other two builds land on downbeats as before. **Nobody has heard the difference yet** — `docs/LISTENING.md` §12.
 - **No downbeat detection.** Every fourth beat is assumed — fine for 4/4 electronic music, wrong elsewhere.
@@ -134,6 +134,8 @@ Deckwave is **AGPL-3.0**, because Essentia.js is AGPL-3.0 and this is a combined
 | [SoundTouchJS AudioWorklet](https://github.com/cutterbl/SoundTouchJS) | MPL-2.0 in current versions — **pin your version** |
 | [libflac.js](https://github.com/mmig/libflac.js) | MIT |
 | libFLAC (Xiph) | BSD-style |
+| [butterchurn](https://github.com/jberg/butterchurn) 2.6.7 | MIT — loaded lazily by the popout's party mode only |
+| [butterchurn-presets](https://github.com/jberg/butterchurn-presets) 2.4.7 | MIT per its repository — same lazy load; the presets' lineage is stated in `NOTICE` |
 
 See `NOTICE`.
 

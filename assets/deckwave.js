@@ -636,6 +636,18 @@ function sequence(corpus, opts) {
   const energyTerm = (t, want) => 1 - Math.min(1, Math.abs(t.energy - want) / .30);
 
   const used = new Set();
+  /* THE OPENER: nearest energy to the start of the arc, with a locked track
+     winning a TIE. That is all the duplication does, and it is worth naming
+     because it reads like a preference and is not one: Array#sort is stable,
+     so prepending the locked tracks only reorders entries whose distances are
+     EXACTLY equal — an unlocked track nearer by 0.001 still wins. Energy is
+     stored to three decimals, so exact ties are common and the tie-break does
+     fire. Measured on the real corpus 2026-09-03: arc(0,n) = 0.220, the six
+     nearest tracks are all locked, and a hard "locked openers only" rule
+     picks the same track in both `all` and `best`. Left as it is on purpose —
+     making it a hard preference would change which track opens a set on some
+     other library, and which opener is right is the ear's call, not a
+     reading's (review 2026-09-01, engine lows). */
   let cur = pool.filter(t => t._locked).concat(pool).slice()
     .sort((a, b) => Math.abs(a.energy - arc(0, n)) - Math.abs(b.energy - arc(0, n)))[0];
   used.add(cur.id); const out = [cur]; let tempo = cur.bpm;
@@ -1045,7 +1057,17 @@ const Player = (() => {
     for (const n of [d.src, d.st, d.lo, d.mid, d.hi, d.g]) { try { if (n && n.disconnect) n.disconnect(); } catch (e) {} }
   }
 
-  function makeDeck(track, rate) {
+  /* `origin` is a FACT, not a guess: 'play' for a deck built by play() —
+     the first ▶ of a set, a jumped-to row, back() — and 'chain' for one
+     built by chain(), which is the only path that beatmatches. Until
+     2026-09-01 four surfaces inferred it from `idx === 0 && rate === 1`,
+     which is true of the first deck and false of every other deck play()
+     builds, so a jump to row 7 printed `+0.00%` / `×1.000` — the tightest
+     beatmatch on screen against a deck matched to nothing (ledger 82).
+     A jumped-to deck runs at rate 1 for the same reason the first one
+     does: there is no outgoing deck to match, not because the match was
+     perfect. Read the fact; never re-derive it. */
+  function makeDeck(track, rate, origin) {
     const src = ctx.createBufferSource(); src.buffer = track.buf;
     src.playbackRate.value = rate;                    /* the source does the time change */
     const st = new AudioWorkletNode(ctx, stretch.name);
@@ -1077,6 +1099,7 @@ const Player = (() => {
        Both are relative to the deck's own start; add startedAt for ctx time. */
     const d = {
       src, st, lo, mid, hi, g, track, rate, ramp: null,
+      origin: origin === 'chain' ? 'chain' : 'play',
       /* the worklet's own metrics, every 100 blocks: `gaps` is the number
          of zero-filled blocks since priming (the wrapper's count; the plain
          processor's `underrunCount` includes its ~50 warm-up blocks, so
@@ -1180,7 +1203,26 @@ const Player = (() => {
   /* The next DOWNBEAT at least `lead` seconds away, in context time.
      Same every-fourth-beat assumption the rest of the engine makes — see the
      build log's note that there is no real downbeat detection, only 4/4.
-     Uses the grid already detected for the playing track; no new constant. */
+     Uses the grid already detected for the playing track; no new constant.
+
+     TWO EXIT POLICIES FOR A GRID-UNLOCKED TRACK, and this is the OTHER one.
+     chain() (see its `_unlocked` note beside `downbeatNear`) refuses to snap
+     an unlocked track's exit to its own grid: the grid disagrees with the
+     track's tempo label, which is the whole reason it is unlocked, so it
+     leaves on the clock. This function snaps regardless — `m.beats` is used
+     with no `_unlocked` test — and blendNow, skip and reorder({now}) all
+     reach it through nextExitAfter. So the same track leaves on the clock
+     when the set plans its exit and on a distrusted downbeat when the keeper
+     presses next.
+
+     NOT reconciled here, deliberately: which is right is an ear question, not
+     a reading one, and both readings are defensible. (a) Snap everywhere —
+     a grid that is 9% wrong in MEAN SPACING can still put a beat within a few
+     ms of where the ear expects one, and a press should land musically.
+     (b) Clock everywhere — the classification says the grid is not believed,
+     and using it anyway while calling it untrusted is the thing the
+     classification exists to stop. Either is one line. The keeper decides;
+     see the review's engine lows. */
   function nextDownbeatAfter(lead) {
     const m = A.track.meta;
     const since = ctx.currentTime - A.startedAt;
@@ -1289,10 +1331,47 @@ const Player = (() => {
          label, so snapping its exit to that grid would be snapping to a number
          we have already decided not to believe. It leaves on the clock instead.
          Honest, and it is what the classification is FOR — the alternative is
-         to keep using a grid while calling it untrusted. */
+         to keep using a grid while calling it untrusted.
+
+         AND nextDownbeatAfter() DOES EXACTLY THAT — it snaps to the grid with
+         no `_unlocked` test, so blendNow, skip and reorder({now}) put the same
+         track's exit on a downbeat this line refuses to use. The asymmetry is
+         real and is stated at both ends rather than quietly settled: which
+         policy is right is the keeper's ear's call, not a reading's. */
       exit = (beats.length && !m._unlocked) ? downbeatNear(beats, playFor) : playFor;
     }
-    const out = forceOut != null ? forceOut : A.startedAt + exit; A.outAt = out;
+    let out = forceOut != null ? forceOut : A.startedAt + exit;
+    /* ── AN EXIT IN THE PAST ──────────────────────────────────────────────
+       chain() plans from the START of the playing track, so it assumes it is
+       being called near the start. setPhrase() breaks that assumption: it
+       cancels and re-chains WHENEVER the keeper flips the switch, and past
+       roughly (length − xfade) the planned exit is behind the playhead. Web
+       Audio then clamps every schedule to `currentTime` and plays them all at
+       once, which is survivable — but `nd.startedAt = out` is NOT clamped, so
+       the incoming deck's own clock is wrong by the overshoot for the rest of
+       the track: `elapsed`, the progress bar, `blend.frac` and every downbeat
+       nextExitAfter() computes from it are all out by that amount, and a
+       later blend-now lands on nothing. Same class for the outgoing side —
+       `A.outAt` would name a moment that has already gone.
+
+       So: an exit that has already passed is moved to the next one that has
+       not. The choice is made by the SAME rules the plan above used and adds
+       no constant — the next phrase start in phrase mode, the next downbeat
+       on a trusted grid, the clock on an untrusted one (chain()'s own policy;
+       see nextDownbeatAfter for the asymmetry with the blendNow path). `lead`
+       is 0: the next musical point at or after now, not one a chosen number of
+       seconds away. Never fires on the ordinary path — chain() runs at the top
+       of a track, where the exit is minutes ahead. */
+    if (out < ctx.currentTime) {
+      const since = ctx.currentTime - A.startedAt;
+      const s = phA ? P.firstStartAfter(beats, phA, since) : null;
+      if (s) { out = A.startedAt + s.t; fade = P.lengthAt(beats, s.i) || xfade; atPhrase = true; }
+      else {
+        atPhrase = false; fade = xfade;
+        out = (beats.length && !m._unlocked) ? nextDownbeatAfter(0) : ctx.currentTime;
+      }
+    }
+    A.outAt = out;
     A.fade = fade;                           /* read by `blend` and the handover record */
 
     A.g.gain.setValueAtTime(1, out);
@@ -1341,7 +1420,7 @@ const Player = (() => {
        position on the grid we are not trusting. */
     const unlocked = !!nm._unlocked;
     const rate = unlocked ? 1 : tempo / nm.bpm;
-    const nd = makeDeck({ meta: nm, buf }, rate);
+    const nd = makeDeck({ meta: nm, buf }, rate, 'chain');
     nd.entry = unlocked ? 0 : ((nm.beats || [0])[0] || 0);
     /* Phrase mode: enter at the incoming track's own first phrase start, so
        its bar 1 lands on the outgoing track's bar 1. Its grid is trusted
@@ -1428,10 +1507,21 @@ const Player = (() => {
      deck was chained and its timer armed early by the length of the pause.
      Now the callback asks the audio clock first. If the exit has not
      arrived it re-arms for exactly what is left; while suspended that wait
-     is what remains after resume, so the re-armed timer can never fire
-     LATE either — it fires at or before the audio exit and re-arms for the
-     remainder. No statechange listener, no second clock: one question,
-     asked of the clock the sources are scheduled on. */
+     is what remains after resume, so each re-arm halves the gap and the
+     handover converges on the exit rather than drifting away from it.
+     No statechange listener, no second clock: one question, asked of the
+     clock the sources are scheduled on.
+
+     WHICH WAY IT CAN BE WRONG, said exactly (the first version of this note
+     claimed it could not fire late, and that is not what the code does):
+     the handover always lands AT OR AFTER the audio exit — by the deliberate
+     +100 ms in the ordinary case, and by however long a pause ran during the
+     final wait otherwise. That is the safe direction. Early is the failure
+     that matters: `idx`, `nowMeta`, the card and the route panel would name
+     the next track while the paused one is what resumes. The audio itself is
+     unaffected either way — every gain ramp and source start is scheduled on
+     the audio clock, so the crossfade happens when it was written to; only
+     the bookkeeping waits. */
   function armHandover(ni, out) {
     clearTimeout(chainTimer);
     chainTimer = setTimeout(() => {
@@ -1450,7 +1540,11 @@ const Player = (() => {
          transition monitor needs the OUTGOING side from the engine, not
          from whichever frame the render loop last happened to see */
       handed = { meta: A.track.meta, rate: A.rateAt(ctx.currentTime - A.startedAt),
-                 at: ctx.currentTime, xfade: A.fade || xfade, gaps: A.gaps, underruns: A.underruns };
+                 at: ctx.currentTime, xfade: A.fade || xfade, gaps: A.gaps, underruns: A.underruns,
+                 /* carried so the transition monitor can say `∿ first` on the
+                    OUTGOING row of a fade out of a play()-built deck instead
+                    of ×1.000 — the rate is 1 because nothing preceded it */
+                 origin: A.origin };
       gapsHanded += A.gaps || 0;
       /* the instrument for a popping report: the worklet's own count of
          zero-filled blocks on the deck that just handed over. Printed
@@ -1475,7 +1569,7 @@ const Player = (() => {
          the plan. Starting this deck too would put two sets on the air. */
       if (my !== gen) return 'superseded';
       tempo = m.bpm;
-      const d = makeDeck({ meta: m, buf }, 1);
+      const d = makeDeck({ meta: m, buf }, 1, 'play');
       /* Same reasoning as chain(): an unlocked track's beats[0] is a position
          on a grid we are not trusting, so start at the top of the file. The
          first deck already runs at rate 1, so nothing else changes. */
@@ -1703,7 +1797,16 @@ const Player = (() => {
     get phrase() { return phrase; },
     /* the phrase offset of a meta, if the deck has computed one */
     phraseOf(meta) { return meta && meta.phrase && meta.phrase.ok ? meta.phrase : null; },
-    get state() { return { idx, of: order.length, tempo: Math.round(tempo),
+    /* `tempo` is ROUNDED — it is a readout, and a header saying 128.4 bpm
+       would be a chosen precision the number does not have. `tempoExact` is
+       the rolling target the engine actually chains against, unrounded, for
+       the one caller that RE-PLANS from it: DWNAV.commit recomputes every
+       `_stretch` after a splice as target / bpm, and doing that from the
+       rounded figure made the plan disagree with the deck by up to 0.4%
+       (review 2026-09-01). Not audible; a printed number that is simply not
+       the number the engine used. Display reads `tempo`; arithmetic reads
+       `tempoExact`. */
+    get state() { return { idx, of: order.length, tempo: Math.round(tempo), tempoExact: tempo,
       now: A ? A.track.meta.name : null, next: B ? B.track.meta.name : null,
       live: live.size, ctx: ctx ? ctx.state : 'none',
       worklet: stretch.held ? 'held' : 'plain', gaps: A ? A.gaps : null,
@@ -1729,7 +1832,10 @@ const Player = (() => {
       if (el > handed.xfade) return null;
       return { meta: handed.meta, name: handed.meta.name, rate: handed.rate,
                fadeElapsed: el, xfade: handed.xfade, prog: Math.max(0, Math.min(1, el / handed.xfade)),
-               gaps: handed.gaps };
+               gaps: handed.gaps,
+               /* see makeDeck: 'play' means nothing preceded this deck, so its
+                  rate is 1 by construction and no stretch may be printed */
+               origin: handed.origin || null, matched: handed.origin === 'chain' };
     },
     /* The deck that is SCHEDULED, with the rate it was built at — so a panel
        can print what the incoming deck will actually do instead of the plan's
@@ -1739,7 +1845,10 @@ const Player = (() => {
       const m = B.track.meta;
       return { meta: m, name: m.name, bpm: m.bpm, camelot: m.camelot, rate: B.rate,
                straight: !!m._unlocked, reason: m._unlockReason || null,
-               startsAt: B.startedAt, entry: B.entry, gaps: B.gaps };
+               startsAt: B.startedAt, entry: B.entry, gaps: B.gaps,
+               /* always 'chain' today — B is built nowhere else — but read,
+                  not assumed, so a future scheduling path cannot lie here */
+               origin: B.origin, matched: B.origin === 'chain' && !m._unlocked };
     },
 
     /* What the deck is actually doing right now, as against what was planned.
@@ -1756,6 +1865,13 @@ const Player = (() => {
                settling: !!A.ramp && el < A.ramp.S,
                settleLeft: A.ramp ? Math.max(0, A.ramp.S - el) : 0,
                dwell: m._dwell || null, stepping: !!m._stepping, elapsed: el,
+               /* WHO BUILT THIS DECK — see makeDeck. 'play' is the first ▶,
+                  a jumped-to row or back(); 'chain' is the only path that
+                  beatmatches. `matched` is the one question every surface
+                  printing a stretch figure actually has: is this deck being
+                  beatmatched against anything? A straight (unlocked) track
+                  is not, even on the chain path. */
+               origin: A.origin, matched: A.origin === 'chain' && !m._unlocked,
                /* the worklet's zero-filled blocks on this deck so far (null
                   until its first metrics message, ~0.3 s in) */
                gaps: A.gaps, underruns: A.underruns, worklet: stretch.held ? 'held' : 'plain' };

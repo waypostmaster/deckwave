@@ -1504,3 +1504,57 @@ code against a fake deck (arm, tick, land, replace, cancel), which is
 why this is [INFERRED] and not confirmed. Nothing in the Player changed
 — a returned string was right when it was made; it was the display that
 kept it past its moment.
+
+## 25 - The review release, 0.8.1 — built 2026-09-03, NONE OF IT HEARD OR SEEN
+
+Every fix of the launch-day review (`docs/REVIEW-2026-09-01.md`, BUILD-LOG
+Act 41, ledgers 122–131) is pinned by a harness and seen by nobody. Most
+of them have no ear-level question at all — a licence name parsed by host,
+a size cap, a tail-read feed — and are listed nowhere here. These are the
+ones with a discriminating glance or listen, cheapest first:
+
+1. **A jumped-to deck (ledger 82, closed on five surfaces).** Jump straight
+   to any row past the first with `▶` on the list. What to look at: the
+   header, the card, the route footer, the transition monitor and RECON's
+   instrument column. **They should all read `∿ jumped` / `∿ first` and
+   NOTHING that looks like a stretch figure** — no `+0.00%`, no `×1.000`,
+   no `PHASE LOCKED`. One `0.0%` anywhere is a sixth surface.
+2. **A negated instruction.** From the console or RECON's tray:
+   `DWEVENTS.inject("don't speed up")`. It should do NOTHING to the music
+   and answer with a sentence naming what it read. Before 0.8.1 it blended
+   to a faster track. Then `inject("speed up")` should still steer — that
+   is the control.
+3. **The popped-out panel's slot.** `⇱ popout` the polygraph. The
+   dashboard slot should say *in the projector window*, and the paper in
+   the projector should scroll at the same speed as a second polygraph in
+   another slot. If it scrolls at double speed, ledger 127's fix did not
+   take.
+4. **The energy window after a hidden page.** Hide the tab for a minute
+   mid-set, come back. The level area and the staircase should show a
+   BREAK across the minute, not a straight line joining the ends.
+5. **A stuck voice.** Background the tab mid-take on Chrome (its `onend`
+   often never fires there). The music should come back on its own within
+   roughly the take's length plus a few seconds — the chosen guard.
+   If it stays ducked until you type `unduck`, the guard did not fire.
+6. **The take card across a hot swap.** Play a `sayfile`, feed
+   `{"reload":true,"ts":…}` mid-take. The card should stay up with a live
+   wave while the voice finishes. If it hides under an audible voice, ledger
+   129's re-adoption is wrong [INFERRED].
+7. **The phone, two glances.** In `controls`: pause the set, read the
+   lock screen — it should say paused, not playing. Let a set END — the
+   Now Playing card should go away (the focus loop stops). Both
+   [INFERRED], machine-pinned.
+8. **An interrupted `--lan` download.** Kill the phone's download of the
+   library zip at 90% and retry. If the browser resumes rather than
+   restarting, Range support works on a real device; if it restarts from
+   zero, that is a finding, not a failure of the server (the browser may
+   not ask).
+9. **The keeper's-call A/B (ledger 126).** On any track the pool marks
+   grid-unlocked (the list shows it played straight), compare the exit the
+   SET plans (leaves on the clock) with pressing `next ▶` (snaps to the
+   distrusted downbeat). Which one lands? Whichever wins becomes the policy
+   at both sites; nothing here moves until the ear says.
+
+What would falsify each is stated inline; what none of them can answer is
+whether any of it was worth doing, which is the same answer LISTENING has
+always given about a fix nobody has heard.

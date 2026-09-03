@@ -237,25 +237,20 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .tip em{font-style:normal;display:block;margin-top:4px;font-size:7.5px;color:var(--dim)}
 @media(max-width:720px){.tip{width:240px;left:auto;right:-6px}}
 
-/* now playing, bottom right */
-/* Docked into the track-list column rather than floating over it. As a fixed
-   overlay it covered the list and part of the transport, which is the one
-   place you need to be able to read and click while a set is running. The
-   column is already a flex stack with .list on flex:1, so the card takes its
-   natural height at the top and the list scrolls beneath it. */
-.np{background:var(--surf);border-bottom:1px solid var(--ac2);
-  padding:9px 11px;font-size:10px;line-height:1.5;flex:none}
-.np.hidden{display:none}
-.np u{display:flex;justify-content:space-between;text-decoration:none;font-size:7.5px;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--dim);margin-bottom:5px}
-.np u b{cursor:pointer}.np u b:hover{color:var(--ac)}
-.np .t{color:var(--ac2);font-size:11.5px;word-break:break-word;margin-bottom:3px}
-.np .m{color:var(--dim);font-size:9px;letter-spacing:.08em}
-.np .nx{color:var(--dim);font-size:9px;margin-top:6px;padding-top:6px;border-top:1px solid var(--line);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.np .nx s{text-decoration:none;color:var(--ac)}
-.np .bar{height:3px;background:var(--line);margin-top:7px}
-.np .bar i{display:block;height:100%;width:0;background:var(--ac2);transition:width .3s}
+/* NOW PLAYING — the card's rules are NOT here.
+   A whole `.np` block used to sit at this spot, duplicating the stylesheet
+   deckwave-nowplaying.js ships with itself. That sheet is appended to the
+   same shadow root AFTER this one, so it won every property both declared
+   and this copy decided nothing — while still being the place someone would
+   naturally come to change the card, and it had already gone stale: it
+   carried ".np .bar", the class the card renamed to ".npbar" precisely
+   because ".bar" collided with the transport strip in this same root (the
+   card's own header tells that story). Two rules were live only because the
+   card's sheet did not declare them at all — padding-top and border-top
+   on ".np .nx" — and those moved INTO the card's sheet rather than being
+   dropped, so nothing on screen changed. Deleted 2026-09-01, review M12
+   class: the card's stylesheet is the one that renders, so it is the only
+   one that exists. */
 /* help moved onto the panel NAME — a ? on every panel was visual noise */
 .lbl{cursor:help;border-bottom:1px dotted transparent;transition:border-color .15s}
 .strip:hover .lbl{border-bottom-color:var(--dim)}
@@ -480,7 +475,13 @@ function mount(hostEl) {
           ['goniometer · stereo field','cGonio'],['vu · 300ms ballistics','cVU']]
           .map(([l,i]) => `<div class="strip"><u>${l}</u><div class="cw"><canvas id="${i}" part="${i}"></canvas></div></div>`).join('')}
      </div>
-     <div class="strip" style="height:clamp(60px,9vh,110px)"><u>set arc · energy + tempo across the whole night</u>
+     <!-- data-gl: this label carries the word "energy" and was the ONE place
+          it appeared on screen with no hover saying CONSTRUCTED (45% loudness,
+          25% brightness, 30% tempo — weights chosen, not fitted). Every panel
+          label is tagged by glossaryBind's PANEL map; a fixed strip has no
+          slot, so it is tagged here by hand. bind() picks up any [data-gl]
+          in the shadow root, so nothing else is needed. -->
+     <div class="strip" style="height:clamp(60px,9vh,110px)"><u data-gl="energy">set arc · energy + tempo across the whole night</u>
        <div class="cw"><canvas id="cArc" part="arc"></canvas></div></div>
    </div>
    <div class="side"><u id="sideHd">set</u><div class="list" id="list"></div></div>
@@ -519,10 +520,13 @@ function mount(hostEl) {
   const col = (l, a) => (RC && RC.col(l, a)) || null;
 
   /* ── state ────────────────────────────────────────────────────────── */
-  let set = [], deckL = null, deckR = null, raf = null, lastIdx = -1, lastT = performance.now();
-  let wave = null, freq = null, prevLow = null;
-  const H2 = 43, fhist = new Float32Array(H2);
-  let fi = 0, ff = 0, lastHit = 0; const hits = [];
+  /* The analyser buffers, the flux history and the hit ring used to live here
+     as well, feeding an inline loop() that DWLOOP replaced at mount and that
+     index.html's boot gate made unreachable. They were second copies of
+     DWLOOP's own — and carried second copies of five panels' calibrated
+     numbers with them. Deleted 2026-09-01 (review M12): one number, one
+     place. DWLOOP owns the measuring half; DWPANELS owns the drawing. */
+  let set = [], deckL = null, deckR = null;
 
   /* split the deck's own analyser — a pass-through, so this is always available */
   function splitDeck() {
@@ -546,8 +550,9 @@ function mount(hostEl) {
     const L = window.DWLISTEN;
     if (L && L.active && L.L && L.R) return { L: L.L, R: L.R, src: 'listen' };
     /* Try the split HERE rather than relying on someone else to have done it.
-       splitDeck() was only ever called from the inline loop() below, which
-       DWLOOP replaced at mount — so it never ran, deckL/deckR were never
+       splitDeck() was only ever called from the inline loop() that used to
+       sit below (deleted 2026-09-01) and that DWLOOP replaced at mount, so
+       nothing called it — it never ran, deckL/deckR were never
        created, and this returned null on every frame. That took the
        goniometer and the VU meters with it, because DWVU.feed() sits inside
        the loop's `if (stereo)` branch: feed never called, needles frozen.
@@ -558,30 +563,21 @@ function mount(hostEl) {
     return null;
   }
 
-  function flux(now) {
-    if (!freq) return 0;
-    if (!prevLow) { prevLow = new Float32Array(10); for (let i = 0; i < 10; i++) prevLow[i] = freq[i]; return 0; }
-    let x = 0;
-    for (let i = 0; i < 10; i++) { const d = freq[i] - prevLow[i]; if (d > 0) x += d; prevLow[i] = freq[i]; }
-    x /= 2550;
-    let m = 0; const n = ff || 1;
-    for (let i = 0; i < n; i++) m += fhist[i]; m /= n;
-    let hit = false;
-    if (ff >= 10 && x > m * 2.0 + 0.004 && now - lastHit > 300) {
-      lastHit = now; hits.push({ t: now, v: Math.min(1, x / 0.06) }); hit = true;
-    }
-    fhist[fi] = x; fi = (fi + 1) % H2; if (ff < H2) ff++;
-    return { x, hit };
-  }
+  /* The spectral-flux onset detector used to be duplicated here. The live one
+     is in deckwave-loop.js's sample() and its numbers (the 10 low bins, the
+     /2550 scale, ×2.0 + 0.004 over the running mean, the 300 ms refractory,
+     the 43-frame history) are calibrated. This copy was never called after
+     DWLOOP took the loop; it is gone rather than kept in step by hand. */
 
   /* ── panels ───────────────────────────────────────────────────────── */
   const P = {
-    /* wv is passed in by drawFixed from the render loop's bundle. The closure
-       fallback is only reachable from the dead inline loop() below; relying on
-       it is what made this strip a permanent flat line, since nothing has
-       filled the dashboard's own `wave` since DWLOOP took the loop over. */
+    /* wv is passed in by drawFixed from the render loop's bundle. It used to
+       fall back to a mount-scope `wave` that only the dead inline loop() ever
+       filled, which is what made this strip a permanent flat line; the buffer
+       and the fallback are both gone. No signal means the flat line, drawn on
+       purpose. */
     scope(c, w, h, T, wv) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
-      const W8 = wv || wave;
+      const W8 = wv;
       if (!W8) { c.strokeStyle = T.line; c.beginPath(); c.moveTo(0, h/2); c.lineTo(w, h/2); c.stroke(); return; }
       const k = col(62) || T.ac; c.strokeStyle = k; c.lineWidth = 1.5; g(c, k, 9); c.beginPath();
       const s = W8.length / w;
@@ -590,116 +586,28 @@ function mount(hostEl) {
       c.stroke(); c.shadowBlur = 0; },
 
     /* hs likewise comes from the loop's bundle; the dashboard's own `hits`
-       array has been empty since DWLOOP started keeping its own. */
+       array was empty from the day DWLOOP started keeping its own, and is
+       deleted rather than left as a fallback that could only ever draw
+       nothing. */
     punch(c, w, h, T, fx, now, hs) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
       c.strokeStyle = T.line; c.lineWidth = 1;
       for (let i = 1; i < 8; i++) { const x = w*i/8; c.beginPath(); c.moveTo(x,0); c.lineTo(x,h); c.stroke(); }
       c.fillStyle = col(55,.45) || 'rgba(34,232,255,.45)';
       c.fillRect(0, h-2-Math.min(h-4, fx*500), w, 2);
-      (hs || hits).forEach(p => { const x = w - ((now-p.t)/8000)*w, r = 3 + p.v*(h*.14);
+      (hs || []).forEach(p => { const x = w - ((now-p.t)/8000)*w, r = 3 + p.v*(h*.14);
         const k = col(60) || T.ac2; c.fillStyle = k; g(c, k, 13);
         c.beginPath(); c.arc(x, h/2, r, 0, 7); c.fill(); });
       c.shadowBlur = 0; },
 
-    spec(c, w, h, T) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h); if (!freq) return;
-      const n = Math.max(16, Math.floor(w/9)), bw = w/n;
-      for (let i = 0; i < n; i++) {
-        const lo = Math.floor(Math.pow(i/n, 2.2)*freq.length);
-        const hb = Math.max(lo+1, Math.floor(Math.pow((i+1)/n, 2.2)*freq.length));
-        let m = 0; for (let j = lo; j < hb; j++) m = Math.max(m, freq[j]);
-        const bh = (m/255)*(h-3);
-        const gr = c.createLinearGradient(0, h, 0, h-bh);
-        gr.addColorStop(0, col(52)||T.ac2); gr.addColorStop(1, col(72)||T.ac);
-        c.fillStyle = gr; g(c, col(52)||T.ac2, 7); c.fillRect(i*bw+1, h-bh, bw-2, bh); }
-      c.shadowBlur = 0; },
-
-    /* twelve pitch CLASSES, not notes — see docs. Folded across all octaves. */
-    chroma(c, w, h, T) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h); if (!freq) return;
-      const b = new Float32Array(12), N = freq.length*2;
-      for (let i = 1; i < freq.length; i++) { const f = i*44100/N;
-        if (f < 55 || f > 5000) continue;
-        b[((Math.round(69+12*Math.log2(f/440))%12)+12)%12] += freq[i]/255; }
-      let mx = 0; for (const v of b) mx = Math.max(mx, v);
-      const cx = w/2, cy = h/2, r = Math.min(w,h)/2 - 13;
-      for (let i = 0; i < 12; i++) { const a = (i/12)*Math.PI*2 - Math.PI/2, v = mx ? b[i]/mx : 0;
-        c.strokeStyle = T.line; c.lineWidth = 1; c.beginPath(); c.moveTo(cx,cy);
-        c.lineTo(cx+Math.cos(a)*r, cy+Math.sin(a)*r); c.stroke();
-        if (v > .12) { const k = v > .6 ? (col(58)||T.ac2) : (col(70)||T.ac);
-          c.strokeStyle = k; c.lineWidth = 3; g(c, k, 10); c.beginPath(); c.moveTo(cx,cy);
-          c.lineTo(cx+Math.cos(a)*r*v, cy+Math.sin(a)*r*v); c.stroke(); c.shadowBlur = 0; }
-        c.fillStyle = v > .5 ? (col(75)||T.ac) : T.dim;
-        c.font = '9px ' + css('--fn'); c.textAlign = 'center'; c.textBaseline = 'middle';
-        c.fillText(PITCH[i], cx+Math.cos(a)*(r+8), cy+Math.sin(a)*(r+8)); } },
-
-    cam(c, w, h, T, bass, hit) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
-      /* the deck's track and the deck's next, by identity; index fallback */
-      const s = window.DW.state, cur = window.DW.nowMeta || set[s.idx],
-            nxt = window.DW.nextMeta || set[(cur ? set.indexOf(cur) : s.idx) + 1];
-      const cx = w/2, cy = h/2, R = Math.min(w,h)/2 - 16, t = performance.now()/1000;
-      for (let n = 1; n <= 12; n++) {
-        const a = ((n-1)/12)*Math.PI*2 - Math.PI/2 + Math.sin(t*.12)*.02;
-        [['A', R*.60], ['B', R]].forEach(([L, rr]) => {
-          const code = n + L; let fill = T.line, txt = T.dim, pulse = 0;
-          if (cur && cur.camelot === code) { fill = col(58)||T.ac2; txt = T.bg; pulse = 1; }
-          else if (nxt && nxt.camelot === code) { fill = col(66,.9)||T.ac; txt = T.bg; pulse = .5; }
-          else if (cur) { const sc = window.DW.camScore(cur.camelot, code);
-            if (sc >= .85) { fill = col(50,.30)||'rgba(34,232,255,.28)'; txt = col(72)||T.ac; }
-            else if (sc >= .45) fill = col(42,.13)||'rgba(34,232,255,.12)'; }
-          const x = cx+Math.cos(a)*rr, y = cy+Math.sin(a)*rr;
-          const rad = Math.max(6, R*.125)*(1 + pulse*bass*.45 + (pulse&&hit ? .22 : 0));
-          c.fillStyle = fill; if (pulse) g(c, fill, 10+pulse*14);
-          c.beginPath(); c.arc(x, y, rad, 0, 7); c.fill(); c.shadowBlur = 0;
-          c.fillStyle = txt; c.font = Math.max(7, rad*.75)+'px '+css('--fn');
-          c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(code, x, y); }); }
-      if (cur && nxt) { const pt = cd => { const n = +cd.slice(0,-1), L = cd.slice(-1);
-          const a = ((n-1)/12)*Math.PI*2 - Math.PI/2, rr = L === 'A' ? R*.60 : R;
-          return [cx+Math.cos(a)*rr, cy+Math.sin(a)*rr]; };
-        try { const [x1,y1] = pt(cur.camelot), [x2,y2] = pt(nxt.camelot);
-          const k = col(62)||T.ac; c.strokeStyle = k; c.lineWidth = 2; g(c, k, 10);
-          c.setLineDash([5,4]); c.lineDashOffset = -t*14;
-          c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
-          c.setLineDash([]); c.shadowBlur = 0; } catch (e) {} } },
-
-    /* L vs R rotated 45deg with phosphor persistence — mono draws vertical */
-    gonio(c, w, h, T, L, R, stat) {
-      c.fillStyle = 'rgba(0,0,0,0.16)'; c.fillRect(0, 0, w, h);
-      const cx = w/2, cy = h/2, r = Math.min(w,h)/2 - 6;
-      c.strokeStyle = T.line; c.lineWidth = 1; c.beginPath(); c.arc(cx,cy,r,0,7); c.stroke();
-      c.globalAlpha = .5; c.beginPath();
-      c.moveTo(cx-r*.72, cy-r*.72); c.lineTo(cx+r*.72, cy+r*.72);
-      c.moveTo(cx-r*.72, cy+r*.72); c.lineTo(cx+r*.72, cy-r*.72); c.stroke(); c.globalAlpha = 1;
-      if (L && R) { const k = col(66)||T.ac; c.fillStyle = k; g(c, k, 6);
-        const n = Math.min(L.length, R.length), step = Math.max(1, Math.floor(n/900));
-        for (let i = 0; i < n; i += step) { const a = (L[i]-128)/128, b = (R[i]-128)/128;
-          c.fillRect(cx+(a-b)*r*.66, cy-(a+b)*r*.66, 1.4, 1.4); }
-        c.shadowBlur = 0; }
-      if (stat) { const bw = w*.62, bx = (w-bw)/2, by = h-9, mid = bx+bw/2, x = mid+stat.corr*(bw/2);
-        c.fillStyle = T.line; c.fillRect(bx, by, bw, 3);
-        const k = stat.corr < 0 ? T.bad : (col(70)||T.ac);
-        c.fillStyle = k; g(c, k, 7);
-        c.fillRect(Math.min(mid,x), by, Math.abs(x-mid)||1.5, 3); c.shadowBlur = 0;
-        c.fillStyle = T.dim; c.font = '7.5px '+css('--fn'); c.textAlign = 'center';
-        c.textBaseline = 'bottom'; c.fillText('−1   phase   +1', cx, by-2); } },
-
-    vu(c, w, h, T, s) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
-      const cx = w/2, cy = h*.92, r = Math.min(w/2, h)*.86;
-      c.strokeStyle = T.line; c.lineWidth = 1;
-      c.beginPath(); c.arc(cx, cy, r, Math.PI*1.15, Math.PI*1.85); c.stroke();
-      for (let i = 0; i <= 10; i++) { const a = Math.PI*1.15 + (i/10)*Math.PI*.7, over = i > 7;
-        c.strokeStyle = over ? T.bad : T.dim; c.lineWidth = over ? 1.6 : 1;
-        c.beginPath(); c.moveTo(cx+Math.cos(a)*r, cy+Math.sin(a)*r);
-        c.lineTo(cx+Math.cos(a)*r*.88, cy+Math.sin(a)*r*.88); c.stroke(); }
-      const needle = (v, pk, off, k) => {
-        const a = Math.PI*1.15 + Math.min(1,v)*Math.PI*.7;
-        c.strokeStyle = k; c.lineWidth = 2; g(c, k, 9);
-        c.beginPath(); c.moveTo(cx+off, cy);
-        c.lineTo(cx+off+Math.cos(a)*r*.82, cy+Math.sin(a)*r*.82); c.stroke(); c.shadowBlur = 0;
-        const pa = Math.PI*1.15 + Math.min(1,pk)*Math.PI*.7;
-        c.fillStyle = k; c.beginPath();
-        c.arc(cx+off+Math.cos(pa)*r*.9, cy+Math.sin(pa)*r*.9, 2, 0, 7); c.fill(); };
-      needle(s.L, s.pkL, -w*.012, col(68)||T.ac);
-      needle(s.R, s.pkR,  w*.012, col(56)||T.ac2);
-      c.fillStyle = T.dim; c.font = '7.5px '+css('--fn'); c.textAlign = 'center'; c.fillText('VU', cx, h-2); },
+    /* spec / chroma / cam / gonio / vu USED TO SIT HERE — five whole panels,
+       duplicating the registered ones in deckwave-panels.js down to their
+       calibrated numbers: the chromagram's .12 and .6 visibility thresholds
+       and its 55–5000 Hz band, the Camelot wheel's .85 and .45 score tiers,
+       the goniometer's 900-point decimation, the VU sweep. Only the dead
+       inline loop() ever called them, so for the life of the file the screen
+       drew the registered copies and a second set of the same constants sat
+       here waiting to drift. Deleted 2026-09-01 (review M12). The live
+       numbers in deckwave-panels.js were not touched. */
 
     arc(c, w, h, T) { c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
       if (!set.length) { c.strokeStyle = T.line; c.beginPath(); c.moveTo(0,h/2); c.lineTo(w,h/2); c.stroke(); return; }
@@ -730,55 +638,15 @@ function mount(hostEl) {
       c.textAlign = 'right'; c.fillText(Math.round(bmin)+'-'+Math.round(bmax)+' bpm', w-4, 10); }
   };
 
-  /* ── loop ─────────────────────────────────────────────────────────── */
-  function loop() {
-    raf = requestAnimationFrame(loop);
-    const now = performance.now(), dt = Math.min(.1, (now-lastT)/1000); lastT = now;
-    const T = { bg: css('--bg')||'#04010f', surf: css('--surf'), line: css('--line')||'#22125c',
-      dim: css('--dim')||'#7d6eb0', ac: css('--ac')||'#22e8ff', ac2: css('--ac2')||'#ff2d95',
-      bad: css('--bad')||'#ff5470' };
-
-    const an = (window.DWLISTEN && window.DWLISTEN.active && window.DWLISTEN.analyser)
-             || (window.DW && window.DW.Player.analyser);
-    if (an) {
-      if (!wave || wave.length !== an.fftSize) { wave = new Uint8Array(an.fftSize); freq = new Uint8Array(an.frequencyBinCount); }
-      an.getByteTimeDomainData(wave); an.getByteFrequencyData(freq);
-      if (RC && RC.mode.on) {
-        const r = RC.update(freq);
-        host.style.setProperty('--dw-color-accent', 'hsl('+r.hue+',80%,64%)');
-        host.style.setProperty('--dw-color-accent-2', 'hsl('+((r.hue+38)%360)+',80%,56%)');
-        $('kReg').textContent = r.centroidHz+'Hz '+r.band;
-      }
-    }
-    splitDeck();
-    const F = flux(now); const fx = F.x || 0, hit = F.hit || false;
-    while (hits.length && now - hits[0].t > 8000) hits.shift();
-    let bass = 0; if (freq) { let s = 0; for (let i = 0; i < 12; i++) s += freq[i]; bass = s/12/255; }
-
-    P.scope(X.cScope, W('cScope'), H('cScope'), T);
-    P.punch(X.cPunch, W('cPunch'), H('cPunch'), T, fx, now);
-    P.spec(X.cSpec, W('cSpec'), H('cSpec'), T);
-    P.chroma(X.cChroma, W('cChroma'), H('cChroma'), T);
-    P.cam(X.cCam, W('cCam'), H('cCam'), T, bass, hit);
-
-    const S = stereoSource();
-    if (S) {
-      if (!window.__dwL || window.__dwL.length !== S.L.fftSize) {
-        window.__dwL = new Uint8Array(S.L.fftSize); window.__dwR = new Uint8Array(S.R.fftSize); }
-      S.L.getByteTimeDomainData(window.__dwL); S.R.getByteTimeDomainData(window.__dwR);
-      const stat = window.DWSTEREO(window.__dwL, window.__dwR);
-      P.gonio(X.cGonio, W('cGonio'), H('cGonio'), T, window.__dwL, window.__dwR, stat);
-      /* feed RAW rms — DWVU does the dBFS conversion. Passing pre-scaled
-         values is what railed the needles in the first version. */
-      const vs = window.DWVU.feed(stat.rmsL, stat.rmsR, dt);
-      P.vu(X.cVU, W('cVU'), H('cVU'), T, vs);
-    }
-    P.arc(X.cArc, W('cArc'), H('cArc'), T);
-
-    head(hits.length);
-    const s = window.DW.state;
-    if (s.idx !== lastIdx) { lastIdx = s.idx; renderList(); }
-  }
+  /* ── the loop is NOT here ─────────────────────────────────────────────
+     It is deckwave-loop.js (DWLOOP), which owns the analyser buffers, the
+     flux/hit state, the VU feed and the per-frame bundle. An inline loop()
+     used to sit at this spot as a "fallback", reachable only if DWLOOP were
+     missing — and index.html's boot gate refuses to mount without DWLOOP,
+     so it was unreachable by construction. It carried its own copies of the
+     onset detector and of five panels' calibrated numbers, which is the one
+     thing this project cannot afford twice. Deleted 2026-09-01, review M12;
+     mount() now refuses rather than silently drawing a second engine. */
 
   function head(nHits) {
     /* The DECK first, the list index second — ledger 33 and 40. And the
@@ -797,12 +665,15 @@ function mount(hostEl) {
     $('kKey').className = 'p';
     let str = '-', warn = false;
     if (t && t._unlocked) str = '∿';
-    /* FIRST DECK: nothing to match against, so there is no stretch to print.
-       Ledger 82 caught `+0.00%` reading as the tightest beatmatch on screen
-       and fixed it in RECON; the three base surfaces kept printing it, on
-       step 1 of every set. Same predicate RECON uses (idx 0 and rate 1), so
-       four surfaces now agree instead of three disagreeing with one. */
-    else if (dk && s.idx === 0 && dk.rate === 1) str = '∿';
+    /* AN UNMATCHED DECK: nothing to match against, so there is no stretch to
+       print. Ledger 82 caught `+0.00%` reading as the tightest beatmatch on
+       screen and fixed it in RECON; the three base surfaces kept printing it,
+       on step 1 of every set. The predicate WAS `idx === 0 && rate === 1`,
+       which is a guess — true of the first deck and false of every other deck
+       play() builds, so a jump to row 7 printed `+0.0%` here. Since
+       2026-09-01 the engine stamps the fact (makeDeck's `origin`) and this
+       reads it. */
+    else if (dk && dk.origin === 'play') str = '∿';
     else if (dk) { str = (dk.stretchPct >= 0 ? '+' : '') + dk.stretchPct.toFixed(1) + '%'; warn = Math.abs(dk.rate - 1) > .08; }
     /* …and the PLAN fallback needs the same guard as the deck branch above.
        With nothing on a deck this is where the header lands, and `_stretch`
@@ -816,13 +687,26 @@ function mount(hostEl) {
     $('kStr').textContent = str;
     $('kStr').className = warn ? 'w' : '';
     $('kStr').title = t && t._unlocked ? 'played straight — not beatmatched, so there is no stretch to print'
-                    : (dk && s.idx === 0 && dk.rate === 1) ? 'first deck — the set has no predecessor here, so there is nothing to match and no stretch to print'
+                    : (dk && dk.origin === 'play') ? (s.idx === 0
+                        ? 'first deck — the set has no predecessor here, so there is nothing to match and no stretch to print'
+                        : 'jumped to — this deck was started, not mixed into, so there is nothing to match and no stretch to print')
                     : (dk && dk.settling ? 'settling to ×1.000 · ' + Math.round(dk.settleLeft) + 's' : '');
     $('kHit').textContent = nHits; $('kHit').className = 'g';
+    /* COMPACT LINE, written only when it CHANGES and only when it is shown.
+       The guard used to be `nl.style.display !== 'none'` — but that inline
+       style is the empty string until compact is pressed once, and the
+       stylesheet is what hides the line, so the test was true on a page that
+       has never been in compact mode and this innerHTML ran 60×/s against a
+       hidden element for the life of the session. Ledger 94/124's shape (an
+       innerHTML write per frame), here costing only work; the same cure
+       applies: ask the layout whether the line is shown, and key the write
+       on the string. */
     const nl = $('nowline');
-    if (nl.style.display !== 'none' && t)
-      nl.innerHTML = '<b>'+((pos > -1 ? pos : s.idx)+1)+'/'+(set.length || s.of)+'</b> '+esc(clean(t.name).slice(0,44))
+    if (nl && t && app.classList.contains('mini')) {
+      const line = '<b>'+((pos > -1 ? pos : s.idx)+1)+'/'+(set.length || s.of)+'</b> '+esc(clean(t.name).slice(0,44))
         +' · '+Math.round(t.bpm)+' · '+esc(t.camelot);
+      if (line !== nl.__dwLine) { nl.__dwLine = line; nl.innerHTML = line; }
+    }
   }
 
   /* SPACED separator, and the track-number strip needs real whitespace after
@@ -1159,6 +1043,17 @@ function mount(hostEl) {
      a fresh page load gave panels and no view selector. */
   const dash = {
     host, shadow: sr, fit, C, X,
+    /* THE RESIZE OBSERVER, handed out on purpose. `DWDASH.slots`'s build()
+       ends every new cell with `if (dash.ro) dash.ro.observe(d)` — and until
+       2026-09-01 nothing ever set `dash.ro`, so that line was a permanent
+       no-op naming a mechanism that did not exist. Nothing looked broken
+       because every site that rebuilds cells also calls `setTimeout(dash.fit)`
+       by hand; the observer is the belt to that pair of braces, for a cell
+       that changes size without a rebuild (a fold, a column change, the
+       sidebar going away). Assigned rather than deleted: the observer is
+       real, it is created above, and handing it over costs one line.
+       ro is created before this object — see fit(). */
+    ro,
     get set() { return set; }, set set(v) { set = v; renderList(); },
     renderList, header: head, slots: null, views: null, applyFolds: null,
     stereoSource, drawFixed: null, elapsed: 0, theme: 'cyberpunk'
@@ -1196,8 +1091,12 @@ function mount(hostEl) {
   };
 
   /* One loop, started once. Never wrap it to add a feature — add the feature
-     to the bundle it already builds. Wrapping is what killed the last one. */
-  if (window.DWLOOP) window.DWLOOP.start(dash); else loop();
+     to the bundle it already builds. Wrapping is what killed the last one.
+     And ONE loop means one: the `else loop()` that used to be on this line
+     named a second implementation the boot gate could never reach. A gate
+     that refuses beats a fallback nobody can run. */
+  if (!window.DWLOOP) throw new Error('DWDASH.mount needs DWLOOP (deckwave-loop.js) — it owns the render loop');
+  window.DWLOOP.start(dash);
 
   buildTransport(dash);
   return dash;
@@ -1875,7 +1774,10 @@ function buildTransport(dash) {
           log('imported ' + n + ' views'); rebuildViews(); }
         catch (e) { log('import failed: ' + e.message); } finally { i.remove(); } };
       i.click(); return; }
-    dash.views.load(k); log('view: ' + k);
+    /* load() returns null for a view with no panel list rather than letting
+       slots.build() throw out here, where nothing catches it and the press
+       would produce no panels AND no message. Say which happened. */
+    log(dash.views.load(k) ? 'view: ' + k : 'view "' + k + '" has no panel list — not loaded');
   };
   function rebuildViews() { if (viewSel) viewSel.el.remove();
     viewSel = select('view', viewItems(), onView, dash.views.list()[0] || 'default'); }
@@ -2288,6 +2190,19 @@ DWDASH.views = function (dash) {
   const write = o => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
   const folds = () => { try { return JSON.parse(localStorage.getItem(FOLD)) || {}; } catch (e) { return {}; } };
 
+  /* A VIEW IS ONLY A VIEW IF IT CARRIES A PANEL LIST.
+     `import()` used to take whatever was under `views` on the sole strength
+     of the `format` field, so a file whose `panels` was a string, a number
+     or absent was stored happily — and the throw came later and elsewhere,
+     inside slots.build()'s `want.forEach`, on the line that SELECTS the
+     view, which is not in any try. The result was ledger 115's shape
+     exactly: a control that does nothing and says nothing. Refuse at the
+     door with a sentence, and treat an already-stored bad view (from before
+     this gate, or hand-edited localStorage) as unloadable rather than
+     fatal. */
+  const validView = v => !!v && typeof v === 'object' && Array.isArray(v.panels)
+    && v.panels.length > 0 && v.panels.every(p => typeof p === 'string');
+
   return {
     list: () => Object.keys(read()),
     snapshot() {
@@ -2298,7 +2213,7 @@ DWDASH.views = function (dash) {
     },
     save(name) { if (!name) return null; const all = read(); all[name] = this.snapshot(); write(all); return name; },
     load(name) {
-      const v = read()[name]; if (!v) return null;
+      const v = read()[name]; if (!validView(v)) return null;
       try { localStorage.setItem('dw-slots-v1', JSON.stringify(v.panels)); } catch (e) {}
       try { localStorage.setItem(FOLD, JSON.stringify(v.folded || {})); } catch (e) {}
       dash.slots.build(v.panels);
@@ -2315,6 +2230,11 @@ DWDASH.views = function (dash) {
     import(j) {
       const d = typeof j === 'string' ? JSON.parse(j) : j;
       if (d.format !== 'deckwave-views') throw new Error('not a deckwave views file');
+      if (!d.views || typeof d.views !== 'object' || Array.isArray(d.views))
+        throw new Error('the file carries no views');
+      const bad = Object.keys(d.views).filter(k => !validView(d.views[k]));
+      if (bad.length) throw new Error('refused — ' + bad.length + ' view'
+        + (bad.length > 1 ? 's have' : ' has') + ' no panel list: ' + bad.slice(0, 3).join(', '));
       const all = read(); Object.assign(all, d.views); write(all);
       return Object.keys(d.views).length;
     }

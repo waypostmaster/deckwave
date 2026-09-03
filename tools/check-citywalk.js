@@ -39,14 +39,31 @@ const WALK = walkRaw.split('\n').filter(l => l.trim()).map(JSON.parse);
    cannot see syntax. So compile the script before believing anything else
    about it. vm.Script parses without executing, so no DOM is needed. */
 const vm = require('vm');
-const SCRIPT = (src.split('<script>')[1] || '').split('</script>')[0];
+/* EVERY inline block, not the first one. The old line took src.split('<script>')[1]
+   — literally the first bare `<script>` tag — so a second block, or one written
+   `<script type="module">`, was invisible to the only check in this file that can
+   see a SyntaxError at all. It held by luck: there is one block today. A block
+   with a `src=` is a file, not inline text, and is skipped. */
+const inlineBlocks = html =>
+  (html.match(/<script\b(?![^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script>/gi) || [])
+    .filter(b => {
+      const t = (b.match(/^<script[^>]*\btype\s*=\s*["']?([^"'>\s]+)/i) || [])[1];
+      return !t || /^(text\/javascript|application\/javascript|module|text\/ecmascript)$/i.test(t);
+    })
+    .map(b => b.replace(/^<script[^>]*>/i, '').replace(/<\/script>$/i, ''));
+const BLOCKS = inlineBlocks(src);
+const SCRIPT = BLOCKS.join('\n');
 let parseErr = null;
-try { new vm.Script(SCRIPT, { filename: 'citywalk-inline.js' }); }
-catch (e) { parseErr = e.message; }
+BLOCKS.forEach((b, i) => {
+  if (parseErr) return;
+  try { new vm.Script(b, { filename: 'citywalk-inline-' + i + '.js' }); }
+  catch (e) { parseErr = 'block ' + i + ': ' + e.message; }
+});
 console.log('\n── does it parse ───────────────────────────────────────────');
-ok('the page\'s inline script compiles',
-   SCRIPT.length > 1000 && parseErr === null,
-   parseErr ? 'SyntaxError: ' + parseErr : 'no script block found to compile');
+ok('EVERY inline <script> in the page compiles (' + BLOCKS.length + ' block(s), src-less, JS-typed)',
+   BLOCKS.length > 0 && SCRIPT.length > 1000 && parseErr === null,
+   parseErr ? 'SyntaxError: ' + parseErr
+            : 'no inline block found to compile — and the first cut of this check compiled only the FIRST bare <script>, so a second block or a type= attribute was never parsed at all');
 
 console.log('\n── the rain is data, not decoration ────────────────────────');
 ok('every glyph is indexed out of BITS, the encoded corpus',
@@ -114,9 +131,41 @@ ok('NO handle or system name from the original deployment appears in a SHIPPING 
      return hit.length ? 'LEAKED: ' + hit.join(', ') : true;
    })() === true,
    'a name from another party or system is in a file bound for a permanent public archive');
-ok('events.jsonl is gitignored, so whatever a live bus carries can never ship',
-   /^extensions\/citywalk\/events\.jsonl\s*$/m.test(gitignore),
-   'the live events file is trackable, and one git add would publish real names permanently');
+/* A REGEX OVER .gitignore IS NOT THE QUESTION. The question is whether git
+   TRACKS the file, and `git ls-files --error-unmatch` is the only thing that
+   answers it: a pattern can be overridden by a later negation, by a nested
+   .gitignore, or - the one that actually bites - by a file that was committed
+   BEFORE the ignore rule existed, which .gitignore does not affect at all.
+   Spawning git is fine here; check-serve already starts a whole server.
+   Run against the harness's own repository (-C), so the answer does not
+   depend on the working directory a copy of the source is read from. */
+const REPO = require('path').join(__dirname, '..');
+const tracked = rel => {
+  const r = require('child_process').spawnSync(
+    'git', ['-C', REPO, 'ls-files', '--error-unmatch', '--', rel], { encoding: 'utf8' });
+  if (r.error) return 'git-unavailable';
+  return r.status === 0;                    /* true = TRACKED */
+};
+{
+  /* every one of these is either a live bus, a per-machine record, or a file
+     naming things that must not enter a permanent public archive */
+  const mustBeUntracked = ['extensions/citywalk/events.jsonl',
+                           'extensions/citywalk/neighbours.json',
+                           '.helm.json', 'recon.jsonl',
+                           'docs/RUNBOOK.md', '.citywalk-denylist'];
+  const states = mustBeUntracked.map(f => [f, tracked(f)]);
+  const leaked = states.filter(q => q[1] === true).map(q => q[0]);
+  const unknown = states.filter(q => q[1] === 'git-unavailable').map(q => q[0]);
+  ok('git itself says NONE of the live/private files is tracked (' + mustBeUntracked.length + ' asked)',
+     unknown.length === 0 && leaked.length === 0,
+     unknown.length ? 'git could not be run, so this check answered nothing — a check that cannot run must not pass'
+                    : 'TRACKED: ' + leaked.join(', ') + ' — one commit publishes it permanently, and a .gitignore regex cannot see a file that was already added');
+  /* THE CONTROL. A zero from `ls-files` is worth nothing until the same call
+     has been shown returning a hit (CLAUDE.md, amended after ledger 121). */
+  ok('...and the same call has been shown returning TRACKED for a file that is (control)',
+     tracked('extensions/citywalk/index.html') === true,
+     'git ls-files --error-unmatch reports nothing as tracked, so the zeros above are a broken command, not a clean result');
+}
 
 console.log('\n── speech, and the watched places panel ────────────────────');
 /* SPEECH IS OFF UNTIL A REAL TAP. Browsers refuse to speak on an untouched
@@ -170,9 +219,29 @@ ok('the watch panel hardcodes NO place ids and NO keywords - both come from the 
 
 /* Two columns, never totalled, and the words printed beside their count -
    because a keyword set is a knob and a count without its knob is a claim. */
-ok('the two signals are never added together, and the keyword set is printed with them',
-   /never added together/.test(src) && /ARE the knob/.test(src),
-   'the panel totals a hard signal with a soft one, or hides the words behind the number');
+/* THE PROSE VERSION OF THIS CHECK TESTED THE PROSE. `/never added together/`
+   matches the sentence promising it, in the very comment that explains the
+   promise - the exact ledger 109/112/113 shape, a comment asserting something
+   the code was never asked about. The code question is: do the two counts ever
+   meet in one expression? Tested on the COMMENT-STRIPPED view, with a control
+   below that must be caught. */
+const sumsSignals = s =>
+     /\b(inPlace|mentions)\b\s*\.\s*length\s*\+\s*\b(inPlace|mentions)\b\s*\.\s*length/.test(s)
+  || /\binPlace\b\s*\.\s*concat\s*\(\s*mentions\b/.test(s)
+  || /\bmentions\b\s*\.\s*concat\s*\(\s*inPlace\b/.test(s)
+  || /\[\s*\.\.\.\s*(inPlace|mentions)\s*,\s*\.\.\.\s*(mentions|inPlace)\s*\]/.test(s);
+ok('the two signals are never added together — tested on the CODE, not on the sentence promising it',
+   /const inPlace = rows\.filter/.test(codeOnly) && /const mentions = words\.length/.test(codeOnly)
+   && !sumsSignals(codeOnly),
+   'the panel totals a hard signal (a place id is a fact) with a soft one (a keyword set is a knob) — and the previous version of this check matched the word "never added together" in a comment, which survives any change to the code');
+ok('...and the summing detector has been shown CATCHING one (control)',
+   sumsSignals('const total = inPlace.length + mentions.length;')
+   && sumsSignals('const all = inPlace.concat(mentions);')
+   && !sumsSignals('line("in watched places", inPlace.length, "hard"); line("mentions", mentions.length, "soft");'),
+   'the detector returns false on a deliberate sum, so its zero above means nothing — a search without a control is decoration (CLAUDE.md)');
+ok('the keyword set is printed beside its count, because a knob without its setting is a claim',
+   /ARE the knob/.test(src),
+   'the panel hides the words behind the number');
 
 /* Word boundaries, never substrings: "port" must not match "important". */
 ok('watched words match on boundaries, not substrings',
@@ -208,16 +277,26 @@ console.log('\n── read-only, no new network surface ────────
    as feedPath, which is only ever assigned from safeFeed(). The check asserts
    that route rather than a literal filename, because asserting the literal is
    what broke when the feature landed. */
-ok('exactly four fetches: three hard-coded relative paths, one gated by safeFeed',
-   (src.match(/fetch\(/g) || []).length === 4 &&
+/* SIX fetches since the watched-places and OUR RECORD feeds landed - five
+   hard-coded relative paths and the one the viewer can influence. This check
+   went red at the commit that added the last two and stayed red, which is the
+   check being STALE rather than the code being wrong: every literal is still
+   named here, so a SEVENTH fetch, or a remote host, still fails it. */
+/* counted on the COMMENT-STRIPPED view: the first run of this version scored
+   seven because a new comment in the page mentioned `fetch()` while explaining
+   the safeFeed gate. A prose mention is not a network call - the same lesson
+   this file has now learned five times. */
+ok('exactly six fetches IN CODE: five hard-coded relative paths, one gated by safeFeed',
+   (codeOnly.match(/fetch\(/g) || []).length === 6 &&
    /fetch\('corpus\.json\?t='/.test(src) && /fetch\('citywalk\.jsonl\?t='/.test(src) &&
    /fetch\('neighbours\.json\?t='/.test(src) &&
+   /fetch\('watched\.jsonl\?t='/.test(src) && /fetch\('ours\.jsonl\?t='/.test(src) &&
    /fetch\(feedPath \+ '\?t='/.test(src) &&
    /const FEED_DEFAULT = 'events\.jsonl'/.test(src) &&
    /feedPath = v\.path;/.test(src) &&
    !/feedPath = (?!FEED_DEFAULT|v\.path|stored)/.test(src) &&
-   !/fetch\('(https?:|\/\/|\/)/.test(src),
-   (src.match(/fetch\(/g) || []).length + ' fetch calls, or feedPath is assigned from something safeFeed never saw');
+   !/fetch\('(https?:|\/\/|\/)/.test(codeOnly),
+   (codeOnly.match(/fetch\(/g) || []).length + ' fetch calls in code, or feedPath is assigned from something safeFeed never saw');
 ok('NO remote host is named anywhere in the page, not even as a suggestion',
    !/https?:\/\//.test(src),
    'a remote host appears in a page that promises a viewer it reaches nowhere');
@@ -252,10 +331,29 @@ ok('every move row carries a reference id; every row declares its kind',
    WALK.filter(r => r.kind === 'move').every(r => r.ref != null) &&
    WALK.every(r => r.kind === 'move' || r.kind === 'note'),
    'a move row has no reference, or a row declares no kind at all');
-ok('shipped sample data is flagged, and the SAMPLE lamp clears itself',
-   WALK.every(r => r.sample === true) &&
-   /\$\('sample'\)\.hidden = !walk\.every\(w => w\.sample === true\)/.test(src),
-   'an example row could read as an observed event, or the lamp needs a human to turn it off');
+/* THE WALK FEED NOW CARRIES BOTH KINDS. This check asserted
+   `WALK.every(r => r.sample === true)` - written when citywalk.jsonl held
+   nothing but the seven shipped examples. Since OUR RECORD took the stage the
+   same tracked file also carries observed rows, which correctly do NOT claim
+   to be samples, and the assertion went red on data that is honest.
+   What is still testable, and is what the lamp actually rests on:
+     · a `sample` value is EXACTLY true or absent - never a truthy string,
+       which would read as flagged and is not a boolean anybody checked;
+     · the lamp expression is intact, so it goes dark the moment one
+       unflagged row exists, with no human deciding.
+   WHAT THIS CAN NO LONGER SEE, said rather than implied: with observed rows
+   in the file, nothing in the DATA distinguishes an example somebody forgot
+   to flag from a genuine observation. That is the producer's discipline now,
+   not this harness's, and pretending otherwise would be the decoration this
+   file exists to remove. */
+{
+  const flagged = WALK.filter(r => r.sample === true).length;
+  const odd = WALK.filter(r => r.sample !== undefined && r.sample !== true).length;
+  ok('every `sample` value is exactly true or absent (' + flagged + ' flagged, ' + (WALK.length - flagged) + ' observed), and the SAMPLE lamp clears itself',
+     WALK.length > 0 && odd === 0 &&
+     /\$\('sample'\)\.hidden = !walk\.every\(w => w\.sample === true\)/.test(src),
+     odd + ' row(s) carry a sample value that is neither absent nor exactly true — a truthy string reads as flagged and is not; or the lamp needs a human to turn it off');
+}
 ok('an empty or missing events feed reads as a normal state, not as breakage',
    /That is a normal state,/.test(src) && /if \(!events\.length\)/.test(src) &&
    /if \(!r\.ok\)/.test(src),
@@ -365,8 +463,59 @@ ok('one real click is designed in as a boot screen',
    and reported success on nothing. Prefer a gate that refuses to a paragraph
    that asks — uniformity here is what makes an automated total possible
    without anybody having to remember. */
-console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
+console.log('\n── the review pass, 2026-09-01 (extensions) ────────────────');
+/* docs/REVIEW-2026-09-01.md, "Extensions". Each check ran against the HEAD
+   source first and failed there. */
+
+/* safeFeed is RUN, not matched. It is the one gate on the one thing a viewer
+   can change about what this page fetches, and the percent-encoded traversal
+   walked past the literal `..` test - so the string that was CHECKED and the
+   string that was REQUESTED were different strings. */
+{
+  const fn = (src.match(/function safeFeed\(p\)\s*\{[\s\S]*?\n\}/) || [''])[0];
+  const box = {};
+  let err = '';
+  try { vm.createContext(box); new vm.Script(fn + '\nthis.safeFeed = safeFeed;', { filename: 'safeFeed' }).runInContext(box); }
+  catch (e) { err = (e && e.message) || String(e); }
+  const gate = box.safeFeed;
+  const refuses = p => { try { return gate(p).ok === false; } catch (e) { return 'threw'; } };
+  const accepts = p => { try { const v = gate(p); return v.ok === true ? v.path : false; } catch (e) { return 'threw'; } };
+  ok('safeFeed REFUSES a percent-encoded traversal in both cases — %2e%2e and %2E%2E (run, with controls)',
+     !err && refuses('%2e%2e/secret.jsonl') === true && refuses('%2E%2E/secret.jsonl') === true
+     && refuses('a/%2e%2e/b.jsonl') === true && refuses('%2f etc/passwd') === true,
+     err || 'the gate refused a literal `..` and let the encoded form through: fetch() sends it as typed and the server decodes it once, so the path that was tested was never the path that was requested');
+  ok('...and it still ACCEPTS an ordinary relative name, and still refuses the literal forms (controls both ways)',
+     !err && accepts('events.jsonl') === 'events.jsonl' && accepts('sub/dir/x.jsonl') === 'sub/dir/x.jsonl'
+     && refuses('../x') === true && refuses('/etc/x') === true && refuses('//host/x') === true
+     && refuses('https://x/y') === true && refuses('a\\b') === true && refuses('x?y') === true,
+     'a gate that refuses everything is not a gate, and a refusal proves nothing without an acceptance beside it');
+  ok('a malformed percent-escape is REFUSED, never guessed at',
+     !err && refuses('%zz.jsonl') === true && /bad percent-escape/.test(src),
+     'decodeURIComponent throws on a lone %, and an uncaught throw here means the box silently does nothing');
+}
+
+ok('a voiceCfg control row is applied ONCE, keyed by row identity, and only with the voice ON',
+   /const voiceCfgDone = new Set\(\);/.test(src)
+   && /if \(!voiceOn\) return;/.test(src)
+   && /const k = \(r\.ts \|\| ''\) \+ '\|' \+ JSON\.stringify\(r\.voiceCfg\);/.test(src)
+   && /if \(voiceCfgDone\.has\(k\)\) return;/.test(src) && /voiceCfgDone\.add\(k\);/.test(src),
+   'every voiceCfg row on the file was re-applied every 4 s for as long as it sat there — each call writes dw-speech and stamps over the deck\'s own status line (ledger 107\'s line) — and it ran with the voice off, unlike RECON\'s');
+
+ok('switching the feed marks the new file\'s backlog SEEN, silently: only rows arriving after the switch speak',
+   /feedSwitched = true;/.test(src)
+   && /if \(feedSwitched\) \{ feedSwitched = false; shown\.forEach\(e => spokenKeys\.add\(evKey\(e\)\)\); \}/.test(src)
+   && /let feedSwitched = false;/.test(src),
+   'setFeed empties `events`, so every row of the new file counted as fresh and the page recited the whole file end to end — the seance, one panel over');
+
+/* THE EPILOGUE GOES ABOVE THE TALLY, and that is not tidiness. The three
+   lines below used to print AFTER it, so `node tools/check-citywalk.js |
+   tail -1` came back blank and CLAUDE.md's "every harness ENDS on the same
+   line" was simply false of this file's stdout — the same family as ledger
+   110, where one prettier variant scored ZERO in a regex over all twelve and
+   reported a confident grand total that silently omitted it. The prose is
+   worth keeping; being last is what the tally needs. */
 console.log('\nText harness: it reads the source, not a browser. What only a\n' +
             'browser can show — that the rain actually falls, that the deck\n' +
-            'drives it — is not proven here and must be seen.\n');
+            'drives it — is not proven here and must be seen.');
+console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);

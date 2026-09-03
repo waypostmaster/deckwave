@@ -30,14 +30,22 @@ const ctx2d = new Proxy({}, { get: (t, k) => (k === 'measureText' ? () => ({ wid
 const makeCanvas = () => ({ width: 0, height: 0, style: {}, getContext() { return ctx2d; } });
 
 let opened = 0, blocked = false;
+/* The POPPED-OUT window's own device-pixel ratio, and the canvases it hands
+   out. Both exist because the drawing code runs in the OPENER: a projector on
+   a second screen has its own ratio and the opener's is the wrong one to
+   read. Default 1 so the older checks below see the sizes they always saw. */
+let winDpr = 1;
+const canvases = [];
 const rafs = [];                              /* the popout window's own rAF queue */
 function makeWin() {
   const doc = { title: '', listeners: {},
     body: { style: {}, appendChild() {} },
     addEventListener(k, fn) { (this.listeners[k] = this.listeners[k] || []).push(fn); },
     fire(k) { (this.listeners[k] || []).forEach(f => f()); },
-    createElement(tag) { return tag === 'canvas' ? makeCanvas() : { style: {} }; } };
+    createElement(tag) { if (tag !== 'canvas') return { style: {} };
+      const c = makeCanvas(); canvases.push(c); return c; } };
   return { closed: false, innerWidth: 800, innerHeight: 450, document: doc,
+    devicePixelRatio: winDpr, opener: global,
     requestAnimationFrame(fn) { rafs.push(fn); return rafs.length; },
     close() { this.closed = true; } };
 }
@@ -78,8 +86,18 @@ const P = window.DWPOPOUT;
   ok('the module loads with mode off and no window', P.mode === 'off' && P.status.open === false,
      'a popout opened at load — nothing may open a window without the user');
 
+  ok('a CLOSED popout advertises no panel — `showing` is null',
+     P.showing === null,
+     'DWLOOP suppresses a slot whose panel the popout says it is showing; a stale non-null here would blank a dashboard tile with no window open');
+
   const r1 = await P.set('journey');
   ok('set(panel) opens the window and says where it went', opened === 1 && P.status.open === true && /projector: journey/.test(r1), r1);
+  ok('the projector drops the handle back to this page (win.opener = null)',
+     curWin.opener === null,
+     'opener is ' + typeof curWin.opener + ' — the window never navigates and runs no script of its own, so it has no use for a reference to the page holding the audio graph');
+  ok('an OPEN projector names the panel it is advancing',
+     P.showing === 'journey',
+     'showing is ' + JSON.stringify(P.showing) + ' — DWLOOP cannot tell which slot to leave alone, so a stateful panel (polygraph ring, jam spin, history feed) steps twice per frame');
   runFrame();
   ok('a frame draws the panel from DWLOOP.last on a visible page',
      drawn.length === 1 && drawn[0].id === 'journey' && lastReads >= 1 && sampleCalls === 0,
@@ -111,10 +129,15 @@ const P = window.DWPOPOUT;
 
   /* grant the graph and a fake butterchurn — the loader must SKIP loading
      when the globals already exist, which is also what makes this testable */
-  let rendered = 0, presetLoads = 0, connected = null;
+  let rendered = 0, presetLoads = 0, connected = null, disconnected = null;
   global.DW.Player.analyser = { context: { id: 'ctx' } };
   global.butterchurn = { createVisualizer: (c, canvas, o) => ({
-    connectAudio(n) { connected = n; }, loadPreset() { presetLoads++; },
+    connectAudio(n) { connected = n; },
+    /* butterchurn's own teardown. The visualizer is wired into the OPENER's
+       audio graph, which outlives the popped-out document, so closing the
+       window releases nothing unless someone calls this. */
+    disconnectAudio(n) { disconnected = n; },
+    loadPreset() { presetLoads++; },
     setRendererSize() {}, render() { rendered++; } }) };
   global.butterchurnPresets = { getPresets: () => ({ p1: {}, p2: {}, p3: {} }) };
   const r3 = await P.set('party');
@@ -127,10 +150,18 @@ const P = window.DWPOPOUT;
   ok('presets rotate after the cycle time', presetLoads === 2, 'presetLoads ' + presetLoads + ' after 31 s — the party would play one preset forever');
   curWin.document.fire('click');
   ok('a click on the window skips to the next preset', presetLoads === 3, 'presetLoads ' + presetLoads);
+  ok('PARTY advertises no panel — a Milkdrop window suppresses no slot',
+     P.showing === null,
+     'showing is ' + JSON.stringify(P.showing) + ' — the dashboard would blank the tile of a panel nothing is drawing');
 
   console.log('\n── lifecycle ────────────────────────────────────────────────');
   const r4 = await P.set('off');
   ok('off closes the window', /closed/.test(r4) && P.status.open === false && curWin.closed === true, r4);
+  ok('closing DISCONNECTS the visualizer from the analyser and forgets it',
+     disconnected === global.DW.Player.analyser && P.status.party === false,
+     'disconnected ' + !!disconnected + ' party ' + P.status.party
+     + ' — connectAudio wires butterchurn into the opener\'s graph, which survives the window; every reopen would add another live visualizer holding a WebGL context');
+  ok('and a closed popout is showing nothing again', P.showing === null, 'showing ' + JSON.stringify(P.showing));
   blocked = true;
   const r5 = await P.set('journey');
   ok('a blocked popup is a sentence, not a crash', /popup blocked/.test(r5) && P.mode === 'off', r5);
@@ -141,6 +172,46 @@ const P = window.DWPOPOUT;
      opened === 3 && drawn.length === before + 1 && drawn[drawn.length - 1].id === 'spectrum' && P.mode === 'spectrum',
      'opened ' + opened + ' drawn ' + (drawn.length - before) + ' mode ' + P.mode);
   await P.set('off');
+
+  console.log('\n── device pixels, and one advance per frame ─────────────────');
+  /* The dashboard has always sized its canvases by devicePixelRatio and
+     handed panels CSS pixels under a matching transform (dash.fit). This
+     window sized in CSS pixels, so a HiDPI projector got the panel upscaled
+     by the compositor. And the ratio has to be the POPOUT window's: the
+     drawing code runs in the opener, so reading window.devicePixelRatio here
+     measures the laptop, not the screen the window was dragged to. */
+  winDpr = 2;
+  canvases.length = 0;
+  await P.set('journey'); runFrame();
+  ok('the projector canvas is sized in the POPOUT WINDOW\'s device pixels',
+     canvases.length >= 1 && canvases[0].width === 800 * 2 && canvases[0].height === 450 * 2,
+     'canvas is ' + (canvases[0] ? canvases[0].width + 'x' + canvases[0].height : 'absent')
+     + ' for an 800x450 window at dpr 2 — a 1:1 buffer is upscaled by the compositor and every line and label is soft');
+  ok('…and the panel is still handed CSS pixels, not device pixels',
+     drawn[drawn.length - 1].w === 800 && drawn[drawn.length - 1].h === 450 - 34,
+     'panel got ' + drawn[drawn.length - 1].w + 'x' + drawn[drawn.length - 1].h
+     + ' — a panel that is handed device pixels draws its text at half size and its layout at double');
+  await P.set('off');
+  winDpr = 1;
+
+  /* The other half of the one-advance-per-frame contract lives in DWLOOP: it
+     is the thing that must ASK. Read here rather than in check-panels because
+     this is the popout's contract and `showing` is defined by this module. */
+  {
+    const loop = fs.readFileSync('assets/deckwave-loop.js', 'utf8').replace(/\r\n/g, '\n');
+    const slotBlock = (loop.split('dash.slots.slots.forEach')[1] || '').slice(0, 900);
+    ok('DWLOOP asks DWPOPOUT what it is showing before drawing the slots',
+       /DWPOPOUT\s*&&\s*window\.DWPOPOUT\.showing/.test(loop) && /slot\.panel === popped/.test(slotBlock),
+       'the slot loop calls the same P.draw the popout calls, so a stateful panel open in both windows advances twice per frame');
+    ok('…and the suppressed slot SAYS so instead of freezing on a stale frame',
+       /in the projector window/.test(slotBlock),
+       'a tile that simply stops updating is indistinguishable from a dead render loop, which is the failure this file exists to prevent');
+    /* control: the ordinary draw path is still there. A guard that suppressed
+       every slot would pass both checks above and show an empty dashboard. */
+    ok('…control: the ordinary slot still draws through p.draw',
+       /p\.draw\(slot\.ctx, r\.width, r\.height, T, D\)/.test(slotBlock),
+       'the slot draw call is gone — every panel would be blank and the two checks above would still be green');
+  }
 
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);

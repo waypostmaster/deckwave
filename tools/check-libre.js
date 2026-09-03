@@ -77,6 +77,29 @@ global.fetch = async (url, opts) => {
       clone() { return { async arrayBuffer() { return bytes(1000); } }; } };
     return r;
   }
+  /* ── the size-cap and truncation fixtures (review 2026-09-01 M4 + the
+     truncated-body low) ─────────────────────────────────────────────────
+     `bigheader` declares a length over the cap; `bigbody` declares none and
+     streams past it (the chunk objects carry only byteLength — nothing is
+     allocated, the module must refuse on the count alone); `allocfail`
+     throws a RangeError from read(), which is what a real allocation
+     failure looks like from here; `streamshort` ends 500 bytes into a
+     declared 1000; `nolenshort` / `nolenfull` end early / whole with NO
+     Content-Length, so only the record's own size can tell them apart. */
+  const chunky = (hdrs, script) => {
+    let k = 0;
+    return { ok: true, status: 200, headers: hdrs,
+      body: { getReader() { return { async read() { return script(k++); }, async cancel() {} }; } },
+      async arrayBuffer() { return bytes(1000); },
+      clone() { return { async arrayBuffer() { return bytes(1000); } }; } };
+  };
+  const CL = n => new Map([['content-length', String(n)]]);
+  if (/bigheader/.test(url)) return chunky(CL(300 * 1048576), () => ({ done: true }));
+  if (/bigbody/.test(url)) return chunky(new Map(), i => i < 8 ? { done: false, value: { byteLength: 64 * 1048576 } } : { done: true });
+  if (/allocfail/.test(url)) return chunky(CL(1000), () => { throw new RangeError('Array buffer allocation failed'); });
+  if (/streamshort/.test(url)) return chunky(CL(1000), i => i === 0 ? { done: false, value: new Uint8Array(500).fill(3) } : { done: true });
+  if (/nolenshort/.test(url)) return chunky(new Map(), i => i === 0 ? { done: false, value: new Uint8Array(500).fill(3) } : { done: true });
+  if (/nolenfull/.test(url)) return chunky(new Map(), i => i < 4 ? { done: false, value: new Uint8Array(250).fill(3) } : { done: true });
   const range = opts && opts.headers && opts.headers.Range;
   const n = range ? (+range.split('-')[1] - +range.split('=')[1].split('-')[0] + 1) : 1000;
   const r = { ok: true, status: range ? 206 : 200, headers: new Map([['content-length', String(n)]]),
@@ -87,6 +110,7 @@ const store = new Map();
 global.caches = { async open() { return {
   async match(u) { return store.has(u) ? { async arrayBuffer() { return store.get(u); } } : undefined; },
   async put(u, r) { store.set(u, await r.arrayBuffer()); },
+  async delete(u) { return store.delete(u); },
   async keys() { return [...store.keys()]; } }; },
   async delete() { store.clear(); return true; } };
 global.window = global;
@@ -142,7 +166,12 @@ const ITEM = { metadata: { identifier: 'exp037', title: 'Wrexsoul - Alchemy Soun
 const CM_SEARCH = { query: { searchinfo: { totalhits: 231 }, search: [
   { title: 'File:8-bit Music for GameDev - 01. Slay The Evil.opus' },
   { title: 'File:Lo-Res Legend.wav' },
-  { title: 'File:No imageinfo.ogg' }
+  { title: 'File:No imageinfo.ogg' },
+  /* filetype:audio is a search HINT — these two are what it lets through:
+     a video whose mime says so, and an audio file whose licence is a SHORT
+     NAME with no URL behind it (review 2026-09-01 M3/M4) */
+  { title: 'File:Chiptune Trailer.ogv' },
+  { title: 'File:Sung Ballad.flac' }
 ] } };
 const CM_INFO = { query: { pages: {
   '1': { title: 'File:Lo-Res Legend.wav', imageinfo: [{
@@ -159,11 +188,24 @@ const CM_INFO = { query: { pages: {
       extmetadata: { LicenseShortName: { value: 'CC0' },
         LicenseUrl: { value: 'https://creativecommons.org/publicdomain/zero/1.0/' },
         Artist: { value: 'GameDev Composer' } } }] },
-  '3': { title: 'File:No imageinfo.ogg' }
+  '3': { title: 'File:No imageinfo.ogg' },
+  '4': { title: 'File:Chiptune Trailer.ogv', imageinfo: [{
+      url: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chiptune_Trailer.ogv',
+      descriptionurl: 'https://commons.wikimedia.org/wiki/File:Chiptune_Trailer.ogv',
+      size: 4000000, timestamp: '2022-01-01T00:00:00Z', mime: 'video/ogg',
+      extmetadata: { LicenseShortName: { value: 'CC BY-SA 4.0' } } }] },
+  '5': { title: 'File:Sung Ballad.flac', imageinfo: [{
+      url: 'https://upload.wikimedia.org/wikipedia/commons/b/bb/Sung_Ballad.flac',
+      descriptionurl: 'https://commons.wikimedia.org/wiki/File:Sung_Ballad.flac',
+      size: 30000000, timestamp: '2021-06-01T00:00:00Z', mime: 'audio/flac',
+      extmetadata: { LicenseShortName: { value: 'CC BY-ND 4.0' },
+        Artist: { value: 'A Singer' } } }] }
 } } };
 
 /* ── load the real modules ─────────────────────────────────────────────── */
-const libreSrc = read('assets/deckwave-libre.js');
+/* the same seam the other harnesses carry: a new check must be shown FAILING
+   against the old file before it is trusted (DECKWAVE_LIBRE_SRC=<path>) */
+const libreSrc = read(process.env.DECKWAVE_LIBRE_SRC || 'assets/deckwave-libre.js');
 eval(libreSrc);
 const L = window.DWLIBRE;
 ok('module loads and exposes its surface', L && typeof L.search === 'function' && typeof L.pickTracks === 'function' && L.RemoteFile,
@@ -196,6 +238,30 @@ ok('an unknown licence URL gets NO name (it is shown raw, never called free)', L
 ok('-nd and -nc-nd are flagged no-derivatives, -sa is not',
    L.noDerivs('http://creativecommons.org/licenses/by-nd/2.0/uk/') && L.noDerivs('http://creativecommons.org/licenses/by-nc-nd/2.5/') && !L.noDerivs('http://creativecommons.org/licenses/by-nc-sa/2.5/'),
    'a no-derivatives track would enter a mix unflagged, or a -sa one flagged');
+/* ── review 2026-09-01 M3: recognition is by HOST, not by substring ──────
+   Each zero below is paired with a LOOKALIKE that must be refused and a
+   GENUINE URL that must be recognised — a table that returned null for
+   everything would pass the first half and fail the second. */
+ok('a lookalike host gets NO short name (the path is not the licence)',
+   L.licenceName('https://example.com/licenses/by/4.0/') === null
+   && L.licenceName('https://evil.example/licenses/by-nc-sa/3.0/') === null
+   && L.licenceName('https://creativecommons.org.evil.example/licenses/by/4.0/') === null
+   && L.licenceName('https://example.com/my-cc0-mixtape/') === null
+   && L.licenceName('not a url at all') === null,
+   'example.com → ' + L.licenceName('https://example.com/licenses/by/4.0/')
+   + ' · a name with legal weight (card, score, REM ATTRIBUTION) issued on an uploader string');
+ok('…while the genuine hosts still are (the control that must return hits)',
+   L.licenceName('https://creativecommons.org/licenses/by/4.0/') === 'CC BY 4.0'
+   && L.licenceName('http://www.creativecommons.org/licenses/by-nc-sa/2.5/') === 'CC BY-NC-SA 2.5'
+   && L.licenceName('https://creativecommons.org/publicdomain/zero/1.0/') === 'CC0'
+   && L.licenceName('https://www.gnu.org/licenses/gpl-3.0.html') === 'GPL'
+   && L.licenceName('http://artlibre.org/licence/lal/en/') === 'Free Art Licence',
+   'host-parsing threw the real table away: cc→' + L.licenceName('https://creativecommons.org/licenses/by/4.0/')
+   + ' gnu→' + L.licenceName('https://www.gnu.org/licenses/gpl-3.0.html'));
+ok('no-derivatives is read from the SHORT NAME too (a Commons file with no licence URL)',
+   L.noDerivs(null, 'CC BY-ND 4.0') && L.noDerivs('', 'Attribution-NoDerivatives 4.0 International')
+   && !L.noDerivs(null, 'CC BY-NC-SA 3.0') && !L.noDerivs(null, 'CC0') && !L.noDerivs(null, 'Public Domain'),
+   'a BY-ND file whose extmetadata carries no LicenseUrl entered the mix unflagged');
 
 /* ── picking files ─────────────────────────────────────────────────────── */
 let tr = L.pickTracks(ITEM, 'ogg');
@@ -256,6 +322,74 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   try { await new L.RemoteFile({ name: 'missing.ogg', size: 1, lastModified: 1, url: 'https://archive.org/download/x/missing.ogg' }).arrayBuffer(); }
   catch (e) { threw = e; }
   ok('a 404 throws once and is not retried', threw && /404/.test(threw.message) && net.calls.length === 1, 'calls ' + net.calls.length + ' err ' + (threw && threw.message));
+
+  /* ── the size cap: a CHOSEN 256 MB resource limit, not a threshold ──────
+     (review 2026-09-01 M4). Each refusal is paired with the control that a
+     normal-sized track through the SAME path still arrives. */
+  const big = url => new L.RemoteFile({ name: 'big.wav', size: 0, lastModified: 1, url });
+  net.calls.length = 0; threw = null;
+  try { await big('https://upload.wikimedia.org/x/bigheader.wav').arrayBuffer(); } catch (e) { threw = e; }
+  ok('a Content-Length over the cap is REFUSED, and refused ONCE (not downloaded three times)',
+     threw && /too big/.test(threw.message) && net.calls.length === 1,
+     'err ' + (threw && threw.message) + ' · fetches ' + net.calls.length);
+  net.calls.length = 0; threw = null;
+  try { await big('https://upload.wikimedia.org/x/bigbody.wav').arrayBuffer(); } catch (e) { threw = e; }
+  ok('a chunked body with no length that streams past the cap is refused mid-stream, once',
+     threw && /too big/.test(threw.message) && net.calls.length === 1,
+     'err ' + (threw && threw.message) + ' · fetches ' + net.calls.length);
+  net.calls.length = 0; threw = null;
+  try { await new L.RemoteFile({ name: 'huge.wav', size: 900 * 1048576, lastModified: 1,
+        url: 'https://upload.wikimedia.org/x/huge.wav' }).arrayBuffer(); } catch (e) { threw = e; }
+  ok('a record whose OWN size is over the cap is never requested at all',
+     threw && /too big/.test(threw.message) && net.calls.length === 0,
+     'err ' + (threw && threw.message) + ' · fetches ' + net.calls.length);
+  net.calls.length = 0; threw = null;
+  try { await big('https://upload.wikimedia.org/x/allocfail.wav').arrayBuffer(); } catch (e) { threw = e; }
+  ok('an allocation failure is an answer, not a "later" — thrown once, not retried',
+     threw instanceof RangeError && net.calls.length === 1,
+     'err ' + (threw && threw.message) + ' · fetches ' + net.calls.length + ' — three full downloads of a file that can never be held');
+  net.calls.length = 0;
+  const okSized = await new L.RemoteFile({ name: 'normal.ogg', size: 1000, lastModified: 1,
+    url: 'https://archive.org/download/x/normal.ogg' }).arrayBuffer();
+  ok('CONTROL: an ordinary track is unaffected by the cap, and the four refusals above leaked no limiter slot',
+     okSized.byteLength === 1000 && net.calls.length === 1 && net.inflight === 0,
+     'a cap that refuses everything would pass every check above; and a refusal thrown past the `finally` would '
+     + 'have burned both in-flight slots by now and hung this line forever (in flight: ' + net.inflight + ')');
+
+  /* ── a truncated body is not a file ─────────────────────────────────── */
+  net.calls.length = 0; threw = null;
+  try { await new L.RemoteFile({ name: 'short.ogg', size: 1000, lastModified: 1,
+        url: 'https://archive.org/download/x/streamshort.ogg' }).arrayBuffer(); } catch (e) { threw = e; }
+  ok('a body that ends short of its Content-Length throws instead of being kept',
+     threw && /short body/.test(threw.message),
+     'err ' + (threw && threw.message) + ' — half a track would be analysed as a whole one');
+  const cachedShort = await (await caches.open('deckwave-libre')).match('https://archive.org/download/x/streamshort.ogg');
+  ok('…and no cache entry survives it (the put was started from a clone before the read)',
+     !cachedShort, 'a truncated body was cached as the complete file — permanently, until the cache is cleared by hand');
+  threw = null;
+  try { await new L.RemoteFile({ name: 'nolenshort.ogg', size: 1000, lastModified: 1,
+        url: 'https://archive.org/download/x/nolenshort.ogg' }).arrayBuffer(); } catch (e) { threw = e; }
+  ok('with NO Content-Length, the record\'s own size catches the early close',
+     threw && /short body/.test(threw.message),
+     'err ' + (threw && threw.message) + ' — nothing else can tell a chunked truncation from a complete file');
+  const full = await new L.RemoteFile({ name: 'nolenfull.ogg', size: 1000, lastModified: 1,
+    url: 'https://archive.org/download/x/nolenfull.ogg' }).arrayBuffer();
+  ok('CONTROL: a whole body with no Content-Length still arrives', full.byteLength === 1000,
+     'byteLength ' + full.byteLength + ' — a check that refused every chunked body would pass the two above');
+
+  /* ── slice() with an unknown size ───────────────────────────────────── */
+  net.calls.length = 0;
+  await new L.RemoteFile({ name: 'nosize.flac', size: 0, lastModified: 1,
+    url: 'https://archive.org/download/x/nosize.flac' }).slice(0).arrayBuffer().catch(() => {});
+  ok('slice() with no end on a record with no size sends an open-ended Range, not bytes=0--1',
+     net.calls[0] && net.calls[0].opts.headers.Range === 'bytes=0-',
+     'Range ' + (net.calls[0] && net.calls[0].opts.headers.Range) + ' — no server answers a negative end');
+  net.calls.length = 0;
+  await new L.RemoteFile({ name: 'sized.flac', size: 4096, lastModified: 1,
+    url: 'https://archive.org/download/x/sized.flac' }).slice(0).arrayBuffer().catch(() => {});
+  ok('CONTROL: slice() with a KNOWN size still names the last byte',
+     net.calls[0] && net.calls[0].opts.headers.Range === 'bytes=0-4095',
+     'Range ' + (net.calls[0] && net.calls[0].opts.headers.Range));
 
   /* ── download progress: the body is streamed and reported ──────────────
      (keeper, 2026-08-21, from the phone: "Can we add a percentage complete
@@ -413,7 +547,49 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
      && /esc\(srcLine\.slice\(3\)\)/.test(npSrc) && /npMeta \+ srcLine/.test(npSrc)
      && /nm\.source\.kind \? ' (·|\\u00b7) from ' \+ nm\.source\.kind/.test(eng),
      'the keeper asked for the hosting provider slug so the host gets credit; kind is the slug ("archive.org")');
-  const panelSrc = read('assets/deckwave-libre.js');
+  /* ── the vendored licence texts ────────────────────────────────────────
+     This harness is where licence honesty lives (short names, -nd flags,
+     REM ATTRIBUTION), so the OTHER licence promise gets its gate here too.
+     MIT and BSD both require the notice to travel with the copy, and
+     `butterchurn-presets` shipped from 2026-08-21 to 2026-09-03 with no
+     text at all — NOTICE's "MIT per its repository" was the whole record
+     (review 2026-09-01). A row in a table is not a notice: every package
+     vendor/README.md names must have a text file that EXISTS and is not
+     empty. */
+  const vend = read('vendor/README.md');
+  const pkgs = [...vend.matchAll(/^\|\s*`[^`]+`\s*\|\s*([^|]+?)\s*\|/gm)].map(m => m[1])
+    .filter(p => p && p !== 'Package' && !/^-+$/.test(p));
+  const texts = [...vend.matchAll(/^\|\s*`(LICENSE\.[^`]+)`\s*\|\s*([^|]+?)\s*\|/gm)];
+  const covers = texts.map(m => m[2].toLowerCase());
+  const short = p => p.split('/')[0].toLowerCase();
+  const uncovered = [...new Set(pkgs.map(short))].filter(p => !covers.some(c => c.includes(p)));
+  const missing = texts.map(m => m[1]).filter(f => { try { return !read('vendor/' + f).trim(); } catch (e) { return true; } });
+  ok('every vendored package named in vendor/README.md has a licence TEXT that exists and is non-empty',
+     pkgs.length >= 8 && texts.length >= 6 && uncovered.length === 0 && missing.length === 0
+     && !covers.some(c => c.includes('nosuchpkg')),
+     'packages ' + pkgs.length + ' · texts ' + texts.length
+     + ' · uncovered ' + JSON.stringify(uncovered) + ' · missing/empty ' + JSON.stringify(missing)
+     + ' — a table row is not the notice MIT asks to travel with the copy');
+
+  const panelSrc = libreSrc;
+  /* review 2026-09-01: `${it.downloads}` was the one interpolation in the
+     panel that reached innerHTML raw. Server-computed and not exploitable
+     today, but "every field goes through esc()" is either true of the
+     template or it is a habit — this reads the row templates and refuses a
+     BARE `${it.x}` / `${t.x}` in any of them. Not a claim that every
+     expression is escaped (a ternary of literals needs no esc): a claim
+     that no data field reaches the DOM naked. */
+  const rowTpls = (panelSrc.match(/row\.innerHTML = `[\s\S]*?`;\n/g) || [])
+    .concat(panelSrc.match(/list\.innerHTML = rel\.tracks\.map[\s\S]*?join\(''\);/g) || []);
+  const bareField = /\$\{\s*(it|t|rel)\.[a-zA-Z]+\s*\}/g;
+  ok('[text] the row templates were found and are the real ones (the control for the check below)',
+     rowTpls.length === 3 && rowTpls.every(s => s.length > 200) && /esc\(it\.downloads\)/.test(panelSrc)
+     && bareField.test('`<span>${it.creator}</span>`'),
+     'templates found: ' + rowTpls.length + ' — a check over an empty string passes for free, and the recogniser must catch a known-bad line');
+  bareField.lastIndex = 0;
+  ok('[text] no data field reaches the panel\'s innerHTML unescaped',
+     !bareField.test(rowTpls.join('\n')),
+     'raw interpolation: ' + JSON.stringify((rowTpls.join('\n').match(/\$\{\s*(it|t|rel)\.[a-zA-Z]+\s*\}/g) || [])));
   ok('[text] per-track grabbed/failed marks read the CORPUS by cache-key id, not the fetch loop',
      /m\.id === t\.name \+ '\|' \+ t\.size \+ '\|' \+ \(t\.lastModified \|\| 0\)/.test(panelSrc),
      'a mark inferred from the loop can lie; the corpus record either exists or it does not');
@@ -485,8 +661,23 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   ok('commons info asks for url, size, timestamp, mime and the licence fields',
      /iiprop=url%7Csize%7Ctimestamp%7Cmime%7Cextmetadata/.test(ci) && /origin=%2A|origin=\*/.test(ci), ci);
   const cr = await L.searchCommons('chiptune', 40);
-  ok('a hit becomes one track with the licence and page attached', cr.found === 231 && cr.items.length === 2,
-     'found ' + cr.found + ', items ' + cr.items.length + ' — the hit with no imageinfo must fall out, not throw');
+  ok('a hit becomes one track with the licence and page attached', cr.found === 231 && cr.items.length === 3,
+     'found ' + cr.found + ', items ' + cr.items.length + ' — the hit with no imageinfo and the video must fall out, not throw');
+  /* review 2026-09-01 M4: filetype:audio is a hint, and a Commons row's +
+     hands its file straight to DW.ingest. Control pair — the .ogv must be
+     refused AND the audio/ogg opus must survive, or a gate that dropped
+     everything would look identical. */
+  ok('a Commons hit whose mime is not audio is refused before it can be ingested',
+     !cr.items.some(i => /\.ogv/i.test(i.id)),
+     'a video/ogg file was offered as a track: ' + cr.items.map(i => i.id).join(' | '));
+  ok('CONTROL: application/ogg-family AUDIO still comes through (audio/ogg opus kept)',
+     cr.items.some(i => /Slay The Evil/.test(i.id) && /^audio\//.test(i.mime)),
+     'the mime gate refused legitimate audio too: ' + cr.items.map(i => i.id + ' ' + i.mime).join(' | '));
+  const nd = cr.items.find(i => /Sung Ballad/.test(i.id));
+  ok('a Commons file with a BY-ND SHORT NAME and no licence URL is flagged no-derivatives',
+     nd && nd.noDerivatives === true && nd.file.source.noDerivatives === true,
+     JSON.stringify(nd && { n: nd.licenceName, u: nd.licence, nd: nd.noDerivatives })
+     + ' — the term reaches the card, the score and the .cue, or it does not');
   const wav = cr.items.find(i => /Lo-Res/.test(i.id));
   ok('the licence short name is Commons\' own and the URL rides along',
      wav && wav.licenceName === 'CC0' && /publicdomain\/zero/.test(wav.licence), JSON.stringify(wav && { n: wav.licenceName, u: wav.licence }));
@@ -505,7 +696,7 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   ok('a Commons track has an attribution line with creator, licence and page',
      /GameDev Composer/.test(cAttr) && /CC0/.test(cAttr) && /commons\.wikimedia\.org/.test(cAttr), cAttr);
   ok('[text] the panel carries the source select and the commons branch',
-     /id="src"/.test(read('assets/deckwave-libre.js')) && /doSearchCommons/.test(read('assets/deckwave-libre.js')),
+     /id="src"/.test(libreSrc) && /doSearchCommons/.test(libreSrc),
      'no way to reach Commons from the panel');
 
   const fakeRoot = { appendChild(el) { appended.push(el); }, getElementById() { return null; } };
@@ -519,7 +710,7 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   ok('open({root}) mounts the panel INTO that root, not <body>', shown === true && appended.length === 1 && appended[0] !== 'BODY' && appended[0].tag === 'div',
      JSON.stringify(appended.map(a => a === 'BODY' ? 'BODY' : a.tag)));
   ok('open() again toggles it hidden, a third shows it', L.open({ root: fakeRoot }) === false && L.open({ root: fakeRoot }) === true, 'toggle broken');
-  const libreSrcText = read('assets/deckwave-libre.js');
+  const libreSrcText = libreSrc;
   ok('[text] the panel has a one-click ♪ lukhash button wired to the preset and doSearch',
      /id="lh"/.test(libreSrcText) && /\$\('lh'\)\.onclick = \(\) => \{ current\.source = 'archive'; \$\('src'\)\.value = 'archive';\n\s*current\.preset = 'lukhash'; \$\('preset'\)\.value = 'lukhash'; \$\('q'\)\.value = ''; doSearch\(\); \};/.test(libreSrcText),
      'the button is missing, does not select the lukhash preset, or does not force the archive source (the preset means nothing on Commons)');

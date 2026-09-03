@@ -21,7 +21,12 @@ const shell = fs.readFileSync('extensions/recon/index.html', 'utf8').replace(/\r
 const appSrc = fs.readFileSync('extensions/recon/recon-app.js', 'utf8').replace(/\r\n/g, '\n');
 const src = shell + '\n' + appSrc;   /* the page is now shell + hot-swappable app */
 const pySrc = fs.readFileSync('tools/recon-shot.py', 'utf8').replace(/\r\n/g, '\n');
+const speakSrc = fs.readFileSync('tools/speak.py', 'utf8').replace(/\r\n/g, '\n');
+const skill = fs.readFileSync('extensions/recon/SKILL.md', 'utf8').replace(/\r\n/g, '\n');
 const engine = fs.readFileSync('assets/deckwave.js', 'utf8').replace(/\r\n/g, '\n');
+/* the card is the other surface that names an unmatched deck; the console
+   must not invent a second vocabulary for the same state */
+const nowplaying = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(/\r\n/g, '\n');
 const RIB = (appSrc.split('function drawRibbon')[1] || '').split('\nfunction ')[0];
 const TEAR = (appSrc.split('function teardown')[1] || '').split('\nreturn')[0];
 
@@ -44,6 +49,71 @@ const inlineBlocks = html =>
   (html.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/g) || [])
     .map(b => b.replace(/^<script[^>]*>/, '').replace(/<\/script>$/, ''));
 
+/* A PYTHON FILE READ AS TEXT IS A PYTHON FILE NOBODY COMPILED — ledger 111,
+   which this harness already applies to recon-app.js and the shell but not to
+   the two scripts it reads as strings. `python -m py_compile` is the same
+   move as vm.Script: it parses, it does not run, and python is already a
+   hard requirement of this tree (serve.py, package.py, speak.py). A machine
+   with no python on PATH reports the check as unrunnable rather than green —
+   a check that quietly passes when it could not run is the decoration this
+   file exists to remove. */
+const cp = require('child_process');
+const pyCompile = rel => {
+  try {
+    const r = cp.spawnSync('python', ['-m', 'py_compile', rel], { encoding: 'utf8' });
+    if (r.error) return 'python not runnable: ' + r.error.message;
+    return r.status === 0 ? '' : ((r.stderr || r.stdout || '').trim().split('\n').pop() || 'exit ' + r.status);
+  } catch (e) { return 'python not runnable: ' + ((e && e.message) || e); }
+};
+
+/* ── the esc() scanner (review 2026-09-01) ────────────────────────────────
+   The old check named five fields and asked whether `esc(r.field)` appeared
+   ANYWHERE in the file. That is presence, not coverage: a sixth field, or a
+   second render site for one of the five, walks straight past it. This walks
+   every innerHTML assignment instead and demands that every fed-record field
+   inside one is wrapped — a field used only as a `? :` guard is not rendered
+   and is allowed. It is paired with a DELIBERATE-UNESCAPED CONTROL below,
+   because a scanner that returns nothing proves nothing until it has been
+   shown returning something. */
+const htmlStatements = s => {
+  const out = [];
+  const re = /innerHTML\s*\+?=\s*/g;
+  let m;
+  while ((m = re.exec(s))) {
+    let d = 0, t = '';
+    for (let i = re.lastIndex; i < s.length; i++) {
+      const c = s[i];
+      if (c === '(' || c === '[') d++;
+      else if (c === ')' || c === ']') d--;
+      else if (c === ';' && d <= 0) break;
+      t += c;
+    }
+    out.push(t);
+  }
+  return out;
+};
+/* comment-stripped view: a check that reads prose is reading the wrong thing.
+   Borrowed verbatim from check-citywalk, which learned it four times in one
+   session. String literals containing "/*" would be mangled by this — there
+   are none, and the compile check above would not care either way, so it is
+   used ONLY for presence-of-code questions. */
+const codeOnly = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ')
+                    .replace(/<!--[\s\S]*?-->/g, ' ');
+const unescapedFields = s => {
+  const bad = [];
+  for (const t of htmlStatements(s)) {
+    const re = /\b[ro]\.[A-Za-z_]\w*/g;
+    let m;
+    while ((m = re.exec(t))) {
+      const after = t.slice(m.index + m[0].length).replace(/^[\s)]*/, '');
+      if (after[0] === '?') continue;                       /* a guard, not a render */
+      if (/esc\((?:\(|String\(|\s)*$/.test(t.slice(0, m.index))) continue;
+      bad.push(m[0]);
+    }
+  }
+  return bad;
+};
+
 console.log('\n── it parses at all ────────────────────────────────────────');
 {
   const e = compileErr(appSrc, 'recon-app.js');
@@ -60,9 +130,19 @@ ok('exactly three fetches: its feed, its code, and speech/*.wav renders - all sa
    (src.match(/fetch\(/g) || []).length === 3 && /fetch\('\.\.\/\.\.\/recon\.jsonl\?b='/.test(src)
    && /fetch\('\.\/recon-app\.js\?b='/.test(src) && /speech\\\/\[A-Za-z0-9._-\]\+\\\.wav/.test(src),
    (src.match(/fetch\(/g) || []).length + ' fetch calls');
-ok('no navigation exists: no window.open, no location assignment, no <a href>',
-   !/window\.open/.test(src) && !/location\.(href|assign|replace)/.test(src) && !/<a\s/.test(src),
-   'a record could be followed instead of copied');
+/* review 2026-09-01: the old form tested `location.(href|assign|replace)` and
+   window.open, which leaves the SHORTEST way to navigate — a bare
+   `location = url` — wide open, along with `document.location` and
+   `top/parent.location`. A read-only surface's whole promise is this one
+   check; it should cover every spelling. */
+ok('no navigation exists, in EVERY spelling: bare `location =`, location.href/assign/replace, document/top/parent.location, window.open, no <a href>',
+   !/window\.open/.test(src)
+   && !/\blocation\s*=[^=]/.test(src)
+   && !/\.location\s*=[^=]/.test(src)
+   && !/\blocation\.(href|assign|replace)\b/.test(src)
+   && !/\b(document|top|parent|self)\.location\b/.test(src)
+   && !/<a\s/.test(src),
+   'a record could be followed instead of copied — and the first cut of this check missed `location = r.url` entirely');
 ok('a record click COPIES the url (clipboard), never follows it',
    /navigator\.clipboard\.writeText\(r\.url\)/.test(src), 'the copy path is gone');
 ok('query strings are stripped on ingest — from the record URL AND from every stage link',
@@ -70,17 +150,32 @@ ok('query strings are stripped on ingest — from the record URL AND from every 
    && /url: stripQ\(o\.url\)/.test(src)
    && /map\(l => stripQ\(String\(l\)\)/.test(src),
    'a fed URL with a query string would be stored whole. NOT a bug to fix: the 2026-08-28 review raised losing a real `?id=` from a copied link as a policy question and the keeper CLOSED it 2026-08-29 - the strip stays. This feed is writable by anything on the LAN and the stage renders what it is handed, so the query string is the part of a URL most likely to carry a session token or a tracking id; a copied link that lost its parameters is the cheaper failure');
-ok('every rendered field goes through esc()',
-   /esc\(r\.source\)/.test(src) && /esc\(r\.title\)/.test(src) && /esc\(r\.url\)/.test(src)
-   && /esc\(String\(r\.note\)/.test(src) && /esc\(r\.event\)/.test(src),
-   'the feed file is writable by anything; an unescaped field is an injection point');
+/* review 2026-09-01: presence over five named fields replaced by COVERAGE
+   over every innerHTML site. Escaping here is DEFENCE IN DEPTH, not a trust
+   boundary (the feed is not LAN-appendable — serve.py is GET-only), but the
+   producer composes JSON out of titles it did not author, so a `<` in a page
+   title must render as a title. */
+ok('every fed field inside EVERY innerHTML assignment is wrapped in esc() — coverage, not presence',
+   unescapedFields(appSrc).length === 0 && htmlStatements(appSrc).length >= 5,
+   'unwrapped: ' + (unescapedFields(appSrc).join(', ') || 'none') + ' across '
+   + htmlStatements(appSrc).length + ' innerHTML sites');
+ok('...and the scanner that says so has been shown FINDING one (deliberate-unescaped control)',
+   unescapedFields(appSrc.replace('esc(r.title)', 'r.title')).length
+     === unescapedFields(appSrc).length + 1,
+   'the scanner finds nothing extra on a copy with one esc() deliberately removed — a search with no control is decoration (CLAUDE.md)');
 
 console.log('\n── the operator is not watching ────────────────────────────');
 ok('staleness flips to "cannot tell" at five minutes',
    /s >= 300/.test(src) && /agent idle or stopped: this screen cannot tell/.test(src),
    'silence would look calm — the exact failure the spec forbids');
-ok('hidden-tab records get the away divider', /while you were away/.test(src) && /visibilitychange/.test(src)
-   && /document\.hidden/.test(src), 'returning to the tab would hide what happened during it');
+/* review 2026-09-01: this used to match three bare strings ANYWHERE in the
+   file — a comment describing the feature passed it, and a comment is what
+   is left after somebody deletes the code. citywalk's harness already
+   learned this (its `codeOnly` view); the same view is used here. */
+ok('hidden-tab records get the away divider — matched in CODE, not in a comment describing it',
+   /while you were away/.test(codeOnly) && /visibilitychange/.test(codeOnly)
+   && /document\.hidden/.test(codeOnly),
+   'a comment mentioning the divider would pass this while the code that draws it was gone');
 ok('the live feed rings at 200 with pinned rows exempt',
    /liveCount > 200/.test(src) && /\.rec:not\(\.pinned\)/.test(src), 'the feed grows without bound or eats pins');
 ok('pins persist in localStorage and survive a truncated feed',
@@ -113,12 +208,38 @@ ok('non-intent notes are STORED with provenance and marked waiting',
 ok('the agent reads via RECON.drain(), which empties and acknowledges',
    /window\.RECON = \{/.test(src) && /drain\(\) \{ const out = inbox\.slice\(\); inbox = \[\]; saveInbox\(\);/.test(src)
    && /picked up/.test(src), 'no read path, or reads that do not acknowledge');
-ok('the inbox caps at 50', /inbox\.slice\(-50\)/.test(src), 'unbounded queue');
+/* review 2026-09-01: the old check matched `inbox.slice(-50)`, which was
+   inside the setItem call — so the PERSISTED copy was capped and the live
+   array, the one drain() hands back, grew without limit. The check was green
+   while its own stated falsifier ("unbounded queue") was true. The queue
+   itself has to be reassigned, on load and on every save. */
+ok('the inbox caps at 50 IN MEMORY, not only in the persisted copy — the array drain() returns is the one that is capped',
+   /if \(inbox\.length > 50\) inbox = inbox\.slice\(-50\);/.test(appSrc)
+   && (appSrc.match(/if \(inbox\.length > 50\) inbox = inbox\.slice\(-50\);/g) || []).length === 2
+   && /localStorage\.setItem\(INKEY, JSON\.stringify\(inbox\.slice\(-50\)\)\)/.test(appSrc),
+   'unbounded queue: slice(-50) inside setItem bounds the snapshot and nothing else — wanted a cap on load AND on save');
 ok('the danger is faced in writing where the code lives',
    /MESSAGE TRAY, not a command line/.test(src) && /cannot authenticate its/.test(src),
    'the trust boundary is undocumented at the point of implementation');
-ok('the tray adds NO network surface (feed + code + speech renders only)',
-   (src.match(/fetch\(/g) || []).length === 3, (src.match(/fetch\(/g) || []).length + ' fetches');
+/* review 2026-09-01: counting `fetch(` === 3 is a count of ONE way to reach
+   the network. XMLHttpRequest, WebSocket, EventSource, sendBeacon and a bare
+   `new Image().src = 'http://…'` all walk past it, and the last two are the
+   classic exfiltration shapes. The promise is "no NEW network surface", so
+   the check has to name every surface. */
+const NETWORK = [
+  ['XMLHttpRequest', /\bXMLHttpRequest\b/],
+  ['WebSocket', /\bWebSocket\b/],
+  ['EventSource', /\bEventSource\b/],
+  ['sendBeacon', /\bsendBeacon\b/],
+  ['new Image(', /\bnew Image\s*\(/],
+  ['importScripts', /\bimportScripts\s*\(/],
+  ['navigator.connection ping', /\bnavigator\.sendBeacon\b/]
+];
+const netHits = NETWORK.filter(q => q[1].test(codeOnly)).map(q => q[0]);
+ok('the tray adds NO network surface: exactly 3 fetches AND no XHR, WebSocket, EventSource, sendBeacon, new Image or importScripts anywhere in the code',
+   (src.match(/fetch\(/g) || []).length === 3 && netHits.length === 0,
+   (src.match(/fetch\(/g) || []).length + ' fetches; other surfaces found: ' + (netHits.join(', ') || 'none')
+   + ' — the first cut of this check counted fetch( and nothing else');
 
 console.log('\n── the voice: records read aloud over the music ────────────');
 ok('the speak field is parsed (true = title+note, string = exact words)',
@@ -174,6 +295,29 @@ ok('the app is boot/teardown symmetrical (registered timers, cleared on teardown
    /window\.RECONAPP = /.test(appSrc) && /const timers = \[\], subs = \[\];/.test(appSrc)
    && /while \(timers\.length\) clearInterval\(timers\.pop\(\)\);/.test(appSrc),
    'an unregistered interval would survive a swap and double up');
+/* review 2026-09-01: the symmetry check above counts INTERVALS and never once
+   looks at listeners — which is exactly how M8 shipped (a composer keydown
+   that outlived every swap). Listeners on SHELL elements are the ones that
+   matter: the app's own injected nodes go away with .remove(). So: every
+   addEventListener in boot() must have a removeEventListener pushed into
+   subs, and the two counts must agree. */
+{
+  const BOOT = (appSrc.split('function boot() {')[1] || '').split('\nfunction teardown')[0];
+  const allAdds  = (BOOT.match(/\.addEventListener\(/g) || []).length;
+  /* SHELL receivers - nodes the app did not make, so nothing removes them */
+  const shellAdds = (BOOT.match(/(?:document|window|\$\('[A-Za-z0-9]+'\))\.addEventListener\(/g) || []).length;
+  /* receivers inside strips the app INJECTS: their listeners die with the node,
+     and each strip has a .remove() in subs. Named on purpose - a new receiver
+     makes the arithmetic below disagree and somebody has to say which kind it
+     is, which is the whole point of a gate over a paragraph. */
+  const ownAdds  = (BOOT.match(/\b(?:volr|vgr|vdr)\.addEventListener\(/g) || []).length;
+  const removes  = (BOOT.match(/subs\.push\(\(\) => [^;]*\.removeEventListener\(/g) || []).length;
+  const removers = (BOOT.match(/subs\.push\(\(\) => [^;]*\.remove\(\)\)/g) || []).length;
+  ok('every SHELL-element listener boot() adds is removed via subs, and every other receiver is a node the app removes (' + shellAdds + ' shell / ' + ownAdds + ' injected of ' + allAdds + ' total; ' + removes + ' removals, ' + removers + ' node removals)',
+     shellAdds > 0 && shellAdds === removes && allAdds === shellAdds + ownAdds && removers >= 4,
+     shellAdds + ' shell listeners vs ' + removes + ' subs-registered removals, ' + (allAdds - shellAdds - ownAdds)
+     + ' unclassified receiver(s) — an unmatched shell listener survives a hot swap and the OLD instance answers first (M8, ledger 123). The interval-only version of this check could not see any of it');
+}
 /* review 2026-09-01 M8: the composer lives in the SHELL, so a listener on
    it outlives a swap unless teardown removes it. Every addEventListener on
    a shell element must have a matching removeEventListener in subs. */
@@ -202,8 +346,12 @@ ok('the reload directive is ts-gated and never renders',
 ok('a reload ts is numeric, bounded to 10 min of future skew, and refused when unparseable',
    /isFinite\(t\) && t <= Date\.now\(\) \+ 600000/.test(appSrc) && !/String\(o\.ts \|\| ''\) > prev/.test(appSrc),
    'a "9999-…" line, or a lexical compare, poisons the gate until localStorage is cleared by hand');
-ok('a failed swap restores the previous ts, forgets the line, and puts the failure on the staleness line',
+/* and, since the poll now reads only the tail, forgetting the line is not
+   enough on its own - the offset has to rewind or the reader never looks at
+   that byte again. M9's promise, kept against the new reader. */
+ok('a failed swap restores the previous ts, forgets the line, REWINDS the read offset so it can land again, and puts the failure on the staleness line',
    /localStorage\.setItem\('dw-recon-appts', prev\)/.test(appSrc) && /seen\.delete\(rk\)/.test(appSrc)
+   && /seen\.delete\(rk\);[\s\S]{0,400}?feedRead = 0;/.test(appSrc)
    && /swapNote = 'upgrade failed/.test(appSrc) && /if \(swapNote\) \{ el\.className = 'bad'; el\.textContent = swapNote; return; \}/.test(appSrc),
    'a 404 eats the line for good and the operator sees nothing change');
 ok('the shell reports whether the swap happened (false on !r.ok and on a throw)',
@@ -240,9 +388,22 @@ ok('the harmonic move uses the ENGINE\'s own camScore - every camScore CALL goes
 ok('a STRAIGHT track never gets a stretch percentage',
    /straight · own speed/.test(appSrc) && /p\.straight \?/.test(appSrc),
    'printing 0.0% against an unstretched track reads as the best transition on screen (CLAUDE.md, verbatim)');
-ok('the FIRST deck gets no stretch percentage either - and the claim needs idx 0 AND rate 1, because placeNext decrements idx when a played row is queued away',
-   /first deck · nothing to match/.test(appSrc) && /st\.idx === 0 && p\.rate === 1/.test(appSrc),
-   '+0.00% on step 1 reads as the tightest beatmatch on screen while no match is being attempted - or, on idx alone, a stretched chained deck at idx 0 is labelled "nothing to match" and its real stretch is HIDDEN (ledger 91)');
+/* LEDGER 82 on this surface, closed 2026-09-01. The claim used to be
+   `st.idx === 0 && p.rate === 1` - a guess that is true of the first deck and
+   FALSE of every other deck play() builds, so a jumped-to deck mid-set
+   printed +0.00%. The engine's own fact answers it: pulse() carries `matched`
+   off DW.deck. `undefined` must NOT read as false - a deck too old to say is
+   "cannot tell", and that is the only case the old predicate still covers. */
+ok('an UNMATCHED deck (first OR jumped-to) gets no stretch percentage, read off the engine\'s `matched` fact rather than guessed from idx and rate',
+   /const unmatched = p\.matched === false/.test(appSrc)
+   && /p\.matched === undefined && !!st && st\.idx === 0 && p\.rate === 1/.test(appSrc)
+   && /: unmatched\s*\n?\s*\? \['speed', unmatchedName \+ ' · nothing to match', 'warn',/.test(appSrc)
+   && !/\['speed', 'first deck · nothing to match'/.test(appSrc),
+   '+0.00% against a jumped-to deck reads as the tightest beatmatch on screen while no match is being attempted (ledger 82) - and reading `matched === undefined` as false would print "not matched" where the honest answer is "this deck cannot say"');
+ok('...and it uses the CARD\'s words (∿ first / ∿ jumped), so two surfaces describing one deck state cannot disagree',
+   /const unmatchedName = st && st\.idx === 0 \? '∿ first' : '∿ jumped';/.test(appSrc)
+   && /'∿ first'/.test(nowplaying) && /'∿ jumped'/.test(nowplaying),
+   'the console invents its own wording for a state the card already names - an operator reading both learns to trust neither');
 ok('the bar counter says ASSUMED - the engine detects no downbeat',
    /assumed 4\/4/.test(appSrc), 'a UI claiming a downbeat the engine never detects');
 ok('energy is named a CONSTRUCTED index at the point it is printed',
@@ -490,6 +651,189 @@ ok('replacing a take stops BOTH sources - the facility double included',
 ok('the card still adds NO network surface and no navigation',
    (src.match(/fetch\(/g) || []).length === 3 && !/<a\s/.test(src),
    (src.match(/fetch\(/g) || []).length + ' fetches');
+
+console.log('\n\u2500\u2500 the review pass, 2026-09-01 (extensions) \u2500\u2500\u2500\u2500\u2500');
+/* docs/REVIEW-2026-09-01.md, "Extensions" and "Harnesses". Every check below
+   was run against the HEAD source first and failed there. */
+
+/* flattened views: these sentences are prose in wrapped comments and prose in
+   markdown, so a line break is not a difference. Pin the STATEMENT, not the
+   wrap - a check that goes red when a paragraph is re-flowed teaches people
+   to loosen it. */
+const appFlat = appSrc.replace(/\s+/g, ' ');
+const skillFlat = skill.replace(/\s+/g, ' ');
+ok('the threat model is STATED, not overstated: the feed is not LAN-appendable and the escaping is called defence in depth',
+   /serve\.py has NO POST/.test(appFlat) && /DEFENCE IN DEPTH, NOT A TRUST BOUNDARY/.test(appFlat)
+   && /SAME privilege as editing this file/.test(appFlat)
+   && /defence in depth, not a trust boundary/i.test(skillFlat)
+   && /GET-only/.test(skillFlat)
+   && /same privilege as editing `recon-app\.js`/.test(skillFlat)
+   && !/anyone on the network can reach it\), so drained text/.test(skillFlat),
+   'the file claims a boundary it does not hold — serve.py has no POST/PUT, so writing recon.jsonl is a filesystem write on the host, the same privilege as editing recon-app.js. A defence sold as a boundary is the class of claim CLAUDE.md forbids');
+ok('the reply tray says WHERE it lives: localStorage, per browser — a stranger\'s note lands in the stranger\'s own browser',
+   /the tray is localStorage, which is PER BROWSER/.test(appFlat)
+   && /drain\(\) never sees it/.test(appFlat)
+   && /per browser/i.test(skillFlat)
+   && /drain\(\)`? in the browser you drive never sees it/.test(skillFlat),
+   'the tray is described as a LAN-reachable command surface; it is per-browser storage and drain() only ever sees what was typed at this screen');
+
+/* the vocal-gate fragment floor. This one is RUN, not matched: the add path is
+   lifted out of the source and executed against a control list. `' '` and a
+   single letter must NOT land - the old code accepted both, and vocalNow()
+   matches with indexOf, so either one turns the gate on for the whole library
+   and every narration blends the deck away first. */
+{
+  const addSrc = (appSrc.match(/\(Array\.isArray\(r\.vocals\.add\)[\s\S]*?\}\);/) || [''])[0];
+  const box = { vocals: [], r: { vocals: { add: [' ', 'x', '  Drowning  ', 'ab', '', '   '] } } };
+  let ranErr = '';
+  try { vm.createContext(box); new vm.Script(addSrc, { filename: 'vocals-add' }).runInContext(box); }
+  catch (e) { ranErr = (e && e.message) || String(e); }
+  ok('a fed vocals fragment is trimmed and must be at least 2 characters — RUN against a control list, not matched',
+     !ranErr && addSrc.length > 40
+     && JSON.stringify(box.vocals) === JSON.stringify(['drowning', 'ab']),
+     ranErr || ('landed ' + JSON.stringify(box.vocals) + ' — wanted ["drowning","ab"]. A bare space passes a non-empty test and then indexOf matches every track in the library'));
+  ok('...and 2 is named as a CHOSEN floor on fed input, not a detector threshold',
+     /TWO IS A CHOSEN NUMBER/.test(appFlat) && /a floor on fed input, not a detector threshold/.test(appFlat),
+     'a number with no provenance beside it reads as measured — the rule CLAUDE.md states first');
+}
+
+ok('the stage caps a fed note (1200, chosen) and SAYS how much it dropped',
+   /const NOTE_MAX = 1200;/.test(appSrc) && /1200 IS A CHOSEN NUMBER/.test(appSrc)
+   && /note: noteRaw\.slice\(0, NOTE_MAX\)/.test(appSrc)
+   && /noteCut: Math\.max\(0, noteRaw\.length - NOTE_MAX\)/.test(appSrc)
+   && /more\.textContent = r\.noteCut/.test(appSrc)
+   && /id="stgMore"/.test(shell),
+   'the stage rendered `note` whole while rows capped at 400, so the "no page-body channel" promise rested entirely on the producer\'s manners — and a silent truncation is the other half of the same lie');
+ok('the dropped count reaches the screen as TEXT and in its own element, because #stgNote is height-clipped',
+   /const more = \$\('stgMore'\)/.test(appSrc) && !/stgMore'\)\.innerHTML/.test(appSrc)
+   && /#stgMore\{/.test(shell),
+   'a marker appended inside #stgNote is the first thing its max-height clip eats — the failure it exists to report');
+
+ok('a FED row can never wear the app\'s own badge: the operator colour is scoped to .rec.local and fed rows carry a marker',
+   /\.rec\.local \.src\[data-s=operator\]/.test(shell)
+   && !/^\s*\.src\[data-s=operator\]/m.test(shell)
+   && /\.rec\.fed \.src::before/.test(shell)
+   && /\(r\.__local \? ' local' : ' fed'\)/.test(appSrc)
+   && (appSrc.match(/__local: true/g) || []).length === 2,
+   'a fed record with "source":"operator" was painted in the console\'s own accent, identical to a note the operator typed — and nothing else on the row distinguished fed from generated');
+
+ok('the poll reads only the TAIL: a character offset, advanced to complete lines only',
+   /let feedRead = 0;/.test(appSrc) && /const tail = txt\.slice\(feedRead\);/.test(appSrc)
+   && /const lastNl = tail\.lastIndexOf\('\\n'\);/.test(appSrc)
+   && /if \(lastNl >= 0\) feedRead \+= lastNl \+ 1;/.test(appSrc)
+   && /for \(const line of tail\.split\('\\n'\)\)/.test(appSrc),
+   'every line in the file was re-parsed and re-hashed every 2 s, work proportional to the whole session forever');
+/* RUN, not matched. The first cut of this reader compared the two heads for
+   EQUALITY, which is wrong for an append-only file smaller than the anchor -
+   its head grows with every line, so every ordinary append looked like a
+   replacement and the tail-only read did nothing. A text pin would have been
+   green on that; this simulation caught it. The offset arithmetic is lifted
+   out of the source and driven through append / partial line / completed line
+   / truncation / replacement, and a wrong answer here SKIPS records silently. */
+{
+  const snip = (appSrc.match(/const head = txt\.slice[\s\S]*?if \(lastNl >= 0\) feedRead \+= lastNl \+ 1;/)
+             || appSrc.match(/if \(txt\.length < feedRead[\s\S]*?if \(lastNl >= 0\) feedRead \+= lastNl \+ 1;/)
+             || [''])[0];
+  const step = (st, txt) => {
+    const box = { HEAD_ANCHOR: 200, feedRead: st.feedRead, feedHead: st.feedHead, txt };
+    vm.createContext(box);
+    new vm.Script(snip + '\nthis.tail = tail; this.feedRead = feedRead; this.feedHead = feedHead;',
+                  { filename: 'feed-offset' }).runInContext(box);
+    return box;
+  };
+  let err = '', trace = [];
+  try {
+    let st = { feedRead: 0, feedHead: null }, f = 'a\nb\n';
+    let r = step(st, f); trace.push(r.tail); st = r;                 /* first read: all */
+    f += 'c\n';        r = step(st, f); trace.push(r.tail); st = r;  /* append: only c */
+    f += 'par';        r = step(st, f); trace.push(r.tail); st = r;  /* partial: not consumed */
+    f += 'tial\n';     r = step(st, f); trace.push(r.tail); st = r;  /* completed: whole line */
+    f = 'z\n';         r = step(st, f); trace.push(r.tail); st = r;  /* truncated: all again */
+    f = 'q\nw\ne\n';   r = step(st, f); trace.push(r.tail);          /* replaced: all again */
+  } catch (e) { err = (e && e.message) || String(e); }
+  const want = ['a\nb\n', 'c\n', 'par', 'partial\n', 'z\n', 'q\nw\ne\n'];
+  ok('the read offset is RUN through append / partial line / truncation / replacement and hands back exactly the new bytes each time',
+     !err && snip.length > 100 && JSON.stringify(trace) === JSON.stringify(want),
+     err || ('got ' + JSON.stringify(trace) + ' — wanted ' + JSON.stringify(want)
+             + '. A wrong offset skips records with nothing on screen to say so'));
+  ok('...and the replacement test is startsWith, not equality — an append-only file under 200 chars grows its own head',
+     /!txt\.startsWith\(feedHead\)/.test(appSrc) && /const HEAD_ANCHOR = 200;/.test(appSrc),
+     'head !== feedHead declares a REPLACEMENT on every ordinary append to a short file, so the tail-only read silently does nothing');
+}
+ok('`seen` is bounded (5000, chosen) and BOTH ingest sites go through remember() — the only seen.add() left is the one inside it',
+   /const SEEN_MAX = 5000;/.test(appSrc) && /5000 IS A CHOSEN NUMBER/.test(appFlat)
+   && /const remember = k => \{/.test(appSrc)
+   && (appSrc.match(/remember\(/g) || []).length === 2
+   && (appSrc.match(/seen\.add\(/g) || []).length === 1
+   && /remember\(rk\)/.test(appSrc) && /remember\(key\)/.test(appSrc),
+   'seen grew one entry per line for the life of the tab — and a stray seen.add() outside remember() bypasses the bound entirely ('
+   + (appSrc.match(/seen\.add\(/g) || []).length + ' seen.add sites, '
+   + (appSrc.match(/remember\(/g) || []).length + ' remember() calls)');
+/* RUN, like the offset. Deleting from a Set while walking its own iterator is
+   legal and easy to get wrong by one; a text pin cannot tell a working
+   eviction from an off-by-one that drops the newest key instead of the
+   oldest, which would make the dedupe forget what it just saw. */
+{
+  const snip = (appSrc.match(/const remember = k => \{[\s\S]*?\n\};/) || [''])[0];
+  const box = { seen: new Set(), SEEN_MAX: 10 };
+  let err = '';
+  try { vm.createContext(box); new vm.Script(snip + '\nthis.remember = remember;', { filename: 'remember' }).runInContext(box);
+        for (let i = 0; i < 25; i++) box.remember('k' + i); }
+  catch (e) { err = (e && e.message) || String(e); }
+  ok('the bound is RUN: 25 keys into a cap of 10 keeps the newest 10 and drops the oldest',
+     !err && box.seen.size === 10 && box.seen.has('k24') && box.seen.has('k15') && !box.seen.has('k0')
+     && !box.seen.has('k14'),
+     err || ('size ' + box.seen.size + ', newest kept ' + box.seen.has('k24') + ', oldest dropped ' + !box.seen.has('k0')
+             + ' — an eviction that drops the NEWEST key makes the dedupe forget what it just landed'));
+}
+
+ok('a take that outlives a hot swap is RE-ADOPTED into the card, with its own analyser',
+   /window\.__sayfileAna = ana;/.test(appSrc) && /window\.__sayfileEnded = false;/.test(appSrc)
+   && /window\.__sayfileSrc && window\.__sayfileAna && window\.__sayfileEnded === false/.test(appSrc)
+   && /voice\.kind === 'take' && !voice\.ended && window\.__sayfileEnded === true/.test(appSrc),
+   'the take keeps playing (its graph is in the deck\'s context, untouched by teardown) while the new instance boots with voice = null and hides the card — a voice with no card, which is the reverse of the card-with-no-voice failure');
+
+ok('speak.py --out is a GATE, not a sentence in --help: realpath, inside speech/, refused otherwise',
+   /def gate_out\(p\):/.test(speakSrc) && /os\.path\.realpath/.test(speakSrc)
+   && /os\.path\.commonpath/.test(speakSrc) && /--out must resolve inside/.test(speakSrc)
+   && /out = gate_out\(a\.out\)/.test(speakSrc),
+   '"under speech/" was documentation with nothing enforcing it — any path the process could reach was writable');
+ok('a missing --file is one line and exit 2, not a traceback',
+   /except OSError as e:/.test(speakSrc) && /cannot read --file/.test(speakSrc)
+   && /sys\.exit\(2\)/.test(speakSrc),
+   'a raw FileNotFoundError reads as the tool breaking rather than the path being wrong');
+ok('speak.py does not REWRITE the words: & < > are XML-escaped, never substituted',
+   /text\.replace\('&', '&amp;'\)/.test(speakSrc)
+   && !/replace\('&', ' and '\)/.test(speakSrc) && !/replace\('<', ' '\)/.test(speakSrc),
+   '`&` was silently spoken as "and" and `<`/`>` became spaces — the renderer editing an author\'s text without saying so, and disagreeing with the piper path on the same input');
+
+/* THE CONTRACT IS THE CODE. The key list is EXTRACTED from the parser rather
+   than typed here, so a new voiceCfg key that nobody documents fails this
+   check the moment it is read. Ledger 109/113's shape, gated. */
+{
+  const keys = [...new Set((appSrc.match(/r\.voiceCfg\.([A-Za-z0-9_]+)/g) || [])
+                  .map(s => s.split('.').pop()))].sort();
+  const missing = keys.filter(k => !new RegExp('`' + k + '`|\\| `?' + k + '`?\\s*\\|').test(skill));
+  ok('every voiceCfg key the parser READS is documented in SKILL.md (' + keys.join(' ') + ')',
+     keys.length >= 7 && missing.length === 0,
+     'undocumented: ' + (missing.join(', ') || 'none') + ' — the contract said duck/pitch/rate/voice and the parser took seven more');
+  ok('the fields that were missing from the contract entirely are documented too: sayfile, level, vocals',
+     /`sayfile`/.test(skill) && /`level`/.test(skill) && /`vocals`/.test(skill)
+     && /"sayfile"/.test(shell) && /"level"/.test(shell) && /"vocals"/.test(shell),
+     'three fields the page acts on appeared in neither SKILL.md nor the shell header');
+  ok('overdrive is named as an amplifier knob OVER UNITY, in both the contract and the shell header',
+     /over unity/i.test(skill) && /1\.5/.test(skill)
+     && /OVER UNITY/.test(shell) && /ABOVE 1\.0/.test(shell),
+     'a knob that raises the master gain past 1.0 was absent from the operator contract — the one key on the list with a real signal consequence');
+}
+
+ok('recon-shot.py COMPILES, not merely read as text (ledger 111)',
+   pyCompile('tools/recon-shot.py') === '',
+   'py_compile said: ' + (pyCompile('tools/recon-shot.py') || 'ok')
+   + ' — this harness reads the file for one check and every pattern in it survives a SyntaxError untouched');
+ok('speak.py COMPILES too — the console\'s voice renderer is read by nothing else',
+   pyCompile('tools/speak.py') === '',
+   'py_compile said: ' + (pyCompile('tools/speak.py') || 'ok'));
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);

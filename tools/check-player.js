@@ -58,7 +58,13 @@ function AC() {
     createGain: node, createDynamicsCompressor: node, createAnalyser: node,
     createBufferSource: node, createBiquadFilter: node };
 }
-const AudioWorkletNode = function () { return node(); };
+/* RECORD THE PROCESSOR NAME. Until 2026-09-01 this fake ignored both
+   arguments, so the check below that `makeDeck` builds decks on the worklet
+   boot() actually chose could not fail — hard-coding 'soundtouch-processor'
+   in makeDeck would have passed it (review 2026-09-01; ledger 98's class).
+   The name is the whole difference between the held pipe and the one that
+   zero-fills a block a few times a minute. */
+const AudioWorkletNode = function (c, name) { const n = node(); n._processorName = name; return n; };
 /* ── fake LONG timers ───────────────────────────────────────────────────
    chain()'s handover timer is minutes away on the fake clock. Anything
    over a second is captured here so a check can fire it by hand; the 0 ms
@@ -401,7 +407,11 @@ const x = mk('x', 200);
   ok('with the module accepted, boot() chooses the held worklet', Player.worklet.held === true && Player.worklet.name === 'deckwave-stretch' && Player.worklet.why === 'static module',
      JSON.stringify(Player.worklet));
   ok('…and the play line says `held worklet`', /held worklet$/.test(ph2r), JSON.stringify(ph2r));
-  ok('…and the decks are built on it', D.A.st && true, 'no deck');
+  /* NAMED, not merely present. `D.A.st && true` was the whole assertion until
+     2026-09-01 and it is true of any node at all. */
+  ok('…and the decks are built on it — the node carries the HELD processor name',
+     !!D.A.st && D.A.st._processorName === 'deckwave-stretch',
+     'deck worklet name ' + JSON.stringify(D.A.st && D.A.st._processorName) + ' while boot() reports ' + JSON.stringify(Player.worklet.name));
   /* the session tally: gaps accumulate across handovers and survive them */
   D.A.st.port.onmessage({ data: { type: 'metrics', gaps: 2, underrunCount: 2 } });
   ok('state.gapsTotal counts the live deck', Player.state.gapsTotal === 2, JSON.stringify(Player.state.gapsTotal));
@@ -459,6 +469,91 @@ const x = mk('x', 200);
   ok('…while the live decks are untouched', !D.A.released && !D.A.g._disconnected && !D.B.released && !D.B.g._disconnected, 'a live deck was released');
   oldDeck.src.onended();
   ok('a second `ended` is a no-op', oldDeck.released === true && oldDeck.st.port.posted.filter(m => m && m.type === 'release').length === 1, 'release posted twice');
+  Player.stop();
+
+  console.log('\n── who built this deck: the origin fact (ledger 82) ─────────');
+  /* Four surfaces printed "first deck, nothing to match" from
+     `idx === 0 && rate === 1`. That guess is true of the first deck and FALSE
+     of every other deck play() builds — a jump to row 7 runs at rate 1 for
+     exactly the same reason (there is nothing to match) and printed `+0.00%`
+     / `×1.000`, the tightest beatmatch on screen against a match that never
+     happened. The repair is an ENGINE FACT, stamped by makeDeck: 'play' for a
+     deck play() started, 'chain' for one chain() mixed in. `matched` is the
+     question the surfaces actually have: is this deck beatmatched against
+     anything? Falsifier for each check below: the fact disagreeing with which
+     function built the deck, or a jumped-to deck reporting itself matched. */
+  const mkB = (name, dur, bpm) => ({ name, bpm, camelot: '8A', dur, beats: grid(dur * 2) });
+  const setO = [mk('o1', 240), mkB('o2', 240, 124), mk('o3', 240), mk('o4', 240)];
+  /* fresh context with the static module refused, so boot() falls back to the
+     plain processor — the other branch of the name check below */
+  Player.kill(); AC.moduleOk = false;
+  now = 500; longTimers.clear(); pending.clear(); started.length = 0;
+  const pO = Player.play(setO, 0); await tick(); await settle('o1'); await pO; await tick();
+  ok('the first deck of a set is stamped origin `play`, matched false',
+     D.A.origin === 'play' && Player.deck.origin === 'play' && Player.deck.matched === false,
+     'origin ' + JSON.stringify(D.A.origin) + ' matched ' + Player.deck.matched);
+  /* the plain-worklet half of the name check above — same fake, other branch */
+  ok('…and its worklet node carries the PLAIN processor name while the module is refused — the deck is built on the worklet boot() chose, both branches now seen',
+     D.A.st._processorName === 'soundtouch-processor' && Player.worklet.held === false &&
+     D.A.st._processorName === Player.worklet.name,
+     'name ' + JSON.stringify(D.A.st._processorName) + ' held ' + Player.worklet.held + ' chose ' + JSON.stringify(Player.worklet.name));
+  await settle('o2'); await tick();
+  ok('a chained deck is stamped origin `chain`, matched true — it IS being beatmatched',
+     D.B.origin === 'chain' && Player.nextDeck.origin === 'chain' && Player.nextDeck.matched === true,
+     'origin ' + JSON.stringify(D.B.origin) + ' matched ' + Player.nextDeck.matched);
+  const exitO = D.B.src._started.at;
+  now = exitO + 0.2; fireLong(); await tick(); await settle('o3'); await tick();
+  ok('after a handover the live deck reports `chain` and prevDeck carries the OUTGOING deck\'s origin',
+     Player.deck.origin === 'chain' && Player.deck.matched === true &&
+     Player.prevDeck && Player.prevDeck.origin === 'play' && Player.prevDeck.matched === false,
+     'deck ' + JSON.stringify(Player.deck.origin) + ' prev ' + JSON.stringify(Player.prevDeck && Player.prevDeck.origin) +
+     ' — the transition monitor draws the outgoing side from prevDeck, so without this the FIRST fade of every set printed ×1.000 against the first deck');
+  /* the rolling target after that chain: 120 + (124 − 120) × 0.35 = 121.4 */
+  ok('state carries the UNROUNDED rolling target beside the rounded one',
+     typeof Player.state.tempoExact === 'number' &&
+     Player.state.tempoExact !== Player.state.tempo &&
+     Player.state.tempo === Math.round(Player.state.tempoExact),
+     'tempo ' + Player.state.tempo + ' tempoExact ' + Player.state.tempoExact +
+     ' — DWNAV.commit re-plans every _stretch from this number, and re-planning from the rounded one put the printed plan up to 0.4% away from what the deck would do');
+  /* THE CASE THE OLD PREDICATE COULD NOT SEE: jump straight to row 2. idx is
+     2, rate is 1, and nothing is being matched. */
+  const setJ = [mk('j1', 240), mk('j2', 240), mk('j3', 240), mk('j4', 240)];
+  longTimers.clear(); pending.clear();
+  const pJ = Player.play(setJ, 2); await tick(); await settle('j3'); await pJ; await tick();
+  ok('a JUMPED-TO deck is origin `play` and matched false, though idx is 2 and rate is 1',
+     Player.state.idx === 2 && Player.deck.rate === 1 &&
+     Player.deck.origin === 'play' && Player.deck.matched === false,
+     'idx ' + Player.state.idx + ' rate ' + Player.deck.rate + ' origin ' + JSON.stringify(Player.deck.origin) +
+     ' — `idx === 0 && rate === 1` reads this deck as beatmatched and prints +0.00% against it');
+  Player.stop();
+
+  console.log('\n── a late re-chain cannot put the exit in the past ──────────');
+  /* chain() plans from the START of the playing track, so it assumes it is
+     called near the start. setPhrase() breaks that: it cancels and re-chains
+     whenever the switch is flipped, and past (length − xfade) the planned
+     exit is BEHIND the playhead. Web Audio clamps every schedule to now, but
+     `nd.startedAt = out` is not clamped — so the incoming deck's own clock
+     was wrong by the overshoot for the rest of the track, and `elapsed`, the
+     progress bar and every downbeat computed from it were out by that much.
+     Falsifier: A.outAt or the incoming deck's start behind `now`. */
+  const setL = [mk('L1', 240), mk('L2', 240), mk('L3', 240)];
+  now = 2000; longTimers.clear(); pending.clear();
+  const pL = Player.play(setL, 0); await tick(); await settle('L1'); await pL; await tick();
+  await settle('L2'); await tick();
+  const plannedOut = D.A.outAt, startedL = D.A.startedAt;
+  ok('the ordinary plan puts the exit near the end of the track, minutes ahead',
+     plannedOut > now && plannedOut - startedL > 200, 'exit at ' + (plannedOut - startedL) + 's into the track');
+  now = plannedOut + 8;                            /* eight seconds past it */
+  const pP = Player.setPhrase(true); await tick(); await settle('L2'); await pP; await tick();
+  ok('a re-chain after the planned exit has passed moves the exit forward, never behind the playhead',
+     D.A.outAt >= now, 'outAt ' + D.A.outAt + ' with the clock at ' + now + ' — the fade was scheduled in the past');
+  ok('…and the incoming deck\'s startedAt is a moment it can actually start at',
+     D.B && D.B.startedAt >= now && D.B.startedAt === D.B.src._started.at,
+     'startedAt ' + (D.B && D.B.startedAt) + ' vs now ' + now +
+     ' — src.start() clamps and startedAt does not, so the deck\'s clock is wrong by the overshoot for the whole track');
+  ok('…and it lands on a DOWNBEAT of the playing grid, not on the bare clock',
+     +((D.A.outAt - startedL) % 2).toFixed(6) === 0,
+     'exit ' + (D.A.outAt - startedL) + 's into a grid whose downbeats are every 2s');
   Player.stop();
 
   /* review 2026-09-01 M6: analyse() runs under no harness (Essentia/WASM),

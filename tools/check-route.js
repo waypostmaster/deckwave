@@ -12,8 +12,10 @@ const ok = (name, cond, falsifier) => {
 /* CRLF-proof. core.autocrlf=true checks the source out with CRLF on
    Windows, and every regex below is written against LF; on a fresh clone
    all three harnesses died with FATAL before testing anything. */
-const src = fs.readFileSync('assets/deckwave.js', 'utf8').replace(/\r\n/g, '\n');
-const mk = src.match(/  function makeDeck\(track, rate\) \{[\s\S]*?\n  \}\n/);
+const src = fs.readFileSync(process.env.DECKWAVE_SRC || 'assets/deckwave.js', 'utf8').replace(/\r\n/g, '\n');
+/* the parameter list is matched loosely on purpose: `origin` joined it on
+   2026-09-01 and the exact signature is not what this file is testing */
+const mk = src.match(/  function makeDeck\(track, rate[^)]*\) \{[\s\S]*?\n  \}\n/);
 if (!mk) { console.log('FATAL: could not extract makeDeck from deckwave.js'); process.exit(1); }
 
 const param = () => ({ value: 0, cancelScheduledValues() {}, setValueAtTime() {},
@@ -116,7 +118,10 @@ global.DW = {
   camScore: (a, b) => (a === b ? 1 : 0.5)
 };
 global.console.warn = () => {};
-for (const f of ['assets/deckwave-nav.js', 'assets/deckwave-nav-commit.js', 'assets/deckwave-nav-fast.js'])
+/* DECKWAVE_SRC / DECKWAVE_NAVCOMMIT_SRC: point this harness at another copy
+   of the engine or the commit path, so a new check can be shown FAILING
+   against the previous source. A check that cannot fail is decoration. */
+for (const f of ['assets/deckwave-nav.js', (process.env.DECKWAVE_NAVCOMMIT_SRC || 'assets/deckwave-nav-commit.js'), 'assets/deckwave-nav-fast.js'])
   eval(fs.readFileSync(f, 'utf8'));
 const N = global.DWNAV;
 
@@ -241,6 +246,46 @@ ok('the engine floor is above the router dwell (the 45/40 clash is real)', MIN_P
    'MIN_PLAY=' + MIN_PLAY + ' dwell=' + fast.dwellSec + ' — no clamp, so the label was never wrong');
 console.log('  router asks ' + fast.dwellSec + 's; chain() clamps to ' + MIN_PLAY + 's · ' +
             'route wall-clock ' + Math.round(stones.length * MIN_PLAY / 60 * 10) / 10 + ' min, not ' + fast.minutes);
+
+/* ── commit() re-plans from the UNROUNDED rolling target ───────────────────
+   `DW.state.tempo` is Math.round — it is a readout, and the header printing
+   128.4 bpm would be a chosen precision the number does not have. But
+   commit()'s loop RE-PLANS from it: every `_stretch` after the splice is
+   target / bpm. Re-planning from the rounded figure put the printed plan up
+   to 0.4% away from what the deck would actually do — not audible, and a
+   number on screen that is simply not the number the engine used (review
+   2026-09-01). The engine exposes `tempoExact` for arithmetic and keeps
+   `tempo` for display.
+
+   Falsifier: commit() producing the same `_stretch` from a state whose
+   rounded and exact tempos differ. The two runs below differ ONLY in the
+   fractional part, so identical output means the fraction was thrown away. */
+console.log('\n── the route re-plans from the unrounded target ─────────────');
+{
+  const at = 3;
+  const exactT = set[at].bpm + 0.4567;              /* a target with a real fraction */
+  const stretchAt = st => {
+    global.DW.state = st;
+    N.setQueue({ idx: destIdx, mode: 'route', hops: [] });
+    const c = N.commit(set);
+    N.clearQueue();
+    /* the first step AFTER the playing track, whatever the splice put there:
+       its _stretch is target / its own bpm and nothing else */
+    return c.ok ? { s: c.set[at + 1]._stretch, bpm: c.set[at + 1].bpm } : null;
+  };
+  const exact = stretchAt({ idx: at, of: set.length, tempo: Math.round(exactT), tempoExact: exactT });
+  const rounded = stretchAt({ idx: at, of: set.length, tempo: Math.round(exactT) });
+  ok('commit() plans the tail from the exact target, not the rounded one',
+     exact && rounded && exact.s !== rounded.s &&
+     Math.abs(exact.s - exactT / exact.bpm) < 1e-12,
+     'exact ' + (exact && exact.s) + ' rounded ' + (rounded && rounded.s) +
+     ' want ' + (exact && exactT / exact.bpm) +
+     ' — the plan on screen would be up to 0.4% away from what the deck does');
+  ok('…and it still works against an engine that exposes only the rounded one',
+     rounded && Math.abs(rounded.s - Math.round(exactT) / rounded.bpm) < 1e-12,
+     'fallback gave ' + (rounded && rounded.s));
+  global.DW.state = { idx: 3, of: set.length, tempo: T };
+}
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);

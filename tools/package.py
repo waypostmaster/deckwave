@@ -11,11 +11,28 @@ src= and href= the page references is resolved and must exist, or the build
 refuses. A package that cannot run is worse than no package: it looks like a
 restore point and is not one.
 
-Refuses to overwrite an existing version — the lineage is the point.
-Pass --force only to rebuild one you have just deleted on purpose.
+TWO REFUSALS, TWO FLAGS. They are unrelated and used to share one switch:
 
-    python tools/package.py
-    python tools/package.py --force
+  * the zip for this VERSION already exists      -> --force
+  * tracked files have UNCOMMITTED changes       -> --dirty
+
+Until 2026-09-03 a single --force waived both, so the documented way to
+rebuild a deliberately deleted package ("pass --force") also silently
+disabled the dirty-tree guard -- the guard that exists because a cut taken
+over another session's half-written file sealed that work-in-progress into a
+release zip (ledger 112). One flag, two meanings, and the second one invisible
+at the call site. They are separate now and neither implies the other.
+
+    python tools/package.py                 the normal cut
+    python tools/package.py --force         rebuild this version's zip
+    python tools/package.py --dirty         cut anyway, tree not settled
+    python tools/package.py --help          this text, builds nothing
+
+WHAT IS LEFT OUT, AS A CHOICE. See SKIP_DIRS and the note beside it, plus
+EXTRA_DIRS: what is not walked is not packaged, and the omissions are
+deliberate rather than forgotten. `docs/research/`, `design-system/`,
+`_design/`, `CNAME` and `.nojekyll` are all outside the zip on purpose --
+the package is the SOFTWARE.
 """
 import os, re, subprocess, sys, zipfile
 
@@ -42,14 +59,33 @@ EXTRA_FILES = ['index.html', 'VERSION', 'CHANGELOG.md', 'README.md', 'SKILL.md',
                # plain worklet — the failure the tiers exist to prevent.
                'assets/deckwave-stretch.js']
 EXTRA_DIRS = ['docs', 'references', 'tools', 'themes', 'vendor', 'examples', 'extensions']
-# Never packaged: the source archives (recursive), the evidence set (large and
-# separately preserved), and — since 2026-08-30 — anything git does not track.
-# That last clause was ASSERTED here for a year and never implemented: the
-# walk read the DISK, so an untracked working file inside extensions/ or
-# tools/ went silently into the release zip. See tracked_set() and ledger 109.
+
+# WHAT IS LEFT OUT, AND WHY — a choice, recorded, because "not in the zip"
+# and "forgotten" look identical from inside a package a year later.
+#
+# SKIP_DIRS is pruned out of every os.walk above. Names, not paths, so a
+# directory called `research` anywhere under EXTRA_DIRS is skipped:
+#   _source            the packages themselves — a zip of zips, recursively
+#   evidence           large, and separately preserved; not the software
+#   .git               the history; the package is a restore point, not a repo
+#   __pycache__        build residue
+#   deckwave-patches   the live-patch development seam, not the product
+#   research           docs/research documents how the decisions were MADE —
+#                      IP reviews, platform and engine studies, prior art. It
+#                      is publishable and it is in the repo; it is simply not
+#                      software, and a restore point does not need it to run.
+#
+# NOT skipped so much as never reached, because they are not in EXTRA_FILES
+# or EXTRA_DIRS and index.html does not reference them: `CNAME` and
+# `.nojekyll` (GitHub Pages configuration, meaningless off Pages),
+# `design-system/` and `_design/` (the published design pages and their
+# canvas sources — documentation of the look, not code the app loads).
+#
+# Also never packaged since 2026-08-30: anything git does not track. That
+# clause was ASSERTED here for a year and never implemented — the walk read
+# the DISK, so an untracked working file inside extensions/ or tools/ went
+# silently into the release zip. See tracked_set() and ledger 109.
 SKIP_DIRS = {'_source', 'evidence', '.git', '__pycache__', 'deckwave-patches',
-             # docs/research holds private IP, financial and corporate
-             # material (see its README); the package is the software
              'research'}
 SKIP_EXT = {'.pyc', '.pem', '.key', '.pfx', '.p12'}
 
@@ -103,14 +139,31 @@ def referenced_by_index():
     return out
 
 
+KNOWN_FLAGS = {'--force', '--dirty', '--help', '-h'}
+
+
 def main():
-    force = '--force' in sys.argv
+    # An unknown flag is REFUSED, not ignored. `--Force` or `--dirtytree`
+    # used to be silently dropped and the run proceeded under the default
+    # rules, which is the worst of the three possible answers.
+    unknown = [a for a in sys.argv[1:] if a not in KNOWN_FLAGS]
+    if unknown:
+        print('unknown option(s): %s' % ' '.join(unknown))
+        print(__doc__)
+        return 2
+    if '--help' in sys.argv or '-h' in sys.argv:
+        print(__doc__)
+        return 0
+    force = '--force' in sys.argv       # rebuild THIS version's zip
+    dirty_ok = '--dirty' in sys.argv    # cut from an unsettled tree
     version = open(os.path.join(ROOT, 'VERSION'), encoding='utf-8').read().strip()
     out = os.path.join(ROOT, '_source', 'deckwave-%s.zip' % version)
 
     if os.path.exists(out) and not force:
         print('refusing: %s already exists.' % os.path.relpath(out, ROOT))
         print('Bump VERSION, or pass --force to rebuild it deliberately.')
+        print('(--force rebuilds. It does NOT waive the dirty-tree check below;')
+        print(' that is --dirty, and it is separate on purpose.)')
         return 1
 
     # A release package must come from a settled tree. tracked_set() keeps
@@ -125,14 +178,14 @@ def main():
     # freshness is not in question — it is about to be rebuilt.
     outrel = os.path.relpath(out, ROOT).replace(os.sep, '/')
     dirty = [d for d in dirty_tracked() if d != outrel]
-    if dirty and not force:
+    if dirty and not dirty_ok:
         print('refusing: %d tracked file(s) have uncommitted changes.' % len(dirty))
         for rel in dirty[:12]:
             print('   ' + rel)
         if len(dirty) > 12:
             print('   … and %d more' % (len(dirty) - 12))
         print('A package cut from a dirty tree records a state that never')
-        print('existed in the history. Commit or stash first, or --force.')
+        print('existed in the history. Commit or stash first, or --dirty.')
         return 1
 
     # 1. everything the page loads — missing means the package cannot run

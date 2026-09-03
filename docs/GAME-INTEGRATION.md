@@ -18,18 +18,50 @@ a fast route, and an impossible ask answers with a sentence naming why
 (`DWEVENTS.status.last` carries the decision). Treat a refusal as
 information, not an error.
 
+**The ceiling on "free text works", stated plainly.** It is a LOOKUP over a
+word list, not a parser, and it matches the first list a word appears in.
+So `"drop it down"` is **hype** (the word is `drop`), `"speak faster"` is
+**duck** (duck/unduck are matched first, deliberately — "quiet for a
+moment, I am talking" must never be read as an energy request), and a bare
+`"quiet"` is **calmer**, not a duck. A NEGATION is refused rather than
+guessed: `"don't speed up"` steers nothing and answers with a sentence,
+because inverting an intent correctly needs the sentence parsed and this
+does not parse sentences. If your game builds strings, build them from the
+seven verbs and keep the prose for your own UI; `DWEVENTS.parse(text)`
+returns the kind (or `null`) without acting, so you can check first.
+
+**Two ducks, two numbers.** `inject('duck')` multiplies `DW.volume` by
+**0.3×** and `inject('unduck')` restores it exactly. `DWEVENTS.speak(text)`
+— the page reading a line aloud over the set — ducks by its own
+configurable **0.55×** (`configureSpeech({duck})`), because a voice sharing
+the page's audio session needs less room than a voice over the top of it.
+Both restore the volume the music had when the duck STARTED: a fader move
+or a `level` sent while the voice is speaking is discarded when it ends, by
+design. Set the level before or after, not under.
+
 **Deck → game: `DWEVENTS.pulse()`.** Poll it from your own rAF; it reads
 the audio clock at call time (pull — no timers, no delivery jitter):
 
 ```js
 { playing: true, name, bpm: 120, tempo: 127.2, rate: 1.06, straight: false,
   energy: 0.6, camelot: '8A', pos: 10.6, dur: 200,
+  origin: 'chain', matched: true,
   beat: { i: 21, phase: 0.2, untilSec: 0.377 },
   bar:  { i: 5, beatInBar: 1 } }
 ```
 
 `tempo` is the playing tempo (label × stretch). Nothing playing →
 `{ playing: false }` alone, so gate on one field.
+
+**`origin` and `matched` — do not read `rate` for this.** `origin` is
+`'chain'` for a deck the engine beatmatched into place, `'play'` for the
+first ▶, a jumped-to track or `back()`. `matched` is the question a UI
+printing a stretch figure actually has: *is this deck beatmatched against
+anything?* A `'play'` deck runs at exactly `rate: 1`, so `rate === 1` reads
+as a perfect beatmatch when nothing is being matched at all — show the
+stretch only when `matched` is true. A straight (grid-unlocked) track is
+`matched: false` even on the chain path. Both fields are absent when
+nothing is playing, and on an engine too old to publish them.
 
 ## Embedding
 

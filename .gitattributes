@@ -1,0 +1,52 @@
+# LINE ENDINGS, DECIDED HERE INSTEAD OF BY WHOEVER CLONES.
+#
+# Every text file in this repository is stored LF in the index and checked
+# out LF, on every platform. That is already true of the index -- `git
+# ls-files --eol` reports i/lf for all 151 text files -- but only because
+# this machine happens to have core.autocrlf=true, which is a PER-MACHINE
+# git setting and not part of the repository at all. A fresh clone on a
+# Windows box configured differently would get CRLF working files.
+#
+# WHY IT MATTERS HERE, SPECIFICALLY. The harnesses do not import the code
+# they test; they regex functions out of the source and eval them (the
+# fossil development method, see CLAUDE.md). Anchors like /}\n\)\(\);/ and
+# the makeDeck extraction in check-route match LF and not CRLF, so a CRLF
+# checkout killed check-pool, check-route and check-player with FATAL on
+# 2026-08-19. Twelve `.replace(/\r\n/g, '\n')` calls were added afterwards
+# and are the only thing standing between a fresh Windows clone and a red
+# run. Those calls stay -- they are cheap and they are already written --
+# but the guarantee should not rest on somebody remembering to add the
+# thirteenth. This file is the gate; the replaces are the belt.
+#
+# eol=lf rather than plain `text=auto`: text=auto alone normalises the
+# INDEX and still hands Windows CRLF in the working tree, which is exactly
+# the state the harnesses die in.
+* text=auto eol=lf
+
+# BINARY, NAMED RATHER THAN DETECTED. Git's auto-detection gets all 14 of
+# them right today (`git ls-files --eol` shows i/-text w/-text), but "right
+# by heuristic" and "right by declaration" fail differently: a release zip
+# or the essentia wasm blob silently EOL-converted is a corrupt artefact
+# that still looks like a file. The extensions actually in the tree are
+# .zip .png .wasm .mem; the rest are here so the day one arrives is not the
+# day it gets mangled.
+*.zip     binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.wasm    binary
+*.mem     binary
+*.onnx    binary
+*.woff    binary
+*.woff2   binary
+*.ttf     binary
+*.pdf     binary
+*.flac    binary
+*.mp3     binary
+*.ogg     binary
+*.opus    binary
+*.wav     binary
+*.m4a     binary
+*.aac     binary

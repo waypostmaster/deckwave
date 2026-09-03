@@ -25,6 +25,7 @@ before trusting a copy you did not fetch yourself.
 | `libflac.min.js.mem` | libflacjs | 5.4.0 | MIT | `eb40de0e92e0d7fb` |
 | `butterchurn.min.js` | butterchurn | 2.6.7 | MIT | `4e67421bc18d48fa` — fetched 2026-08-21, loaded lazily by DWPOPOUT's party mode only |
 | `butterchurn-presets.min.js` | butterchurn-presets | 2.4.7 | MIT | `136c746836aef6df` — fetched 2026-08-21, same lazy load |
+| `LICENSE.butterchurn-presets.txt` | butterchurn-presets | 2.4.7 | MIT | `e5c204814d7119c9` — added 2026-09-03; fetched from jberg/butterchurn-presets and byte-identical to `LICENSE.butterchurn.txt` (same author, same year range), which is why it was easy to miss that it was never here |
 
 `libflac.min.js` is used in BOTH directions since 0.7.2: the FLAC export
 encoder (DWRENDER) and the decode fallback for browsers whose
@@ -35,9 +36,22 @@ time. The two must stay in the same directory or the encoder silently fails to
 initialise. libFLAC itself is BSD-style (Xiph); the JS wrapper is MIT. Both are
 already recorded in NOTICE.
 
-Full licence texts: `LICENSE.essentia.txt`, `LICENSE.soundtouch-processor.txt`
-(MPL-2.0, in force), `LICENSE.soundtouch-worklet.txt` (LGPL-2.1, for the
-retained 0.3.0 file).
+Full licence texts — **all six, one per vendored package**, because MIT and
+BSD both require the notice to travel with the copy and a table row is not
+the notice (the presets' text was missing until 2026-09-03; NOTICE's "MIT
+per its repository" was the whole record):
+
+| Licence text | Covers | sha256 (first 16) |
+|---|---|---|
+| `LICENSE.essentia.txt` | essentia.js (AGPL-3.0) | `8486a10c4393cee1` |
+| `LICENSE.libflac.txt` | libflacjs + libFLAC (MIT / BSD-Xiph) | `7e3739ac49c0d469` |
+| `LICENSE.soundtouch-processor.txt` | @soundtouchjs 2.1.1 (MPL-2.0, **in force**) | `753801acf995db08` |
+| `LICENSE.soundtouch-worklet.txt` | @soundtouchjs 0.3.0 (LGPL-2.1, retained file) | `a1a33180d02960ab` |
+| `LICENSE.butterchurn.txt` | butterchurn (MIT) | `e5c204814d7119c9` |
+| `LICENSE.butterchurn-presets.txt` | butterchurn-presets (MIT) | `e5c204814d7119c9` |
+
+The last two hash the same because they ARE the same text, fetched
+separately from each repository and compared rather than copied across.
 
 Licences are the `license` field of each package's own `package.json`, read at
 fetch time, not copied from documentation.

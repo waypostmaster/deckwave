@@ -56,11 +56,37 @@ const STRIP = 34;                             /* the title strip, px */
 
 const closed = () => !win || win.closed;
 
+/* RELEASE THE PARTY, on every road out of it.
+   `connectAudio(analyser)` wires butterchurn into the OPENER's audio graph,
+   and that wiring outlives the popped-out window — the canvas and its WebGL
+   context die with the document, but the analyser fan-out does not, and the
+   visualizer stays reachable through it. Reopening built a second one. So:
+   disconnect the audio, ask the driver to drop the GL context while the
+   canvas is still alive, and forget the handles. Called from set('off'), and
+   from the tick the moment it notices the window has gone — which is the
+   only signal there is when the window is closed by hand. */
+function releaseParty() {
+  const an = window.DW && window.DW.Player && window.DW.Player.analyser;
+  if (bc && an) { try { if (bc.disconnectAudio) bc.disconnectAudio(an); } catch (e) {} }
+  if (bcv) {
+    try {
+      const gl = bcv.getContext('webgl2') || bcv.getContext('webgl');
+      const ext = gl && gl.getExtension('WEBGL_lose_context');
+      if (ext) ext.loseContext();
+    } catch (e) {}
+  }
+  bc = null; bcIdx = -1; bcAt = 0; bcPresets = null; bcNames = [];
+}
+
 function ensureWin() {
   if (!closed()) return win;
+  releaseParty();                             /* a reopen must not inherit the old one */
   win = window.open('', 'deckwave-popout', 'width=960,height=540');
   if (!win) return null;                      /* popup blocked — set() reports it */
-  bc = null; bcIdx = -1;                      /* canvases are new; a visualizer bound to the old ones is dead */
+  /* The projector never navigates and never runs a script of its own — every
+     drawing function lives here. It has no use for a handle on this window,
+     so it does not get one. */
+  try { win.opener = null; } catch (e) {}
   const d = win.document;
   d.title = 'DECKWAVE · projector';
   d.body.style.cssText = 'margin:0;background:#04010f;overflow:hidden';
@@ -72,7 +98,8 @@ function ensureWin() {
   d.addEventListener('click', () => { if (mode === 'party') nextPreset(); });
   frames = 0; sampled = 0;
   const tick = () => {
-    if (closed()) { raf = null; return; }
+    /* the ONLY notification that the window was closed by hand */
+    if (closed()) { raf = null; releaseParty(); cv = null; bcv = null; return; }
     raf = win.requestAnimationFrame(tick);
     try { draw(); frames++; } catch (e) { lastErr = e.message; }
   };
@@ -101,14 +128,27 @@ function draw() {
   if (document.visibilityState === 'hidden' && L.sample) { b = L.sample(); sampled++; }
   else b = L.last;
   if (!b || !b.T || !b.D) return;
-  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  /* DEVICE PIXELS, THIS WINDOW'S — the dashboard has always sized its
+     canvases by devicePixelRatio and handed panels CSS pixels under a
+     matching transform (see dash.fit); this window sized in CSS pixels and
+     drew a 1:1 buffer, so a projector or a retina second screen got the
+     panel upscaled by the compositor — soft lines and fuzzy labels beside a
+     crisp dashboard. And the ratio must come from `win`, not from this
+     page: the drawing code runs in the OPENER, so `window.devicePixelRatio`
+     here is the laptop's and not the screen the window is actually on. */
+  const dpr = win.devicePixelRatio || 1;
+  const cw = Math.max(1, Math.round(W * dpr)), ch = Math.max(1, Math.round(H * dpr));
+  if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
   const c = cv.getContext('2d');
-  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.shadowBlur = 0;
+  /* CSS pixels in, device pixels out — the same contract every panel already
+     gets from the dashboard */
+  const base = () => { c.setTransform(dpr, 0, 0, dpr, 0, 0); c.globalAlpha = 1; c.shadowBlur = 0; };
+  base();
   c.fillStyle = b.T.bg || '#04010f'; c.fillRect(0, 0, W, H);
   const P = window.DWPANELS && window.DWPANELS.get(panel);
   if (P) { c.save(); try { P.draw(c, W, H - STRIP, b.T, b.D); } catch (e) { lastErr = e.message; } c.restore(); }
   /* the title strip — same truth as the card: the deck's meta from the bundle */
-  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.shadowBlur = 0;
+  base();
   c.fillStyle = b.T.bg || '#04010f'; c.fillRect(0, H - STRIP, W, STRIP);
   c.fillStyle = b.T.line || '#22125c'; c.fillRect(0, H - STRIP, W, 1);
   const fn = b.T.fn || 'system-ui, sans-serif';
@@ -173,8 +213,9 @@ function nextPreset() {
 async function set(k) {
   if (k === 'off') {
     mode = 'off';
+    releaseParty();                           /* while bcv still exists to lose its context */
     if (!closed()) { try { win.close(); } catch (e) {} }
-    win = null; bc = null;
+    win = null; cv = null; bcv = null;
     return 'popout closed';
   }
   const w = ensureWin();
@@ -197,6 +238,15 @@ return {
   set,
   nextPreset,
   get mode() { return mode === 'panel' ? panel : mode; },
+  /* THE PANEL THIS WINDOW IS ADVANCING, or null.
+     Several panels are stateful — they step their ring buffer, their spinner
+     or their history WHEN THEY DRAW — so the same panel drawn once by a
+     dashboard slot and once by this window advanced twice per frame: the
+     polygraph's chart paper scrolled at double speed and every per-draw
+     history sampled twice. DWLOOP reads this and hands the frame to the
+     projector, saying so in the slot. Null while the window is shut or in
+     party mode, so a closed popout can never suppress a slot. */
+  get showing() { return (!closed() && mode === 'panel') ? panel : null; },
   /* for the log line and a bug report */
   get status() {
     return { open: !closed(), mode, panel, frames, sampled,

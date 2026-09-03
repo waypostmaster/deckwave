@@ -46,6 +46,30 @@
   ·   "speak":true  (the page reads title+note aloud OVER the music, with
   the deck's own duck)  or  "speak":"exact words to say"  - gated on the
   console's `voice` toggle, off by default.
+  ·   "sayfile":"speech/take9.wav"  - a RENDERED take (tools/speak.py),
+  matched not cleaned, decoded on the deck's own context. Plays on
+  arrival with the voice on; the row is pressable by hand either way.
+  ·   "level":0.6  - the deck's master volume, clamped 0..1.
+  ·   "vocals":{"add":["name"],"remove":["name"]}  - patches the vocal
+  gate's keeper's-EAR list. Fragments are lowercased, trimmed, and must
+  be at least 2 characters (a shorter one matches every track).
+  ·   "voiceCfg":{...}  - the speech character. EVERY key the parser
+  reads, with its range:
+      volume    0..1     the OS voice's utterance volume (iOS ignores it)
+      gain      0..2     the RENDERED take's real volume (canon 1.62)
+      overdrive 1..1.5   AN AMPLIFIER KNOB OVER UNITY - during speech the
+                         deck's master gain goes ABOVE 1.0 into the
+                         compressor downstream. A live experiment through
+                         the engine's _dev seam; one line turns it off.
+      boost     on|off   raise the music to full during speech
+      fx        facility|off   the facility chain ('glados' = legacy alias)
+      room      0..1     facility room size (canon 0.3)
+      warp      0.7..1.3 a take's playbackRate: PITCH AND SPEED TOGETHER,
+                         the stand-in for Piper's missing pitch knob
+      duck      0.05..1  music left under the OS voice
+      pitch rate voice   passed straight to DWEVENTS.configureSpeech
+  The locked numbers (gain 1.62 · room 0.3) were locked BY EAR; a
+  voiceCfg line moves them and nothing else should.
   A line {"reload":true,"ts":"<newer-than-last>"} hot-swaps the console's
   own logic (recon-app.js) without touching the deck - the music keeps
   playing through upgrades. Records are immutable and append-only; the page polls every 2 s. Query
@@ -121,7 +145,14 @@
             border:1px solid var(--line);border-radius:2px;color:var(--dim)}
   .src[data-s=reddit]{color:#ff7a45}.src[data-s="mailroom"]{color:#b18aff}
   .src[data-s=basescan]{color:#6fb0ff}.src[data-s=file]{color:var(--dim)}
-  .src[data-s=operator]{color:var(--accent);border-color:var(--accentdim)}
+  /* THE APP'S OWN BADGE IS NOT WEARABLE FROM THE FEED. `source` is fed text,
+     and this rule was unscoped: a record that said "operator" was painted in
+     the console's own accent, identical to a note the operator typed into the
+     reply tray. Scoped to .local — rows the app itself makes — and a fed row
+     carries ▸ before its badge so the two differ without relying on colour.
+     recon-app.js's row() sets the class; nothing on the feed can reach it. */
+  .rec.local .src[data-s=operator]{color:var(--accent);border-color:var(--accentdim)}
+  .rec.fed .src::before{content:'\25B8\A0';color:#2b4a5e}
   .rec .title{color:#dceaf3;font-weight:400}
   .rec.op .title{color:var(--accent)}
   .rec .ev{color:var(--hot);font-size:10px;letter-spacing:.1em}
@@ -200,6 +231,13 @@
   #stgNote{position:absolute;left:16px;bottom:34px;width:min(58%,760px);font-size:11px;
            line-height:1.5;color:#cfe6f2;white-space:pre-wrap;max-height:34%;overflow:hidden;
            text-shadow:0 0 10px rgba(0,0,0,.95)}
+  /* what the note cap dropped, said out loud. It sits BELOW #stgNote rather
+     than inside it, because #stgNote is max-height clipped — a marker
+     appended to the text would be the first thing the clip ate, which is
+     the failure it exists to report. */
+  #stgMore{position:absolute;left:16px;bottom:21px;width:min(58%,760px);font-size:9px;
+           letter-spacing:.14em;text-transform:uppercase;color:var(--warn);
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #stgLinks{position:absolute;right:16px;bottom:34px;width:min(30%,300px);font-size:10px;color:#4e7c94}
   #stgLinks .lh{color:#2b4a5e;letter-spacing:.2em;text-transform:uppercase;margin-bottom:3px}
   #stgLL div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:1px 0}
@@ -273,6 +311,7 @@
       <div id="stgAge">—</div>
       <div id="stgStat">no status fed</div>
       <div id="stgNote"></div>
+      <div id="stgMore"></div>
       <div id="stgLinks"><div class="lh">outbound · click copies</div><div id="stgLL"></div></div>
       <div id="stgWhat">a still the agent sent — this screen sees nothing by itself</div>
       <div id="stgFold" title="fold the stage away — the feed gets the height back">▴ fold</div>

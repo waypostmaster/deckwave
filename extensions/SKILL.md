@@ -1,6 +1,6 @@
 ---
 name: deckwave-extension
-description: Build a Deckwave extension — a same-origin page that embeds the deck and drives it as an adaptive soundtrack. Use when the user wants a new screen, game, console, or tool on top of Deckwave (music reacting to events, visuals on the beat, a feed with a soundtrack), or asks how extensions work. Covers the embed pattern (iframe + contentWindow), the two public verbs (DWEVENTS.inject to steer, DWEVENTS.pulse for the beat clock), the one-gesture audio rule, the file-bus pattern (append-only jsonl polled by the page), the safety rules (escape everything, read-only surfaces never navigate, no new network surface), and the harness shape. Zero core changes by construction. See deckwave-extension-console for operating the RECON console specifically. [v0.8.0]
+description: Build a Deckwave extension — a same-origin page that embeds the deck and drives it as an adaptive soundtrack. Use when the user wants a new screen, game, console, or tool on top of Deckwave (music reacting to events, visuals on the beat, a feed with a soundtrack), or asks how extensions work. Covers the embed pattern (iframe + contentWindow), the two public verbs (DWEVENTS.inject to steer, DWEVENTS.pulse for the beat clock), the one-gesture audio rule, the file-bus pattern (append-only jsonl polled by the page), the safety rules (escape everything, read-only surfaces never navigate, no new network surface), and the harness shape. Zero core changes by construction. See deckwave-extension-console for operating the RECON console specifically. [v0.8.1]
 ---
 
 # Deckwave Extension — the pattern
@@ -32,6 +32,14 @@ no dependencies** — that is what makes it an extension and not a fork.
    deck's frame (▶ or ▶ demo). Design it in as a boot screen.
 2. **Escape everything you render.** Your inputs (files, feeds, typed
    text) are untrusted; an unescaped field is an injection point.
+   **Know what that buys, and say it accurately.** `serve.py` is
+   GET-only — no POST, no PUT — so appending to a feed file in the
+   served root needs a filesystem write on the serving machine, which
+   is the same privilege as editing your extension's own source.
+   Escaping is therefore **defence in depth, not a trust boundary**:
+   it exists because a producer composes JSON out of titles and URLs
+   it did not author. Keep it; do not sell it as protection against
+   someone on the LAN.
 3. **Read-only surfaces never navigate.** Copy URLs, do not follow them;
    fetch only your own same-origin data.
 4. **No new network surface without a reason you can defend.** The

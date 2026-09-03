@@ -12,10 +12,18 @@ the joke got tighter on the way: 8 bars of 4 is 32 beats, and August 32nd is
 a date that exists only in music. Everything below that says 8/24 by name is
 the original plan, unchanged in substance; only the day moved.
 
-**The push is the launch act and it is the keeper's to make.** Nothing below
-creates a remote or pushes; it gets the tree to where that one command is
-safe. The rule in CLAUDE.md stands until that day: *do not create one or push
-without being asked.*
+**DONE — pushed 2026-09-01.** `origin/main` and the annotated tag `v0.8.0`
+sit at the root commit of a fresh history; `deckwave.fm` answers from GitHub
+Pages; `remote.origin.push` is pinned to the single refspec
+`refs/heads/public:refs/heads/main`. Everything below is kept in the
+imperative because it is the record of the procedure, not because any of it
+is still pending. Later releases go through the same pinned refspec and
+nothing else. The rule in CLAUDE.md outlives the launch: `master` is local
+and unpushed, forever.
+
+**The push was the launch act and it was the keeper's to make.** Nothing
+below created a remote or pushed; it got the tree to where that one command
+was safe.
 
 ## What publishing means here, in this order
 
@@ -36,7 +44,7 @@ without being asked.*
 
 | What | Where | Decision needed |
 |---|---|---|
-| **Private research** — patent strategy, provisional draft, finances, corporation, grants | `docs/research/*` marked *private* in its README (10 files) | **DECIDED 2026-08-27, keeper: does not ship** (*"I don't think these need to be shipped"*). Moved to `../deckwave-private/research/` the same day; the index carries the note. Still in HISTORY — the fresh-history plan covers that. |
+| **Private research** — patent strategy, provisional draft, finances, corporation, grants | `docs/research/*` marked *private* in its README (10 files) | **DECIDED 2026-08-27, keeper: does not ship** (*"I don't think these need to be shipped"*). Moved out of the tree the same day, to a private copy the keeper holds; the index carries the note. Still in HISTORY — the fresh-history plan covers that. |
 | **Adjacent research** — persona/Waypost project | `docs/research/adjacent/` (8 files) | **DECIDED by removal, 2026-08-21** — deleted from the tree. At the time this row warned that history still held them and a push would publish it; **the fresh-history decision below settled that** — the public repo begins at one commit, so they are in neither the tree nor the history. They survive only in the keeper's private copy. |
 | **`_source/`** — four old packages, three skill zips, a corpus cache, live snapshots, the patch set (4.6 MB) | tracked | **DECIDED 2026-08-28, keeper: it ships** (*"we will include the _source"*). Restore points, not source — and with fresh history they are the ONLY public evidence the code was somewhere else before it was here. `_source/README.md` is now the row's documentation: what each package is, that 0.5.0 does not run and is kept as the counter-example, and that the 2026-08-19 `deckwave-0.8.0.zip` is stale against the launch tree (see day-of step 2). The corpus cache lists the keeper's library by filename — harmless, personal, no audio. |
 | **`evidence/`** — the v1 cache and the rescan measurements | tracked, **cannot be regenerated** (CLAUDE.md) | Keep. It is what the BUILD-LOG's numbers rest on. Same filename note as above. |
@@ -140,13 +148,12 @@ refspec after step 5.
 ## Where it lives — the namespace and the domain (decided 2026-08-30)
 
 **Namespace: `waypostmaster/deckwave`.** The keeper asked whether to use the
-existing `waypostmaster` account or a new one (`shadoweaver`). Measured, not
-reasoned: **all three spellings of `shadoweaver` are already taken** on GitHub
-by dormant accounts (2009, 2014, 2022), and GitHub *"[does] not accept requests
-to release, transfer, or reclaim usernames on the basis that they appear
-inactive"*. So that option is closed unless suffixed, which is worse than what
-already exists. `waypostmaster` is the keeper's code account — it already hosts
-`waypost`, `mast` and `frontier`.
+existing code account or a new one under a fresh name. Measured, not
+reasoned: **every spelling of the candidate name was already taken** on GitHub
+by dormant accounts, and GitHub *"[does] not accept requests to release,
+transfer, or reclaim usernames on the basis that they appear inactive"*. So
+that option is closed unless suffixed, which is worse than what already
+exists. `waypostmaster` is the keeper's existing public code account.
 
 **An org under one of the keeper's other brands was considered and
 REJECTED.** That brand publishes finished artifacts rather than source, and
@@ -163,10 +170,8 @@ the GitHub namespace permanently. Repo transfers into an org later are
 otherwise near-lossless — stars, watchers, issues, forks and git redirects all
 survive — **but GitHub Pages sites are NOT redirected on transfer**, so a
 `*.github.io` link would die in any future move. Pointed at `deckwave.fm`, the
-link survives anything. Custom domains bind per REPO, not per account (which is
-why `mast` was split out of `waypost` in the first place), so
-`waypost.quest`, `frontiervalley.app` and `deckwave.fm` coexist without
-collision.
+link survives anything. Custom domains bind per REPO, not per account, so
+`deckwave.fm` and the keeper's other domains coexist without collision.
 
 **The rule that goes with it: if a portfolio namespace is ever wanted, TRANSFER
 the repo into an org — never rename the account.** GitHub is explicit that a
@@ -225,9 +230,9 @@ and it plays" is a broadband promise and the README now says so.
 GitHub's docs: *"Configuring your custom domain with your DNS provider without
 adding your custom domain to GitHub could result in someone else being able to
 host a site on one of your subdomains."* So DNS is LAST — after the repo
-exists and Pages knows the domain. `deckwave.fm` currently holds only Porkbun
-parking default (`ALIAS → pixie.porkbun.com`; the wildcard was deleted 2026-08-30), so nothing is
-pointed anywhere yet and there is nothing to undo.
+exists and Pages knows the domain. Before launch `deckwave.fm` held only the
+registrar's parking default (the wildcard was deleted 2026-08-30), so nothing
+was pointed anywhere yet and there was nothing to undo.
 
 ## Day-of, as a list the keeper can run
 
@@ -242,15 +247,20 @@ and revert with two lines. Use the runbook to DO it; this section is why
 it is shaped the way it is.
 
 The list below is kept because the reasoning behind each step lives here.
+**Every step was run on 2026-09-01**; the imperative is the record, not a
+to-do. Registrar record ids, the registrar's name and the private wrapper
+paths were removed from this file on 2026-09-03 (review M13) — the runbook
+holds them, and it is not in the tree.
 
 
 Rewritten 2026-08-27 to match the fresh-history decision above — the old
 list predated it and still said "push `master`", which is exactly the
 failure mode the history note warns about.
 
-1. All twelve harnesses green — 646 checks: `node tools/check-pool.js` · route ·
-   player · panels · phone · phrase · libre · flac · popout · events · recon ·
-   citywalk.
+1. All harnesses green — twelve and 646 checks on launch morning; README
+   carries the current count: `node tools/check-pool.js` · route · player ·
+   panels · phone · phrase · libre · flac · popout · events · recon · citywalk
+   (· serve since launch evening).
 2. **Re-cut the launch package — the hard part is already DONE (2026-08-30).**
    The rename that `package.py` used to refuse over has happened: the
    2026-08-19 cut is `_source/deckwave-0.8.0-2026-08-19.zip`, and
@@ -292,7 +302,7 @@ failure mode the history note warns about.
 
        cd <repo>
        git rev-parse v0.8.0 > ../deckwave-v0.8.0-taghash.txt
-       python ../deckwave-private/ots-win.py stamp ../deckwave-v0.8.0-taghash.txt
+       python <wrapper-outside-the-tree>/ots-win.py stamp ../deckwave-v0.8.0-taghash.txt
 
    That writes `…taghash.txt.ots` beside it. **Keep BOTH files** — a proof
    without its file proves nothing, since you cannot reconstruct data from a
@@ -301,7 +311,10 @@ failure mode the history note warns about.
    few hours and run `upgrade`**, which bakes the Bitcoin path in and makes
    the proof standalone — verifiable forever without the calendars:
 
-       python ../deckwave-private/ots-win.py upgrade ../deckwave-v0.8.0-taghash.txt.ots
+       python <wrapper-outside-the-tree>/ots-win.py upgrade ../deckwave-v0.8.0-taghash.txt.ots
+
+   (The wrapper is a 40-line `find_library` patch kept with the keeper's
+   private notes; it is not part of the software and is not in this tree.)
 
    Proven end to end on 2026-08-30 — stamp submitted to four calendars, an
    805-byte proof written, `verify` and `info` both read it back. The one
@@ -322,30 +335,26 @@ failure mode the history note warns about.
    the first deploy publishes `_source/` intact and registers `deckwave.fm`
    with GitHub. Confirm the site answers on
    `https://waypostmaster.github.io/deckwave/` BEFORE touching DNS.
-8. **Then, and only then, point DNS** at Porkbun for `deckwave.fm` — the
-   apex ALIAS currently aimed at `pixie.porkbun.com` gets repointed, and a
-   `www` CNAME added:
+8. **Then, and only then, point DNS** at the registrar for `deckwave.fm` —
+   the apex ALIAS that had aimed at the registrar's parking host gets
+   repointed, and a `www` CNAME added:
 
        ALIAS  deckwave.fm       ->  waypostmaster.github.io
        CNAME  www.deckwave.fm   ->  waypostmaster.github.io
 
    (GitHub's A/AAAA apex records — `185.199.108-111.153` and
    `2606:50c0:800{0,1,2,3}::153` — are the documented alternative if the
-   ALIAS misbehaves. Porkbun supports ALIAS at the apex natively.)
+   ALIAS misbehaves; the registrar supports ALIAS at the apex natively.)
 
-   **The wildcard is already gone — DELETED 2026-08-30 on the keeper's
-   word**, so this step is now two calls, not three. `*.deckwave.fm` had
-   pointed at `pixie.porkbun.com`, parking every unclaimed subdomain; that
-   is the surface GitHub's own takeover warning describes and it bought
-   nothing. Unclaimed subdomains now simply do not resolve. Verified by
-   re-reading the zone: exactly one record removed, the apex ALIAS and all
-   four `NS` records untouched, six down to five.
-
-   **Readiness for this step was PROVEN on 2026-08-30, not assumed:**
-   credentials valid (`ping` → SUCCESS) and `deckwave.fm` confirmed opted in
-   to API access — which `dns/retrieve` returning records proves, since a
-   domain without the per-domain API toggle refuses. The apex record to edit
-   is `id=575891503`; `www.deckwave.fm` does not exist and must be created.
+   **The wildcard was DELETED 2026-08-30 on the keeper's word**, so this
+   step was two calls, not three. `*.deckwave.fm` had pointed at the
+   parking host, parking every unclaimed subdomain; that is the surface
+   GitHub's own takeover warning describes and it bought nothing. Unclaimed
+   subdomains now simply do not resolve. Verified by re-reading the zone:
+   exactly one record removed, the apex ALIAS and all four `NS` records
+   untouched, six down to five. Readiness (credentials, the domain's API
+   opt-in, the record to edit) was proven the same day; those facts live in
+   the runbook, outside the tree.
 9. **Wait for the certificate, then tick "Enforce HTTPS."** GitHub says up to
    24 hours for both DNS propagation and the cert; the checkbox is greyed
    until the cert exists. Do not skip it — an un-enforced Pages domain
@@ -357,10 +366,10 @@ failure mode the history note warns about.
    detectable, and its archive resists deletion by design. Nothing is
    archived yet, so there is no sunk cost either way.
 
-Everything above the line "Day-of" can be done before the day and most of it
-by me, on request. Steps 5–6 are the keeper's; 7–10 are the keeper's too
-(they need the GitHub UI and the registrar), though I can run step 8 through
-the Porkbun API on the keeper's word.
+Everything above the line "Day-of" could be done before the day and most of
+it by me, on request. Steps 5–6 were the keeper's; 7–10 were the keeper's too
+(they need the GitHub UI and the registrar), though step 8 could be run
+through the registrar's API on the keeper's word.
 
 **A licence note that follows from the domain, and it is easy to trip over:**
 LukHash's grant is a PLATFORM grant — YouTube and Twitch. **A page on
@@ -446,10 +455,11 @@ Prompted by *"Both Prelude and Gone Too Soon are lovely on the goniometer"*
 — fetched tracks as the visual material, not just the audio. The licence
 reading for THAT video differs from the LukHash-platform-grant one above,
 and it is cleaner where it matters: the fetched LukHash releases on the
-Archive are **CC BY-NC-ND** — ND does not cover a video that mixes and
-sets the music, BUT his platform grant above covers YouTube/Twitch
-regardless, so for LukHash material the platform rule already decided
-this. Non-LukHash libre material in such a video is governed by its own
+Archive are **CC BY-NC-SA 3.0** (the demo score's own records say so, all
+nine; an earlier draft of this paragraph said ND, which was wrong — SA
+permits the mixing, un-monetised, with attribution), and his platform
+grant above covers YouTube/Twitch regardless, so for LukHash material the
+platform rule already decided this. Non-LukHash libre material in such a video is governed by its own
 CC terms per track: **BY-NC-SA is fine un-monetised with attribution;
 anything -ND should be left out of the video's soundtrack; nothing here
 is cleared for a monetised video.** The score already carries every

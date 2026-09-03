@@ -30,6 +30,13 @@ const ok = (name, cond, falsifier) => {
   else console.log('  pass  ' + name);
 };
 
+/* An unhandled rejection is this harness's own evidence, not a reason to
+   die: a decode step that throws into a promise nobody holds is exactly the
+   bug the last check drives, and Node's default would kill the process
+   before the summary line. Recorded, then reported by that check. */
+let unhandled = null;
+process.on('unhandledRejection', e => { unhandled = e; });
+
 const LIB = process.env.DECKWAVE_LIB || 'C:/Claude/Music/LukHash';
 /* the library is no longer flat (2026-08-21: clearance subdirectories) —
    find a stem anywhere under LIB, one level of walk like the app's own */
@@ -66,7 +73,7 @@ const repo = process.cwd();
 process.chdir(path.join(repo, 'vendor'));
 global.Flac = require(path.join(repo, 'vendor', 'libflac.min.js'));
 process.chdir(repo);
-eval(fs.readFileSync('assets/deckwave-flac.js', 'utf8').replace(/\r\n/g, '\n'));
+eval(fs.readFileSync(process.env.DECKWAVE_FLAC_SRC || 'assets/deckwave-flac.js', 'utf8').replace(/\r\n/g, '\n'));
 const F = global.DWFLAC;
 
 (async () => {
@@ -107,6 +114,37 @@ const F = global.DWFLAC;
        'mean ' + mean + ' — a sign/byte-order error reads as DC');
   }
   ok('at least two library files were actually decoded', ran >= 2, ran + ' ran — the library path is wrong and nothing was tested');
+
+  /* ── a decode that goes wrong must FAIL, not hang (review 2026-09-01) ───
+     `yieldNow().then(step)` carried no rejection handler, so a throw in any
+     step after the first rejected an intermediate promise nobody held: the
+     decode promise never settled and the scan stalled on that track with no
+     failure counted. Driven here through opts.onProgress, which step()
+     calls on every pass — throwing on the SECOND call is what puts the
+     throw inside the .then chain (the first step runs synchronously inside
+     the Promise executor, where a throw already rejected correctly, so a
+     first-call throw would prove nothing). */
+  const probe = findFlac(CASES[0].stem) || findFlac(CASES[1].stem);
+  if (!probe) ok('a mid-decode throw rejects instead of hanging', false, 'no library file to drive it with');
+  else {
+    const ab = fs.readFileSync(probe);
+    const u8 = new Uint8Array(ab.buffer, ab.byteOffset, ab.byteLength);
+    let n = 0;
+    const dec = F.decode(u8, { yieldEvery: 1, onProgress: () => { if (++n === 2) throw new Error('mid-decode boom'); } });
+    const HANG = Symbol('hang');
+    const raced = await Promise.race([
+      dec.then(() => 'RESOLVED', e => 'rejected: ' + e.message),
+      new Promise(r => setTimeout(() => r(HANG), 4000))
+    ]);
+    ok('a throw after the first decode step rejects the promise instead of hanging',
+       typeof raced === 'string' && /rejected: mid-decode boom/.test(raced),
+       (raced === HANG ? ('nothing settled in 4 s — the decode hung, exactly as a WASM failure on a phone would'
+                          + (unhandled ? ' (the throw went to an unhandled rejection: ' + unhandled.message + ')' : ''))
+                       : 'got ' + String(raced)) + ' (throw fired on step ' + n + ')');
+    ok('CONTROL: the same file decodes normally when nothing throws',
+       await F.decode(u8, { yieldEvery: 400 }).then(p => p.length > 0, () => false),
+       'the probe file cannot be decoded at all, so the check above proves nothing');
+  }
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.log('FATAL: ' + (e.stack || e)); process.exit(1); });

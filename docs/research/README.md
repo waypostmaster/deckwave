@@ -37,8 +37,9 @@ Brought in from a separate research directory on 2026-08-19 (keeper: *"review, a
 The ten *private*-marked files (patent strategy and name clearance, two
 patentability opinions, the whole-system prior-art search with its
 2026-08-21 CRAWNiiK addendum, the provisional-filing note and the
-provisional draft, and the four business/funding reports) were moved to
-`../deckwave-private/research/` on the keeper's decision, 2026-08-27:
+provisional draft, and the four business/funding reports) were moved out of
+this repository, to a private copy the keeper holds, on the keeper's
+decision, 2026-08-27:
 *"I don't think these need to be shipped."* Their SHA-256 prefixes are
 recoverable only from the keeper's private copy — **not from this
 repository**, whose history begins at the launch commit. The one-paragraph IP summary at

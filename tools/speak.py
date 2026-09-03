@@ -46,8 +46,33 @@ import argparse, os, subprocess, sys, wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-MODELS = os.path.join(ROOT, 'speech', 'models')
+SPEECH = os.path.join(ROOT, 'speech')
+MODELS = os.path.join(SPEECH, 'models')
 DEFAULT_VOICE = 'en_US-lessac-high'
+
+
+def gate_out(p):
+    """--out lives under speech/, and this is a GATE, not a sentence in --help.
+
+    The help text said "under speech/" and nothing enforced it, so any path
+    this process could reach was writable by a typo or by a caller composing
+    one. CLAUDE.md's rule, verbatim: where a gate is possible, build the gate;
+    a paragraph that asks is not a guarantee. Resolved with realpath first, so
+    a symlink or a Windows 8.3 short name cannot walk out (the same hole C1
+    found in serve.py). Returns the resolved absolute path the renderers use.
+    """
+    full = os.path.realpath(os.path.join(os.getcwd(), p))
+    root = os.path.realpath(SPEECH)
+    try:
+        inside = os.path.commonpath([full, root]) == root
+    except ValueError:          # different drive on Windows
+        inside = False
+    if not inside:
+        sys.exit('--out must resolve inside %s (got %s)' % (root, full))
+    d = os.path.dirname(full)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    return full
 
 
 def find_model(name):
@@ -113,9 +138,19 @@ def render_piper(text, out, voice, length_scale, speaker):
 
 def render_sapi(text, out):
     """The Zira recipe of takes 1-8, verbatim (rate -15% pitch -8%)."""
+    # THE TOOL DOES NOT REWRITE THE WORDS. These three characters have to be
+    # escaped because the text is embedded in SSML, and the old line escaped
+    # them by SUBSTITUTION: `&` silently became the word "and" and `<`/`>`
+    # became spaces. That is the renderer editing an author's text without
+    # saying so — and it disagreed with the piper path, which passes the same
+    # string through untouched. Escaped properly now, so both engines are
+    # handed the same words and the engine decides how to pronounce them.
+    # (Most TTS reads a bare "&" as "and" anyway; the difference is that it is
+    # the engine's choice, visible in what it says, not a hidden edit here.)
+    xml = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"'
             ' xml:lang="en-US"><prosody rate="-15%" pitch="-8%">'
-            + text.replace('&', ' and ').replace('<', ' ').replace('>', ' ')
+            + xml
             + '</prosody></speak>')
     ps = (
         "Add-Type -AssemblyName System.Speech\n"
@@ -144,7 +179,8 @@ def main():
     ap = argparse.ArgumentParser(description='Render the console voice to a WAV.')
     ap.add_argument('text', nargs='?', help='the words (or use --file / stdin)')
     ap.add_argument('--file', help='read the words from a file')
-    ap.add_argument('--out', help='output wav (under speech/) — required unless --list')
+    ap.add_argument('--out', help='output wav — REFUSED unless it resolves inside speech/ '
+                                  '(a gate, not a convention); required unless --list')
     ap.add_argument('--list', action='store_true',
                     help='list the models in speech/models/ and their speaker counts, then exit')
     ap.add_argument('--speaker', type=int, default=None,
@@ -161,8 +197,21 @@ def main():
         return
     if not a.out:
         sys.exit('--out is required (or use --list)')
+    out = gate_out(a.out)
 
-    text = a.text or (open(a.file, encoding='utf8').read() if a.file else sys.stdin.read())
+    if a.text:
+        text = a.text
+    elif a.file:
+        # a missing --file used to hand back a raw FileNotFoundError traceback,
+        # which reads like the tool broke rather than like the path was wrong
+        try:
+            with open(a.file, encoding='utf8') as f:
+                text = f.read()
+        except OSError as e:
+            print('cannot read --file %s: %s' % (a.file, e.strerror or e), file=sys.stderr)
+            sys.exit(2)
+    else:
+        text = sys.stdin.read()
     text = ' '.join(text.split())
     if not text:
         sys.exit('nothing to say')
@@ -175,9 +224,9 @@ def main():
         except ImportError:
             engine = 'sapi'
 
-    used = render_piper(text, a.out, a.voice, a.length_scale, a.speaker) if engine == 'piper' \
-        else render_sapi(text, a.out)
-    print('%s -> %s (%d bytes, %d chars)' % (used, a.out, os.path.getsize(a.out), len(text)))
+    used = render_piper(text, out, a.voice, a.length_scale, a.speaker) if engine == 'piper' \
+        else render_sapi(text, out)
+    print('%s -> %s (%d bytes, %d chars)' % (used, a.out, os.path.getsize(out), len(text)))
 
 
 if __name__ == '__main__':
