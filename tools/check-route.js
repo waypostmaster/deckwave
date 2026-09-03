@@ -97,6 +97,11 @@ try {
   console.log('  NOTE: ' + LIB + ' not readable — using every cached record, ' +
               'not just the chiptune corpus. Set DECKWAVE_LIB to fix.');
 }
+/* the fallback corpus is still exercised below so the run is informative,
+   but it is not the corpus under test and the run says so by failing —
+   check-flac's shape (review 2026-09-01 M11) */
+ok('the corpus is the chiptune library, not every cached record', files !== null,
+   LIB + ' unreadable — the route checks ran on a corpus the header says is not under test; set DECKWAVE_LIB');
 const corpus = JSON.parse(fs.readFileSync('evidence/deckwave-cache-v1-2026-08-17.json', 'utf8')).data
   .filter(r => !files || files.has(normf(r.name)))
   .map(r => ({ id: r.id, name: r.name, bpm: r.bpm, conf: r.conf, dur: r.dur,

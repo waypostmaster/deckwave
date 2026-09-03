@@ -27,6 +27,7 @@ let canAct = false;                /* boot re-renders are DISPLAY ONLY: side eff
 const pending = [];                /* arrived, holding for the assumed downbeat */
 let liveCount = 0;                 /* non-pinned rows, for the 200 ring */
 let lastArrival = 0;               /* wall time of the newest record */
+let swapNote = '';                 /* a failed hot swap, said on the staleness line until the next reload */
 let awayFirst = null, awayN = 0;   /* rows that landed while document.hidden */
 const PINKEY = 'dwrecon-pins';
 let pins = [];                     /* full records, localStorage-persisted */
@@ -442,12 +443,30 @@ async function poll() {
        iframe is untouched, so the music never stops. Gated on a ts newer
        than the last applied one (localStorage), so old lines are inert. */
     if (o.reload === true) {
-      const rk = 'reload·' + String(o.ts || '');
+      const ts = String(o.ts || ''), rk = 'reload·' + ts;
       if (!seen.has(rk)) { seen.add(rk);
+        /* NUMERIC, not lexical (review 2026-09-01 M9, ledger 123): as a
+           string "9999-…" outranked every real date and one such line
+           wedged hot-swap until localStorage was cleared by hand. A ts that
+           does not parse, or sits more than 10 minutes ahead of this
+           clock, is refused — 10 min is a CHOSEN skew allowance, like the
+           stage's 90 s. */
         let prev = ''; try { prev = localStorage.getItem('dw-recon-appts') || ''; } catch (e) {}
-        if (String(o.ts || '') > prev) {
-          try { localStorage.setItem('dw-recon-appts', String(o.ts || '')); } catch (e) {}
-          setTimeout(() => window.__loadApp && window.__loadApp(), 50);
+        const t = Date.parse(ts), p = Date.parse(prev);
+        if (isFinite(t) && t <= Date.now() + 600000 && !(isFinite(p) && t <= p)) {
+          try { localStorage.setItem('dw-recon-appts', ts); } catch (e) {}
+          setTimeout(async () => {
+            const done = window.__loadApp ? await window.__loadApp() : false;
+            if (done) return;
+            /* CONSUMED ONLY ON SUCCESS: a 404 or a script that would not
+               run used to eat the line for good. Put the previous ts back,
+               forget the line so it lands again next poll, and SAY it on
+               this screen — a console the phone cannot see is where ledger
+               77/85's failures went to die. */
+            try { localStorage.setItem('dw-recon-appts', prev); } catch (e) {}
+            seen.delete(rk);
+            swapNote = 'upgrade failed — still running the old console code (recon-app.js could not be fetched or did not run)';
+          }, 50);
         } }
       continue;
     }
@@ -498,6 +517,7 @@ subs.push(() => document.removeEventListener('visibilitychange', onVis));
 /* ── staleness: never look calm about silence ── */
 iv(() => {
   const el = $('stale');
+  if (swapNote) { el.className = 'bad'; el.textContent = swapNote; return; }
   if (!lastArrival) return;                              /* keep the waiting text */
   const s = Math.floor((Date.now() - lastArrival) / 1000);
   if (s >= 300) { el.className = 'bad';
@@ -550,7 +570,14 @@ async function sendNote() {
   opRow(m, true);
 }
 $('send').onclick = sendNote;
-$('say').addEventListener('keydown', e => { if (e.key === 'Enter') sendNote(); });
+/* into subs like every other document listener: the composer lives in the
+   SHELL and outlives a hot swap, and an anonymous listener here survived
+   teardown — after one reload, Enter fired the OLD instance's sendNote
+   first, which overwrote the persisted inbox with its stale snapshot and
+   the live drain() never saw the note (review 2026-09-01 M8, ledger 123) */
+const onSayKey = e => { if (e.key === 'Enter') sendNote(); };
+$('say').addEventListener('keydown', onSayKey);
+subs.push(() => $('say').removeEventListener('keydown', onSayKey));
 window.RECON = {
   inbox: () => inbox.slice(),
   drain() { const out = inbox.slice(); inbox = []; saveInbox();

@@ -42,7 +42,8 @@ const node = () => ({ playbackRate: param(), gain: param(), type: '', frequency:
   smoothingTimeConstant: 0, connect() {}, parameters: { get: () => param() },
   start(at, off) { this._started = { at, off }; started.push(this); },
   stop(at) { this._stopped = true; this._stopAt = at; }, onended: null,
-  port: { onmessage: null, postMessage() {} } });
+  disconnect() { this._disconnected = true; },
+  port: { onmessage: null, posted: [], postMessage(m) { this.posted.push(m); } } });
 let now = 100;
 function AC() {
   return { get currentTime() { return now; }, state: 'running',
@@ -58,6 +59,17 @@ function AC() {
     createBufferSource: node, createBiquadFilter: node };
 }
 const AudioWorkletNode = function () { return node(); };
+/* ── fake LONG timers ───────────────────────────────────────────────────
+   chain()'s handover timer is minutes away on the fake clock. Anything
+   over a second is captured here so a check can fire it by hand; the 0 ms
+   ticks this harness itself uses pass straight through. */
+const realSetTimeout = global.setTimeout, realClearTimeout = global.clearTimeout;
+const longTimers = new Map(); let ltId = 1e6;
+global.setTimeout = (fn, ms, ...a) => { if (!(ms > 1000)) return realSetTimeout(fn, ms, ...a);
+  const id = ++ltId; longTimers.set(id, { fn, ms }); return id; };
+global.clearTimeout = id => { if (longTimers.delete(id)) return; realClearTimeout(id); };
+const fireLong = () => { const e = [...longTimers.entries()].pop(); if (!e) return null;
+  longTimers.delete(e[0]); e[1].fn(); return e[1]; };
 const ASSETS = { base: 'vendor/', files: { soundtouch: 'x' }, allowCDN: false };
 const CDN = {}; const assetURL = k => ASSETS.base + ASSETS.files[k];
 
@@ -345,6 +357,22 @@ const x = mk('x', 200);
        JSON.stringify(held.last));
     ok('the plain processor\'s underrunCount includes its warm-up (' + plain.warm + ' blocks)', plain.warm > 30, 'warm ' + plain.warm);
     const held1 = drive(REG['deckwave-stretch'], 1.0012, 90), held2 = drive(REG['deckwave-stretch'], 0.95, 90);
+    /* the door out (ledger 124): a release message makes process() return
+       false; the vendored handler still receives its own messages */
+    {
+      const proc = new REG['deckwave-stretch']({});
+      const L = new Float32Array(128), R = new Float32Array(128), oL = new Float32Array(128), oR = new Float32Array(128);
+      const params = { pitch: [1], pitchSemitones: [0], playbackRate: [1] };
+      const alive = proc.process([[L, R]], [[oL, oR]], params);
+      proc.port.onmessage({ data: { type: 'set-stretch-parameters', params: { sequenceMs: 40 } } });
+      const vendoredGotIt = proc._pendingStretchParameters && proc._pendingStretchParameters.sequenceMs === 40;
+      proc.port.onmessage({ data: { type: 'release' } });
+      const after = proc.process([[L, R]], [[oL, oR]], params);
+      ok('the held worklet stays alive until told: process() true, then false after {type:\'release\'}', alive === true && after === false,
+         'alive ' + alive + ' after release ' + after + ' — a node that never returns false is never collected');
+      ok('…and the vendored port messages still reach the vendored handler (chained, not replaced)', vendoredGotIt === true,
+         'pending ' + JSON.stringify(proc._pendingStretchParameters));
+    }
     ok('…and none at ×1.0012 (the DOOMSDAY → GIANA rate) or ×0.95', held1.gaps === 0 && held2.gaps === 0, held1.gaps + '/' + held2.gaps);
   }
 
@@ -382,6 +410,63 @@ const x = mk('x', 200);
   Player.stop();
   ok('…and stop() folds the live decks in rather than losing them', Player.state.gapsTotal === 2, 'total ' + Player.state.gapsTotal + ' after stop');
   AC.moduleOk = false;
+
+  console.log('\n── the handover timer against a suspended audio clock ──────');
+  /* pause() suspends the context: currentTime FREEZES, setTimeout does
+     not. Review 2026-09-01 H1 (ledger 123): the timer fired mid-pause and
+     the deck state walked ahead of the audio — ledger 33's class from a new
+     mechanism. Falsifier: idx advances while the audio clock has not
+     reached the exit; or nothing is re-armed and no handover ever comes. */
+  /* a set of its own: the shared one has been reordered in place by the
+     earlier sections (the in-place order contract), so its [1] is not t2 */
+  const setP = [mk('p1', 240), mk('p2', 240), mk('p3', 240), mk('p4', 240)];
+  now = 100; longTimers.clear(); pending.clear();
+  const pH1 = Player.play(setP, 0); await tick(); await settle('p1'); await pH1; await tick();
+  await settle('p2'); await tick();
+  ok('chain() armed exactly one long timer for the handover', longTimers.size === 1 && D.B && D.B.track.meta.name === 'p2',
+     'timers ' + longTimers.size + ' B ' + (D.B && D.B.track.meta.name));
+  const exitAt = D.B.src._started.at;
+  const handedDeck = D.A;                          /* the deck that will hand over; released later, when its source ends */
+  D.ctx.state = 'suspended';                       /* pause(): the audio clock stops at 100 */
+  fireLong();                                      /* …the wall clock reaches the timer anyway */
+  ok('a timer that fires while the audio clock is short of the exit does NOT hand over',
+     D.idx === 0 && D.A && D.A.track.meta.name === 'p1',
+     'idx ' + D.idx + ' A ' + (D.A && D.A.track.meta.name) + ' — the state ran ahead of the audio');
+  ok('…and re-arms itself against the audio clock', longTimers.size === 1,
+     'timers ' + longTimers.size + ' — nothing would hand over after resume');
+  D.ctx.state = 'running'; now = exitAt + 0.2;     /* resume; the audio reaches the exit */
+  fireLong(); await tick(); await settle('p3'); await tick();
+  ok('once the audio clock has passed the exit the handover happens and the next deck is chained',
+     D.idx === 1 && D.A && D.A.track.meta.name === 'p2' && D.B && D.B.track.meta.name === 'p3',
+     'idx ' + D.idx + ' A ' + (D.A && D.A.track.meta.name) + ' B ' + (D.B && D.B.track.meta.name));
+
+  console.log('\n── a handed-over deck is released when its source ends ────');
+  /* Review 2026-09-01 H2 (ledger 124): measured live, five handovers took
+     the renderer from 691 MB to 1,956 MB and the JS heap kept ~87 MB per
+     handover after two forced GCs. Nothing ever disconnected a deck, and
+     the worklet's port handler closed over it. Falsifier: after the old
+     source's `ended`, its nodes are still connected, the port handler still
+     holds the deck, or the worklet was never told to let go. */
+  const oldDeck = handedDeck;
+  ok('the handed-over deck is not released BEFORE its source ends (the fade is still playing)',
+     !oldDeck.released && !oldDeck.g._disconnected, 'released early — the outgoing fade would be cut');
+  oldDeck.src.onended();
+  ok('…and IS released when the source ends: every node disconnected, port handler dropped, worklet told to let go',
+     oldDeck.released === true && [oldDeck.src, oldDeck.st, oldDeck.lo, oldDeck.mid, oldDeck.hi, oldDeck.g].every(n => n._disconnected)
+     && oldDeck.st.port.onmessage === null && oldDeck.st.port.posted.some(m => m && m.type === 'release'),
+     'released ' + oldDeck.released + ' disconnected ' + [oldDeck.src, oldDeck.st, oldDeck.lo, oldDeck.mid, oldDeck.hi, oldDeck.g].map(n => !!n._disconnected).join(',')
+     + ' handler ' + (oldDeck.st.port.onmessage === null) + ' posted ' + JSON.stringify(oldDeck.st.port.posted));
+  ok('…while the live decks are untouched', !D.A.released && !D.A.g._disconnected && !D.B.released && !D.B.g._disconnected, 'a live deck was released');
+  oldDeck.src.onended();
+  ok('a second `ended` is a no-op', oldDeck.released === true && oldDeck.st.port.posted.filter(m => m && m.type === 'release').length === 1, 'release posted twice');
+  Player.stop();
+
+  /* review 2026-09-01 M6: analyse() runs under no harness (Essentia/WASM),
+     so this is a TEXT pin on ordering — the re-throw must come before the
+     cache write. Weak, and labelled so. */
+  ok('[text] a rhythm-extractor throw is re-thrown BEFORE the record is cached',
+     src.indexOf('if (rhythmErr) throw') > 0 && src.indexOf('if (rhythmErr) throw') < src.indexOf('await DB.put(rec)'),
+     'a track whose rhythm extraction threw would be cached forever as bpm 0 and vanish from every set');
 
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);

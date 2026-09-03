@@ -80,6 +80,14 @@ try {
 } catch (e) {
   console.log('  NOTE: ' + LIB + ' unreadable — using every cached record.');
 }
+/* A missing library used to degrade to every cached record — the 28
+   non-chiptune imports included — with a NOTE and a green run: a corpus
+   the header says is not under test, passing (review 2026-09-01 M11).
+   check-flac already refuses to pass when it decoded nothing; same shape
+   here. The checks below still run on the fallback so the output is
+   informative, but the run is red. Set DECKWAVE_LIB. */
+ok('the corpus is the chiptune library, not every cached record', files !== null,
+   LIB + ' unreadable — every check below runs on a corpus the header says is not under test; set DECKWAVE_LIB');
 const corpus = JSON.parse(fs.readFileSync('evidence/deckwave-cache-v1-2026-08-17.json', 'utf8')).data
   .filter(r => !files || files.has(normf(r.name)))
   .map(r => ({ id: r.id, name: r.name, bpm: r.bpm, conf: r.conf, dur: r.dur,

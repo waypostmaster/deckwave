@@ -68,6 +68,13 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Never served, on any interface. Blocking at the handler rather than relying
 # on the server being local means the rule survives someone adding --lan later.
 DENY_DIRS = {"_source", "tools", "deckwave-patches"}
+# Files .gitignore keeps out of the tree for a reason and nothing on the
+# page ever fetches: the launch-day operator checklist (registrar ids,
+# account names, private paths). Lower-case, slash-separated, repo-relative,
+# compared against the RESOLVED path like everything else in _forbidden().
+# (The runtime feeds — recon.jsonl, speech/, recon-shots/ — are also
+# gitignored and ARE served: the console reads them.)
+DENY_FILES = {"docs/runbook.md"}
 
 # --music DIR: serve ONE music folder read-only at /music/ so a phone on the
 # LAN can download tracks into its own storage (Safari -> Files -> On My
@@ -119,12 +126,34 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # relpath + lower() closes both holes at once. Traversal above REPO is
         # already impossible (translate_path normalises), but it is checked
         # here too rather than assumed.
-        fs = self.translate_path(path)
-        rel = os.path.relpath(fs, REPO).replace("\\", "/").lower()
+        #
+        # Third bypass, 2026-09-01 (review C1, ledger 122): NTFS 8.3 SHORT
+        # NAMES. Every long name also answers to an alias — `.git` is
+        # `GIT~1`, `deckwave-patches` is `DECKWA~1` — and the alias has no
+        # leading dot and is not in DENY_DIRS, so /GIT~1/HEAD returned 200
+        # while /.git/HEAD returned 403. Under --lan that was the whole
+        # private history one request away. realpath() expands the alias to
+        # the name the rules are written against; _music_path() always did
+        # this and this function never did. Verified on a scratch port by
+        # tools/check-serve.js, which fails without this line.
+        #
+        # relpath() raises ValueError for a path it cannot place on this
+        # drive (\\.\NUL and friends: reserved device names, an embedded
+        # NUL byte). A path the check cannot evaluate is refused, not
+        # allowed to kill the handler thread.
+        try:
+            fs = os.path.realpath(self.translate_path(path))
+            if "\x00" in fs:            # survives realpath; open() would raise past this check
+                return True
+            rel = os.path.relpath(fs, os.path.realpath(REPO)).replace("\\", "/").lower()
+        except ValueError:
+            return True
         if rel == ".." or rel.startswith("../"):
             return True
         parts = [p for p in rel.split("/") if p and p != "."]
         if any(p.startswith(".") for p in parts):      # .git, .gitignore, .claude, anything dotted
+            return True
+        if "/".join(parts) in DENY_FILES:
             return True
         return bool(parts) and parts[0] in DENY_DIRS
 
@@ -404,7 +433,7 @@ def main():
         print("serving %s over HTTP" % REPO)
         print("  http://127.0.0.1:%d/     (localhost only)" % port)
 
-    print("not served: dotted paths, %s" % ", ".join(sorted(DENY_DIRS)))
+    print("not served: dotted paths, %s, %s" % (", ".join(sorted(DENY_DIRS)), ", ".join(sorted(DENY_FILES))))
     print("Ctrl-C to stop")
     try:
         httpd.serve_forever()

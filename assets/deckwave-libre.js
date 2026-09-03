@@ -509,8 +509,19 @@ const current = { format: 'ogg', preset: 'chiptune', source: 'archive' };
    ▶. Autoplay: the demo click is the gesture; Chromium honours a resume
    that follows it, WebKit on a phone may not — that is LISTENING material,
    not something this code can promise. */
+/* ONE demo at a time — a gate, not a paragraph. Two in flight each saved
+   "the original" transport and restored it in finish order, so the second
+   restored the FIRST's hold stub and play/skip/back/blendNow/queueNext
+   answered "still arriving" until reload (review 2026-09-01 M2, ledger
+   123). The dashboard button guards itself; DWLIBRE.demo() is public API
+   for game code, where a double call is ordinary. */
+let demoAt = null;
 async function demo(opts) {
-  const o = opts || {};
+  if (demoAt) throw new Error('demo: already arriving (' + demoAt.i + '/' + demoAt.n + ') — one demo at a time; wait for it');
+  const at = demoAt = { i: 0, n: 0 };
+  try { return await demoInner(opts || {}, at); } finally { demoAt = null; }
+}
+async function demoInner(o, at) {
   const DW = window.DW, SC = window.DWSCORE;
   if (!DW || !DW.ingest || !SC) throw new Error('engine not loaded');
   let sc = o.score;
@@ -556,7 +567,6 @@ async function demo(opts) {
   const HELD = ['play', 'skip', 'back', 'blendNow', 'queueNext'];
   const orig = {};
   const tell = o.log || log;
-  const at = { i: 0, n: 0 };
   const holdMsg = () => 'demo: the set is still arriving (' + at.i + '/' + at.n
     + ') — controls return when it is home · pause still works';
   HELD.forEach(k => { orig[k] = DW[k]; DW[k] = async () => { const m = holdMsg(); tell(m); return m; }; });

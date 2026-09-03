@@ -310,13 +310,23 @@ async function analyse(file, excerptSec) {
      grid already assumes. */
   let fvec = E.arrayToVector(full);
   full = null;                                               /* the JS copy is not needed once WASM has one */
+  let rhythmErr = null;
   try {
     const r = E.RhythmExtractor2013(fvec, 208, 'multifeature', 40);
     bpm = r.bpm; conf = r.confidence; beats = E.vectorToArray(r.ticks);
     ['ticks','estimates','bpmIntervals'].forEach(k => { if (r[k] && r[k].delete) r[k].delete(); });
-  } catch (e) { console.warn('rhythm', file.name, e); }
+  } catch (e) { console.warn('rhythm', file.name, e); rhythmErr = e; }
   if (fvec.delete) fvec.delete();
   fvec = null;
+  /* A throw here (the WASM out-of-memory the note above this function
+     anticipates on a phone with a long track) used to leave bpm 0 and an
+     empty grid, and the record was then CACHED at the current version and
+     counted as added — every later load a cache hit, the pool filter and
+     classify() dropping it, the track in no set, no unlocked list, no
+     report, forever (review 2026-09-01 M6, ledger 123). A failed analysis
+     is a failure: ingest counts it, warns with the name, and the next load
+     tries again. */
+  if (rhythmErr) throw new Error('rhythm extraction failed: ' + ((rhythmErr && rhythmErr.message) || rhythmErr));
 
   /* KEY, RMS AND ZCR STILL USE THE CENTRED EXCERPT, deliberately — see the
      note above this function. */
@@ -347,7 +357,13 @@ async function analyse(file, excerptSec) {
     key, scale, camelot: camelot(key, scale), kstr: +kstr.toFixed(3),
     rms: Math.sqrt(sum / n), zcr: zc / n, dur: +dur.toFixed(1), size: file.size };
   if (decoder === 'libflac') rec.decoder = 'libflac';      /* only when the browser refused it */
-  await DB.put(rec); return rec;
+  /* DB.put resolves false on a refused write (quota, private mode). The
+     record is still good for this session; it just will not be there next
+     load. Say so on the record so ingest can count it, instead of a phone
+     re-analysing its whole library every launch with `cached: 0` and no
+     reason on screen (review 2026-09-01). */
+  if (!(await DB.put(rec))) rec.uncached = true;
+  return rec;
 }
 
 /* One list of accepted types, used by the folder walk and by the file picker
@@ -1002,6 +1018,33 @@ const Player = (() => {
 
      `k = 1 / rate` in chain() is unchanged and still correct: which node
      performs the time change does not alter the wall-clock mapping. */
+  /* RELEASE A DECK WHOSE SOURCE HAS ENDED. Measured 2026-09-01 (review H2,
+     ledger 124): five real handovers took the renderer from 691 MB to
+     1,956 MB of private memory, and after two forced garbage collections
+     the JS heap still held ~87 MB per handover — one decoded stereo track
+     each. The chain was never disconnected, so every handed-over deck's
+     worklet node stayed in the graph — and the vendored processor keeps
+     itself alive by always returning true from process(), so the node ran
+     WSOLA on silence for the life of the context — and its port handler
+     closed over the deck, which held the source, which held the buffer.
+     The comment at the handover said "release behind" and released the
+     meta's reference only (ledger 109/113's shape).
+
+     So: on `ended`, tell the held worklet to let go (the wrapper answers
+     {type:'release'} by returning false from process(); the plain vendored
+     processor has no such door and stays alive — disconnected, silent, but
+     alive), drop the port handler that closed over the deck, and
+     disconnect every node. The deck object itself stays where anything
+     still points at it (A or B, briefly, when the last track runs out) and
+     reads exactly as before: the fields are the same, the nodes just have
+     no graph. Not a threshold; nothing audible changes — the source has
+     already ended. */
+  function releaseDeck(d) {
+    if (!d || d.released) return; d.released = true;
+    try { if (d.st && d.st.port) { d.st.port.postMessage({ type: 'release' }); d.st.port.onmessage = null; } } catch (e) {}
+    for (const n of [d.src, d.st, d.lo, d.mid, d.hi, d.g]) { try { if (n && n.disconnect) n.disconnect(); } catch (e) {} }
+  }
+
   function makeDeck(track, rate) {
     const src = ctx.createBufferSource(); src.buffer = track.buf;
     src.playbackRate.value = rate;                    /* the source does the time change */
@@ -1012,7 +1055,11 @@ const Player = (() => {
     const hi = ctx.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 4000;
     const g = ctx.createGain(); g.gain.value = 0;
     src.connect(st); st.connect(lo); lo.connect(mid); mid.connect(hi); hi.connect(g); g.connect(master);
-    live.add(src); src.onended = () => live.delete(src);
+    /* when the source ends — the scheduled stop after a handover's fade,
+       stop(), cancelPending(), or the last track running out — the deck is
+       RELEASED: see releaseDeck. Until 2026-09-01 nothing was, and every
+       handed-over deck stayed reachable with its decoded buffer. */
+    live.add(src); src.onended = () => { live.delete(src); releaseDeck(d); };
     if (st.port) st.port.onmessage = e => { if (e && e.data && e.data.type === 'metrics') d.metrics = e.data; };
 
     /* ── the source-time ↔ wall-time map ────────────────────────────
@@ -1368,8 +1415,29 @@ const Player = (() => {
     if (unlocked) { if (nm._unlockReason === 'reach') tempo = nm.bpm; }
     else tempo = settled ? nm.bpm : tempo + (nm.bpm - tempo) * .35;
 
+    armHandover(ni, out);
+  }
+
+  /* The handover timer is a WALL-CLOCK setTimeout aimed at an AUDIO-CLOCK
+     exit, and the two clocks part company the moment pause() suspends the
+     context: currentTime stops, the timer does not. Until 2026-09-01 the
+     timer fired anyway — a pause longer than the rest of the track handed
+     over mid-pause: idx, nowMeta, the card and the route panel named the
+     NEXT track while the paused one was what would resume (ledger 33's
+     class from a new mechanism; review H1, ledger 123), and the next-next
+     deck was chained and its timer armed early by the length of the pause.
+     Now the callback asks the audio clock first. If the exit has not
+     arrived it re-arms for exactly what is left; while suspended that wait
+     is what remains after resume, so the re-armed timer can never fire
+     LATE either — it fires at or before the audio exit and re-arms for the
+     remainder. No statechange listener, no second clock: one question,
+     asked of the clock the sources are scheduled on. */
+  function armHandover(ni, out) {
     clearTimeout(chainTimer);
-    chainTimer = setTimeout(() => handover(ni), (out - ctx.currentTime) * 1000 + 100);
+    chainTimer = setTimeout(() => {
+      if (ctx && ctx.currentTime < out - 0.05) { armHandover(ni, out); return; }
+      handover(ni);
+    }, Math.max(0, (out - ctx.currentTime) * 1000) + 100);
   }
 
   /* The handover: B becomes A, idx moves, the next deck is planned. Named
@@ -1389,7 +1457,7 @@ const Player = (() => {
          only when it is not zero, so a clean set's log stays clean. */
       if (A.gaps > 0) log.unshift('⚠ ' + A.track.meta.name.slice(-30) + ' · ' + A.gaps + ' worklet gap' + (A.gaps === 1 ? '' : 's') + ' (×' + A.rate.toFixed(3) + ')');
       else if (!stretch.held && A.underruns > 60) log.unshift('⚠ ' + A.track.meta.name.slice(-30) + ' · ' + A.underruns + ' worklet underruns incl. warm-up (×' + A.rate.toFixed(3) + ')');
-      A.track.buf = null;                             /* release behind */
+      A.track.buf = null;                             /* the meta's reference; the deck itself is released on its source's `ended` — releaseDeck */
     }
     idx = ni; A = B; B = null; chain();
   }
@@ -1548,8 +1616,17 @@ const Player = (() => {
       if (!A || !ctx) { order = seq; idx = Math.min(idx, seq.length - 1); return 'order replaced · not playing'; }
       if (seq[idx] !== A.track.meta)
         return 'refused: ' + (A.track.meta.name || '?').slice(-30) + ' is playing but is not at index ' + idx;
+      /* a committed route is a NEW array; keep the build's facts on it.
+         `phrase` drives the Player; `mode` and `poolSize` are what inspect()
+         and a saved score report; `leftOut` is the gate's list minus
+         whatever the route just pulled in (review 2026-09-01) */
+      seq.phrase = phrase;
+      if (order && order !== seq) {
+        if (seq.mode === undefined && order.mode !== undefined) seq.mode = order.mode;
+        if (seq.poolSize === undefined && order.poolSize !== undefined) seq.poolSize = order.poolSize;
+        if (seq.leftOut === undefined && Array.isArray(order.leftOut)) seq.leftOut = order.leftOut.filter(t => !seq.includes(t));
+      }
       order = seq;
-      seq.phrase = phrase;                   /* a committed route is a NEW array; keep the mode on it */
       cancelPending();
       const nm = order[idx + 1];
       if (!nm) { await chain(); return 'reordered · nothing after this'; }
@@ -1585,7 +1662,8 @@ const Player = (() => {
        CD player's next does, not a DJ's. Now: decode the next track, leave
        this one at the next downbeat at least 1.2 s out (the same lead
        blendNow and ⚡ blend fast use), and crossfade over the set's xfade.
-       The fade LENGTH is the set's own setting (DW.setXfade, 16 s default),
+       The fade LENGTH is the set's own setting (Player.setXfade — NOT on
+       the DW facade, so today nothing but a harness can move it from 16 s),
        deliberately — "reasonable" is whatever the keeper set for every other
        transition, and a second number for next would be one more chosen
        constant. { cut: true } is the old behaviour, kept for the console and
@@ -1807,7 +1885,7 @@ return {
   async ingest(files, onProgress) {
     await bootEssentia();
     const have = new Set(corpus.map(t => t.id));
-    let added = 0, cached = 0, failed = 0, dupe = 0;
+    let added = 0, cached = 0, failed = 0, dupe = 0, uncached = 0;
     if (!LIB.files) LIB.files = new Map();
     for (let i = 0; i < files.length; i++) {
       if (onProgress) onProgress(i + 1, files.length, files[i].name);
@@ -1826,10 +1904,12 @@ return {
         if (have.has(r.id)) { dupe++; continue; }
         have.add(r.id); corpus.push(r); added++;
         if (r.cached) cached++;
+        if (r.uncached) uncached++;
       } catch (e) { failed++; console.warn(files[i].name, e.message); }
     }
     normalise(corpus);
-    return { seen: files.length, added, cached, failed, duplicates: dupe, corpus: corpus.length };
+    if (uncached) console.warn('deckwave: ' + uncached + ' record(s) could not be written to the analysis cache (storage refused) — they will be re-analysed next load');
+    return { seen: files.length, added, cached, failed, uncached, duplicates: dupe, corpus: corpus.length };
   },
 
   /* Individual tracks, multi-select. showOpenFilePicker takes many files in
@@ -1901,7 +1981,7 @@ return {
     }
     const r = await this.ingest(files, onProgress);
     return { files: files.length, analysed: r.corpus, cached: r.cached,
-             failed: r.failed, added: r.added, duplicates: r.duplicates, via };
+             failed: r.failed, uncached: r.uncached, added: r.added, duplicates: r.duplicates, via };
   },
 
   /* how much to trust the tempo figures, before anyone quotes them */

@@ -417,6 +417,25 @@ ok('clean() requires a SPACED separator, so a title\'s own hyphen survives (F2)'
      dclean ? [dclean('LukHash - 8-Bit Warrior'), dclean('Artist - 8-Bit Warrior'),
                dclean('LukHash - GLITCH - 02 DOOMSDAY')].join(' | ') : 'could not extract the dashboard clean()');
 }
+/* review 2026-09-01 H3 (ledger 124), measured with trusted input: an
+   innerHTML write every frame replaced the ↗ anchor ~60×/s, so a 100 ms
+   press landed mousedown and mouseup on two different nodes and the browser
+   fired no click at all; the same press with no frame between opened the
+   page. The line is written only when its composed key changes. [text]:
+   the innerHTML write must sit inside the key gate, and every other write
+   to the line must reset the key so the next play rewrites it. */
+{
+  const gate = npSrc2.indexOf('if (metaKey !== lastMetaKey)');
+  const write = npSrc2.indexOf("$('npM').innerHTML");
+  const closeOfGate = gate > 0 ? npSrc2.indexOf('\n    }\n', gate) : -1;
+  const otherWrites = npSrc2.split('\n').filter(l => /\$\('npM'\)\.textContent = '/.test(l)).map(l => l.trim());
+  ok('[text] the card\'s metadata line (and its ↗ anchor) is written only when its key changes, never per frame',
+     gate > 0 && write > gate && write < closeOfGate && /let lastMetaKey = ''/.test(npSrc2),
+     'an innerHTML write outside the key gate rebuilds the anchor every frame and the link cannot be clicked');
+  ok('…and every other write to that line resets the key so the next play rewrites it',
+     otherWrites.length >= 2 && otherWrites.every(l => /lastMetaKey = ''/.test(l)),
+     'a stale key would leave "stopped · cued" on the card after ▶: ' + otherWrites.join(' | '));
+}
 ok('the spectrum-bar loop lives in ONE place - the track path calls drawBars() like the other two (F6)',
    (npSrc2.match(/const lo = Math\.floor\(Math\.pow\(i \/ nb, 2\.2\)/g) || []).length === 1
    && /^\s*drawBars\(D\);\s*$/m.test(npSrc2),

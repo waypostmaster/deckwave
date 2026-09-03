@@ -208,11 +208,16 @@ try { const c = JSON.parse(localStorage.getItem('dw-speech') || 'null');
       if (c && typeof c === 'object') Object.assign(speechCfg, c); } catch (e) {}
 function configureSpeech(patch) {
   const p = patch || {};
-  if (p.duck != null)  speechCfg.duck  = Math.max(0.05, Math.min(1, +p.duck || 0.55));
-  if (p.rate != null)  speechCfg.rate  = Math.max(0.5, Math.min(2, +p.rate || 1));
-  if (p.pitch != null) speechCfg.pitch = Math.max(0, Math.min(2, +p.pitch || 0.85));
+  /* `+v || default` threw away a legal ZERO: volume 0 became 1, so the
+     mixer's voice fader at 0% spoke at FULL volume while reading silent
+     (review 2026-09-01 M1, ledger 123). A number is a number, including
+     0; only a non-number falls back. */
+  const num = (v, d) => (isFinite(+v) && v !== '' && v !== null) ? +v : d;
+  if (p.duck != null)  speechCfg.duck  = Math.max(0.05, Math.min(1, num(p.duck, 0.55)));
+  if (p.rate != null)  speechCfg.rate  = Math.max(0.5, Math.min(2, num(p.rate, 1)));
+  if (p.pitch != null) speechCfg.pitch = Math.max(0, Math.min(2, num(p.pitch, 0.85)));
   if (p.voice !== undefined) speechCfg.voice = p.voice ? String(p.voice).slice(0, 40) : null;
-  if (p.volume != null) speechCfg.volume = Math.max(0, Math.min(1, +p.volume || 1));
+  if (p.volume != null) speechCfg.volume = Math.max(0, Math.min(1, num(p.volume, 1)));
   try { localStorage.setItem('dw-speech', JSON.stringify(speechCfg)); } catch (e) {}
   const v = pickVoice();
   return say('voice set - duck ' + speechCfg.duck + 'x · pitch ' + speechCfg.pitch + ' · rate ' + speechCfg.rate

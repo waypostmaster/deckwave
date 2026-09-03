@@ -174,6 +174,14 @@ ok('the app is boot/teardown symmetrical (registered timers, cleared on teardown
    /window\.RECONAPP = /.test(appSrc) && /const timers = \[\], subs = \[\];/.test(appSrc)
    && /while \(timers\.length\) clearInterval\(timers\.pop\(\)\);/.test(appSrc),
    'an unregistered interval would survive a swap and double up');
+/* review 2026-09-01 M8: the composer lives in the SHELL, so a listener on
+   it outlives a swap unless teardown removes it. Every addEventListener on
+   a shell element must have a matching removeEventListener in subs. */
+ok('every shell-element listener the app adds is removed on teardown (visibilitychange AND the composer keydown)',
+   /subs\.push\(\(\) => document\.removeEventListener\('visibilitychange', onVis\)\)/.test(appSrc)
+   && /subs\.push\(\(\) => \$\('say'\)\.removeEventListener\('keydown', onSayKey\)\)/.test(appSrc)
+   && !/\$\('say'\)\.addEventListener\('keydown', e =>/.test(appSrc),
+   'after one hot swap, Enter in the composer fires the OLD instance first and its stale inbox overwrites the live one');
 ok('intervals go through iv(), with ONE stated exception: the boost restore poller — utterance-scoped, self-clearing, must outlive a mid-utterance swap to restore the volume',
    (appSrc.match(/setInterval\(/g) || []).length === 2 && /clearInterval\(back\)/.test(appSrc)
    && /ticks > 300/.test(appSrc),
@@ -184,8 +192,24 @@ ok('the shell evaluates ONLY its own ./recon-app.js (one indirect eval, one code
    'a second eval site or a foreign code source is the RCE door this design refuses');
 ok('the reload directive is ts-gated and never renders',
    /o\.reload === true/.test(appSrc) && /dw-recon-appts/.test(appSrc)
-   && /String\(o\.ts \|\| ''\) > prev/.test(appSrc),
+   && /const t = Date\.parse\(ts\), p = Date\.parse\(prev\)/.test(appSrc) && /t <= p/.test(appSrc),
    'an old reload line would re-fire on every boot, or reload records would show as rows');
+/* review 2026-09-01 M9, three halves: (a) numeric ts with a future bound —
+   a lexical compare let "9999-…" wedge hot-swap for good; (b) the ts is
+   consumed only when the swap HAPPENED — on failure the previous value is
+   restored and the line forgotten so it can land again; (c) the failure is
+   SAID on screen, not in a console the phone cannot see. */
+ok('a reload ts is numeric, bounded to 10 min of future skew, and refused when unparseable',
+   /isFinite\(t\) && t <= Date\.now\(\) \+ 600000/.test(appSrc) && !/String\(o\.ts \|\| ''\) > prev/.test(appSrc),
+   'a "9999-…" line, or a lexical compare, poisons the gate until localStorage is cleared by hand');
+ok('a failed swap restores the previous ts, forgets the line, and puts the failure on the staleness line',
+   /localStorage\.setItem\('dw-recon-appts', prev\)/.test(appSrc) && /seen\.delete\(rk\)/.test(appSrc)
+   && /swapNote = 'upgrade failed/.test(appSrc) && /if \(swapNote\) \{ el\.className = 'bad'; el\.textContent = swapNote; return; \}/.test(appSrc),
+   'a 404 eats the line for good and the operator sees nothing change');
+ok('the shell reports whether the swap happened (false on !r.ok and on a throw)',
+   /if \(!r\.ok\) \{[^}]*return false; \}/.test(shell) && /console\.log\('\[recon\] app booted'\);\s*return true;/.test(shell)
+   && /upgrade failed', e\); return false; \}/.test(shell),
+   'the app cannot tell a swap that happened from one that was refused');
 ok('teardown never touches the deck iframe (the music is the point)',
    !/dw'\)/.test((appSrc.split('function teardown')[1] || '').split('return')[0]),
    'a teardown that reaches the iframe kills the set on every upgrade');

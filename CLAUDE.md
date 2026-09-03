@@ -586,11 +586,17 @@ the BASE and the CONSOLE EXTENSION.**
   inert there (LISTENING §7). Six harnesses now: `check-phone` 25.
 - **Two builds** (`all tracks` / `best matches`); best matches confirmed by
   ear once (Moments → Alive → FINAL CHAPTER → ROCK 64).
-- **Twelve harnesses, all green:** `node tools/check-pool.js` 43, `check-route`
-  18, `check-player` 59, `check-panels` 95, `check-phone` 67, `check-phrase`
-  48, `check-libre` 88, `check-flac` 11 (needs the library on disk),
-  `check-popout` 16, `check-events` 42, `check-recon` 109, `check-citywalk` 50
-  — 646 in all, re-counted 2026-08-30 rather than inherited. Run them before and after
+- **Thirteen harnesses, all green:** `node tools/check-pool.js` 44, `check-route`
+  19, `check-player` 70, `check-panels` 97, `check-phone` 67, `check-phrase`
+  48, `check-libre` 89, `check-flac` 11 (needs the library on disk),
+  `check-popout` 16, `check-events` 45, `check-recon` 113, `check-citywalk` 50,
+  `check-serve` 25 (2026-09-01, ledger 122 — the one harness that starts a REAL
+  process: `serve.py` on a free port, asked over a socket, because the
+  short-name bypass was invisible to any text check)
+  — 694 in all, re-counted 2026-09-01 rather than inherited (ledger 123's
+  batch added 18, ledger 124's measurements 8). **Three go red without the library, on purpose:**
+  `check-flac`, `check-pool`, `check-route` each fail ONE check that says the
+  corpus is the one under test — they used to pass on a fallback. Run them before and after
   anything. **Every harness ends on the same line — `all passed of N checks` —
   and that uniformity is load-bearing, not tidiness.** A twelfth briefly printed
   a prettier variant; one regex over all twelve scored it ZERO and reported 560

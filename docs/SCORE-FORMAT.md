@@ -24,19 +24,24 @@ This is exactly the problem tracker modules have always had: without a normative
   "version": 1,
   "generated": "2026-08-17T02:49:56.242Z",
   "engine": {
-    "sequencer": "rolling-tempo target, camelot + energy arc, hard stretch gate",
+    "mode": "all",
+    "phrase": false,
+    "sequencer": "rolling-tempo target, camelot + energy arc, hard stretch gate; a track the gate cannot reach, or whose grid disagrees with its tempo, plays STRAIGHT",
     "drift": 0.35,
     "xfadeSec": 16,
     "maxStretch": 0.08,
-    "detector": "essentia.js RhythmExtractor2013 multifeature",
+    "maxGridErrPct": 9,
+    "detector": "essentia.js RhythmExtractor2013 multifeature, whole track (key/rms: centred 120s excerpt)",
     "keyDetector": "essentia.js KeyExtractor",
     "stretch": "SoundTouchJS AudioWorklet 2.1.1 — source playbackRate = rate, worklet restores pitch",
-    "transition": "downbeat-aligned crossfade with 3-band bass swap",
+    "transition": "downbeat-aligned crossfade with 3-band bass swap; straight tracks crossfade on the clock, unaligned",
+    "phraseDetector": null,
     "downbeat": "assumed every 4th beat from first — no downbeat detection",
     "determinism": "depends on identical engine builds; NOT cross-browser tested"
   },
   "summary": {
     "tracks": 99, "runtimeSec": 11815,
+    "libre": 0, "noDerivatives": 0,
     "tempoStart": 100.14, "tempoEnd": 150.48,
     "straight": 5, "maxStretchPct": 7.77
   },
@@ -58,14 +63,21 @@ This is exactly the problem tracker modules have always had: without a normative
 | `straight` | **added 2026-08-19.** `null` for a beatmatched track; `"grid"` when its beat grid disagrees with its tempo label by more than `engine.maxGridErrPct`, `"reach"` when the set could not stretch to it. A straight track plays at its own speed from `0`, crossfades on the clock with no beat alignment, and — if `"reach"` — repositions the rolling tempo to its own BPM |
 | `rate` | tempo multiplier applied at playback. `1` for a straight track |
 | `stretchPct` | the same as a percentage, for humans. **`null` for a straight track** — not `0`, because `0` reads as the best transition in the set and a straight track is not a transition of that kind |
-| `entrySec` | seek offset — the track's first detected beat, or `0` for a straight track |
-| `exitSec` | when to begin the outgoing fade, snapped to a downbeat (straight: on the clock) |
+| `entrySec` | seek offset — the track's first detected beat; in phrase mode (`engine.phrase`) the first 8-bar phrase start when one is known; `0` for a straight track |
+| `exitSec` | when to begin the outgoing fade, snapped to a downbeat (phrase mode: the last phrase start; straight: on the clock) |
 | `dwellSec` | **added 2026-08-19.** Only on a stepping stone of a committed fast route: how long it plays before the next blend, after the engine floor is applied. `null` otherwise |
+| `phraseBar` | **added 2026-08-19 (phrase match).** The detected 8-bar offset (0–7) DWPHRASE stamped on the track at play time, or `null` when not yet known or not applicable (non-phrase build, straight track) |
+| `phraseContrast` | the detector's own ratio beside that offset (worst within-phrase variance over best; 1 = no preference). **Comparable to nothing outside DWPHRASE; no threshold is applied on it.** `null` with `phraseBar` |
+| `onPhrase` | phrase builds only: `true` when THIS step's entry and exit are phrase-aligned in the plan (its `xfadeSec` is then one phrase, not the set's xfade); `false` when it took the downbeat path; `null` on other builds |
 | `atSec` | position in the finished mix |
 | `xfadeSec` | crossfade length |
 | `bassSwapSec` | when the outgoing low shelf drops |
 | `durSec` | full track duration |
 | `source` | **added 2026-08-19 (late).** `null` for a local file. For a track fetched from a libre source (`⊕ libre`, DWLIBRE): `{kind, item, page, creator, release, licence, licenceName, noDerivatives, file, format}` — `licence` is the URL the Internet Archive records for the item, `licenceName` its short form (`CC BY-NC-SA 3.0`, `CC0`, `public domain`) or `null` when the URL is not one the table recognises, `noDerivatives` true for `-nd` terms, `page` the item's archive.org page. **Most CC licences require attribution, so a score that holds such a track carries the terms with it**; `load()` puts them back on the matched record, `summary.libre` counts them and `summary.noDerivatives` the `-nd` ones, and the cue sheet prints `REM ATTRIBUTION "creator / release / licence / page"` per such track |
+
+### The engine block, since 2026-08-19
+
+Additive fields a reader of the original shape will not have seen: `mode` (`all` / `best` / `phrase` — the build that produced the order; `load()` puts it back), `phrase` (whether the Player leaves and enters on 8-bar phrase starts), `maxGridErrPct` (the grid cut that decides `straight: "grid"`, read from the live engine at write time), and `phraseDetector` (the DWPHRASE version and method when `phrase` is true, else `null`). `sequencer`, `detector` and `transition` are longer sentences than the ones above and say the same things plus the straight-track rule. In `summary`, `libre` counts steps that carry a `source` and `noDerivatives` the ones under `-nd` terms.
 
 ## Reading it honestly
 

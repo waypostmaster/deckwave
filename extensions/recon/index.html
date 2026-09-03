@@ -319,14 +319,18 @@ let app = null;
 window.__loadApp = async function () {
   try {
     const r = await fetch('./recon-app.js?b=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) return;
+    /* returns whether the swap HAPPENED, so the app that asked for it can
+       put a failure on screen and keep the reload line for another try
+       (review 2026-09-01 M9) */
+    if (!r.ok) { console.error('[recon] upgrade refused: HTTP ' + r.status); return false; }
     const src = await r.text();
     if (app && app.teardown) { try { app.teardown(); } catch (e) {} }
     (0, eval)(src);
     app = window.RECONAPP;
     if (app && app.boot) app.boot();
     console.log('[recon] app booted');
-  } catch (e) { console.error('[recon] upgrade failed', e); }
+    return true;
+  } catch (e) { console.error('[recon] upgrade failed', e); return false; }
 };
 window.__loadApp();
 </script>

@@ -121,6 +121,7 @@ const mmss  = s => Math.floor(Math.max(0, s) / 60) + ':' +
                    String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0');
 
 let sr = null, box = null, $ = null;
+let lastMetaKey = '';              /* the card's metadata line as last written — see update(): written on change, never per frame */
 
 return {
   mount(dash) {
@@ -202,7 +203,7 @@ return {
     if (!st.now && L && L.active) {
       const vu = D.vu, stereo = D.stereo;
       $('npT').textContent = 'listening · ' + String(L.source || 'input').slice(0, 42);
-      $('npM').textContent = 'external source · visuals only, no analysis';
+      $('npM').textContent = 'external source · visuals only, no analysis'; lastMetaKey = '';
       const cell = (id, lab, val) => { const b = $(id); if (b) b.textContent = val; gridLabel(id, lab); };
       /* The register readout is taken from the header, which the render loop
          already maintains — calling DWREGISTER.update() again here would drive
@@ -240,7 +241,7 @@ return {
        gain ramps and the elapsed clock are attached to. */
     if (!st.now) {
       $('npT').textContent = clean(t.name).slice(0, 54);
-      $('npM').textContent = 'stopped · cued at ' + (st.idx + 1) + ' of ' + st.of;
+      $('npM').textContent = 'stopped · cued at ' + (st.idx + 1) + ' of ' + st.of; lastMetaKey = '';
       $('npB').style.width = '0%';
       $('npXf').style.display = 'none'; $('npMk').style.display = 'none';
       $('npBar').classList.remove('now');
@@ -281,18 +282,31 @@ return {
        page come from a fetched file or a loaded score, so both are escaped. */
     /* the HOST gets named too \u2014 keeper: "add the hosting provider slug
        like 'from archive.org' - I want them to get credit" */
-    if (t.source && safeHref(t.source.page)) {
-      $('npM').innerHTML = esc(npMeta) + ' \u00b7 <a href="' + esc(safeHref(t.source.page))
-        + '" target="_blank" rel="noopener" style="color:inherit">\u2609 '
-        + esc((t.source.creator || t.source.item || '') + ' \u00b7 '
-            + (t.source.licenceName || t.source.licence || 'licence unknown')
-            + (t.source.kind ? ' \u00b7 from ' + t.source.kind : ''))
-        + ' \u2197</a>';
-    } else {
-      $('npM').textContent = npMeta
-        + (t.source ? ' \u00b7 \u2609 ' + (t.source.creator || t.source.item || '')
-            + ' \u00b7 ' + (t.source.licenceName || t.source.licence || 'licence unknown')
-            + (t.source.kind ? ' \u00b7 from ' + t.source.kind : '') : '');
+    /* WRITE ONLY WHEN THE LINE CHANGES. update() runs every frame, and an
+       innerHTML write every frame replaces the anchor ~60 times a second
+       \u2014 a human click's mousedown and mouseup then land on two DIFFERENT
+       anchor nodes and the browser fires NO click at all. Measured
+       2026-09-01 with trusted input (review H3, ledger 124): a 100 ms
+       press on \u2197 opened nothing, mouseup on a fresh node, no click event;
+       the same press with no frame between opened the Archive page. This
+       is ledger 94's shape (tooltips could never physically open) on the
+       one link the keeper asked for. The composed string is the key; a
+       write happens at a track change or a metrics change, not per frame. */
+    const srcLine = t.source
+      ? ' \u00b7 \u2609 ' + (t.source.creator || t.source.item || '')
+        + ' \u00b7 ' + (t.source.licenceName || t.source.licence || 'licence unknown')
+        + (t.source.kind ? ' \u00b7 from ' + t.source.kind : '')
+      : '';
+    const page = t.source && safeHref(t.source.page);       /* scheme-gated here, once; esc() at the sink is for the markup */
+    const metaKey = (page ? 'A' : 'T') + '|' + (page || '') + '|' + npMeta + srcLine;
+    if (metaKey !== lastMetaKey) {
+      lastMetaKey = metaKey;
+      if (page) {
+        $('npM').innerHTML = esc(npMeta) + ' \u00b7 <a href="' + esc(page)
+          + '" target="_blank" rel="noopener" style="color:inherit">' + esc(srcLine.slice(3)) + ' \u2197</a>';
+      } else {
+        $('npM').textContent = npMeta + srcLine;
+      }
     }
 
     /* THE DECK'S RATE, NOT THE PLAN'S. `t._stretch` is what sequence() or
@@ -368,7 +382,8 @@ return {
     const b = $('npBlend');
     if (transLeft != null && nx) {
       b.className = 'blend' + (transLeft < 20 ? ' soon' : '');
-      /* the crossfade length comes off the schedule (DW.setXfade is live);
+      /* the crossfade length comes off the schedule (Player.setXfade exists;
+         it is not on the DW facade, so nothing in the UI can move it yet);
          a straight incoming track is not downbeat-aligned and must not say so */
       const xs = B ? Math.round(B.xfade) : 16;
       b.innerHTML = transLeft <= 0

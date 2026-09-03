@@ -897,7 +897,8 @@ function mount(hostEl) {
         (i, n, nm) => l(i + '/' + n + ' ' + nm.slice(0, 40)));
       l(r.added + ' added · ' + r.corpus + ' in corpus'
         + (r.duplicates ? ' · ' + r.duplicates + ' already had' : '')
-        + (r.failed ? ' · ' + r.failed + ' failed' : ''));
+        + (r.failed ? ' · ' + r.failed + ' failed' : '')
+        + (r.uncached ? ' · ' + r.uncached + ' not cached (storage refused — re-analysed next load)' : ''));
     } catch (err) { l(String((err && err.message) || err)); }
   });
 
@@ -1275,6 +1276,7 @@ function buildTransport(dash) {
       log(r.added + ' added · ' + r.analysed + ' in corpus · ' + r.cached + ' cached'
         + (r.duplicates ? ' · ' + r.duplicates + ' already had' : '')
         + (r.failed ? ' · ' + r.failed + ' failed' : '')
+        + (r.uncached ? ' · ' + r.uncached + ' not cached (storage refused — re-analysed next load)' : '')
         + (r.via === 'files-input' ? ' · picked as files — this browser cannot pick a folder' : ''));
     } catch (e) {
       /* Cancelling the picker rejects with AbortError. Uncaught, that left an
@@ -1295,7 +1297,8 @@ function buildTransport(dash) {
       const r = await window.DW.addFiles((i, n, nm) => log(i + '/' + n + ' ' + nm.slice(0, 40)));
       log(r.added + ' added · ' + r.corpus + ' in corpus'
         + (r.duplicates ? ' · ' + r.duplicates + ' already had' : '')
-        + (r.failed ? ' · ' + r.failed + ' failed' : ''));
+        + (r.failed ? ' · ' + r.failed + ' failed' : '')
+        + (r.uncached ? ' · ' + r.uncached + ' not cached (storage refused — re-analysed next load)' : ''));
     } catch (e) {
       log(e && e.name === 'AbortError' ? 'cancelled' : String((e && e.message) || e));
     } finally { if (PH()) PH().release('scan'); }

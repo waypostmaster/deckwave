@@ -37,7 +37,23 @@
    processCore below is the vendored one with two lines added; the pitch
    formula, the interleave, the extract call are byte-for-byte its own.
    HOLD is a count of render blocks, not a calibration: it was measured at
-   1 and 2 (both zero gaps) and 0 (the vendored behaviour).
+   1 and 2 (both zero gaps) and 0 (the vendored behaviour). Since
+   2026-09-01 the wrapper also answers a {type:'release'} message by
+   returning false from process() — the vendored one never does, and a
+   node that never returns false is never collected (ledger 124).
+
+   LICENCE. In `assets/deckwave-stretch.module.js` everything ABOVE this
+   comment is SoundTouchJS 2.1.1's AudioWorklet processor
+   (`vendor/soundtouch-processor.js`, unmodified), © its authors, under
+   the Mozilla Public License 2.0 — the full text is
+   `vendor/LICENSE.soundtouch-processor.txt`, provenance and hash in
+   `vendor/README.md` and `NOTICE`. That seam is the only place the two
+   texts meet. Everything from this comment down is Deckwave's wrapper,
+   under the project LICENSE (AGPL-3.0); the two lines it adds inside the
+   vendored processCore are described above and are the whole of the
+   Modification in MPL terms. This paragraph is here, in the wrapper,
+   because check-player pins the module as vendored text + newline + this
+   file, so a notice hand-added to the module would be a drift.
    ───────────────────────────────────────────────────────────────────────── */
 (function () {
   'use strict';
@@ -49,6 +65,25 @@
       this._primed = false;     /* first extraction not yet made */
       this._after = 0;          /* full blocks seen since the first burst */
       this._gaps = 0;           /* zero-filled blocks AFTER priming — the number that matters */
+      /* THE DOOR OUT (2026-09-01, review H2, ledger 124). The vendored
+         process() returns true unconditionally — "always true to keep the
+         processor alive" — so a node built on it is never collected: after
+         a handover it kept running WSOLA on silence, and its port handler
+         kept the deck, the source and the decoded buffer reachable (~87 MB
+         per handover, measured). The Player posts {type:'release'} when a
+         deck's source has ended; from the next block process() returns
+         false and the node can go. The vendored handler is CHAINED, not
+         replaced: its own messages still reach it. */
+      this._released = false;
+      const vendored = this.port ? this.port.onmessage : null;
+      if (this.port) this.port.onmessage = (event) => {
+        if (event && event.data && event.data.type === 'release') { this._released = true; return; }
+        if (vendored) vendored(event);
+      };
+    }
+    process(inputs, outputs, parameters) {
+      if (this._released) return false;
+      return super.process(inputs, outputs, parameters);
     }
     processCore(inputs, outputs, parameters) {
       const input = inputs[0];

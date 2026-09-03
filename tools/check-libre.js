@@ -373,6 +373,20 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   ok('demo: a score with no libre sources refuses instead of guessing',
      demoThrew && /no libre sources/.test(demoThrew.message) && (await DW.skip()) === 'real skip',
      'refusal must also restore the transport: ' + (demoThrew && demoThrew.message));
+  /* review 2026-09-01 M2 (ledger 123): a second demo() while one is arriving
+     used to save the FIRST run's hold stub as "the original" and restore
+     it, so play/skip/back/blendNow/queueNext answered "still arriving"
+     until reload. Falsifier: the second call runs, or the transport is a
+     stub afterwards. */
+  DW.corpus.length = 0; ingested.length = 0;
+  const firstDemo = L.demo({ score: demoScore, log: () => {} });
+  let secondDemo = null;
+  try { await L.demo({ score: demoScore, log: () => {} }); } catch (e) { secondDemo = e; }
+  await firstDemo;
+  const skipAfter = await DW.skip();
+  ok('demo: a second demo while one is arriving is REFUSED, and the transport is real afterwards',
+     secondDemo && /already arriving/.test(secondDemo.message) && skipAfter === 'real skip',
+     'second: ' + (secondDemo ? secondDemo.message : 'ran') + ' · skip afterwards: ' + skipAfter);
   ok('[text] the dashboard has the ▶ demo button and it adopts the returned set',
      /btn\('▶ demo'/.test(read('assets/deckwave-dashboard.js')) && /dash\.set = r\.set;/.test(read('assets/deckwave-dashboard.js')),
      'the demo must land in the dashboard set or the list and deck part ways (ledger 40\'s class)');
@@ -383,15 +397,20 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   ok('[text] the handover log line names the source terms', /nm\.source \? ' ☉ '/.test(eng), 'log hook missing');
   const npSrc = read('assets/deckwave-nowplaying.js');
   ok('[text] the now-playing card prints creator · licence and LINKS OUT to the serving page — through a SCHEME-GATED href, because esc() cannot make an href safe',
-     /t\.source && safeHref\(t\.source\.page\)/.test(npSrc) && /target="_blank" rel="noopener"/.test(npSrc)
-     && /esc\(safeHref\(t\.source\.page\)\)/.test(npSrc)
+     /const page = t\.source && safeHref\(t\.source\.page\)/.test(npSrc) && /target="_blank" rel="noopener"/.test(npSrc)
+     && /href="' \+ esc\(page\)/.test(npSrc) && !/href="' \+ esc\(t\.source\.page\)/.test(npSrc)
      && /p === 'http:' \|\| p === 'https:'/.test(npSrc),
      'card hook missing, or the linkout is absent, or the href takes the score\'s URL with escaping alone — entities decode before the URL runs, so an escaped javascript: link from a hostile score still executes on click (ultra review F1). This check used to PIN the vulnerable shape.');
   ok('[text] a source without a page still prints as text, not an empty link',
-     /t\.source \? ' (·|\\u00b7) (☉|\\u2609) '/.test(npSrc),
+     /const srcLine = t\.source\s*\? ' (·|\\u00b7) (☉|\\u2609) '/.test(npSrc) && /\$\('npM'\)\.textContent = npMeta \+ srcLine/.test(npSrc),
      'the textContent fallback for a page-less source is gone');
   ok('[text] the HOST is credited — "from archive.org" on the card (both branches) and the handover log line',
-     (npSrc.match(/t\.source\.kind \? ' (·|\\u00b7) from ' \+ t\.source\.kind/g) || []).length === 2
+     /* since 2026-09-01 the line is composed ONCE (srcLine) and both
+        branches use it — the anchor takes it minus its leading ' · ', the
+        text branch whole — so the host credit is written in one place and
+        reaches both (ledger 124's change-keyed write) */
+     (npSrc.match(/t\.source\.kind \? ' (·|\\u00b7) from ' \+ t\.source\.kind/g) || []).length === 1
+     && /esc\(srcLine\.slice\(3\)\)/.test(npSrc) && /npMeta \+ srcLine/.test(npSrc)
      && /nm\.source\.kind \? ' (·|\\u00b7) from ' \+ nm\.source\.kind/.test(eng),
      'the keeper asked for the hosting provider slug so the host gets credit; kind is the slug ("archive.org")');
   const panelSrc = read('assets/deckwave-libre.js');

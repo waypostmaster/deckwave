@@ -187,6 +187,14 @@ E.wire({ log: s => calls.logs.push(s), set: () => SET,
   ok('configureSpeech patches and reports the resolved voice',
      /0\.7x/.test(cfgMsg) && /Google US English/.test(cfgMsg) && E.speech.duck === 0.7 && E.speech.resolvedVoice === 'Google US English', cfgMsg);
   E.configureSpeech({ duck: 0.55, pitch: 0.85, voice: null });
+  /* review 2026-09-01 M1 (ledger 123): `+v || default` turned a legal 0
+     into the default — the mixer's voice fader at 0% spoke at FULL volume */
+  E.configureSpeech({ volume: 0 });
+  ok('configureSpeech keeps a legal zero (volume 0 is silent, not full)', E.speech.volume === 0, 'volume ' + E.speech.volume);
+  E.configureSpeech({ pitch: 0 });
+  ok('…and pitch 0 is 0, not the default', E.speech.pitch === 0, 'pitch ' + E.speech.pitch);
+  E.configureSpeech({ volume: 'loud', pitch: 0.85 });
+  ok('…while a non-number falls back to the default rather than NaN', E.speech.volume === 1 && E.speech.pitch === 0.85, 'volume ' + E.speech.volume);
   const nu = utts.length;
   E.speakAgain();
   ok('speakAgain repeats the last spoken line with current settings', utts.length === nu + 1 && utts[nu].text === 'voice check',
