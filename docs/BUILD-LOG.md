@@ -3048,3 +3048,34 @@ of the two sites had said, in capitals, not to put backticks there — the
 paragraph-that-asks shape from the 2026-08-30 note, again, and again it
 was the gate that ended it, not the note. The 0.8.1 package stays in
 `_source/` marked as the counter-example, beside 0.5.0.
+
+## Act 42 — Two links out of the deck, and the gate collects (2026-09-05)
+
+The keeper: *"How about a link in the app to the youtube channel so people
+can see how it works? Not too obtrusive."* Then, in the same breath,
+bandcamp. Two anchors in the header, pushed past the last readout by
+`margin-left:auto`, dim until hovered: `▶ sets` to
+`youtube.com/@deckwave-app` and `records` to `bandcamp.com/deckwave`.
+
+**Ledger 133 — the ledger 132 gate caught its own class within two days,
+on the session that wrote the bug.** The CSS comment above those rules
+quoted `margin-left:auto` in backticks. Inside a CSS template literal.
+The file parsed and threw on load, `DWDASH` never hung, and the load
+sweep added in 0.8.2 named it in one run — *"a module compiled and threw
+at load"*, `["assets/deckwave-dashboard.js: Unexpected identifier
+'margin'"]`. Written down in capitals three feet away and done anyway,
+which is the whole argument for the gate rather than the paragraph: the
+note did not stop the hand, and the gate cost one minute. Nothing was
+shipped, so this is a row about the instrument working, not a defect.
+
+Five checks in `check-panels` (196 → 201). The one that matters is not
+that the anchors exist, it is `target="_blank"` on **every** anchor in
+the block: a same-tab outbound link on this page destroys the loaded set,
+and there is no getting an analysed library back. Run against
+`git show HEAD:assets/deckwave-dashboard.js` all five fail. **992 → 997.**
+
+Hit-tested with `elementFromPoint` inside the shadow root at both desktop
+and, through an iframe at a real 390 px viewport, phone width: the bar
+wraps to two rows, the links land on the second, right-aligned, inside
+the viewport, and each one hit-tests to itself. Nothing here was heard,
+because there is nothing here to hear.

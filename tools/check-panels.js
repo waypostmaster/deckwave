@@ -623,6 +623,42 @@ ok('the data-side / data-dense rules exist once (F5)',
    && (dashSrc.match(/\.app\[data-dense="1"\] \.strip\{/g) || []).length === 1,
    'two byte-identical copies with equal specificity: the later silently wins and an edit to the earlier one does nothing');
 
+console.log('\n── the two outbound links in the header ──');
+/* Added 2026-09-05 (keeper: "a link in the app to the youtube channel so
+   people can see how it works … 'about you' for bandcamp"). Two anchors, and
+   the check that matters is NOT that they exist — it is `target="_blank"`.
+   An outbound link on this page without it navigates the deck away, and a
+   reload DESTROYS the loaded set (CLAUDE.md says so twice); there is no back
+   button for an analysed library. That is the failure mode a person would
+   find by losing an hour of work, so it gets a gate rather than a comment.
+
+   The anchors are pulled out of the .lk block and each one is checked, so
+   adding a third link without a target fails here rather than passing on the
+   strength of the other two. */
+{
+  const lk = (dashSrc.split('<div class="lk">')[1] || '').split('</div>')[0];
+  const anchors = lk.match(/<a\b[\s\S]*?<\/a>/g) || [];
+  const href = a => (a.match(/href="([^"]+)"/) || [, ''])[1];
+  ok('the header carries the two outbound links',
+     anchors.length === 2
+     && anchors.some(a => /^https:\/\/www\.youtube\.com\/@deckwave-app$/.test(href(a)))
+     && anchors.some(a => /^https:\/\/bandcamp\.com\/deckwave$/.test(href(a))),
+     'the .lk block holds ' + anchors.length + ' anchor(s): ' + anchors.map(href).join(' | '));
+  ok('…and EVERY one opens in a new tab',
+     anchors.length > 0 && anchors.every(a => /target="_blank"/.test(a)),
+     'a same-tab outbound link on the deck destroys the loaded set and the whole analysis session with it — the one loss this page cannot undo');
+  ok('…and every one is rel=noopener, like every other external anchor here',
+     anchors.length > 0 && anchors.every(a => /rel="noopener"/.test(a)),
+     'the opened page gets a live window.opener handle on the deck');
+  ok('…and every href is an absolute https URL, not a path the deck would resolve against itself',
+     anchors.length > 0 && anchors.every(a => /^https:\/\//.test(href(a))),
+     'a relative or protocol-less href lands on deckwave.fm and reloads the app: ' + anchors.map(href).join(' | '));
+  ok('the links are the LAST thing in the header, past the readouts',
+     dashSrc.indexOf('<div class="lk">') > dashSrc.indexOf("['bass hits','kHit']")
+     && /\.bar \.lk\{margin-left:auto/.test(dashSrc),
+     'without margin-left:auto they sit against the last figure and read as another readout');
+}
+
 console.log('\n── the status line, after the keeper saw a stale countdown ──');
 /* Keeper, 2026-08-29, live in the console: "there is some stale text,
    'blending in 1.5s …'" — the text that persists after choosing a new set

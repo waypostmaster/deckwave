@@ -73,6 +73,16 @@ const CSS = `
   padding:8px 12px;background:var(--surf);border-bottom:1px solid var(--ac2);flex-wrap:wrap}
 .bar h1{font-size:clamp(11px,1.4vw,15px);letter-spacing:.3em;color:var(--ac2);
   text-shadow:0 0 calc(10px*var(--glow)) var(--ac2);font-weight:700}
+/* THE ONLY TWO OUTBOUND LINKS ON THE DECK. margin-left:auto puts them past
+   the last readout rather than between the title and the live figures, and
+   they are dim until hovered: a link on an instrument must not compete with
+   the numbers. Both open in a new tab, and that is not decoration — a
+   same-tab navigation here DESTROYS the loaded set, which is the one thing
+   this page cannot get back. check-panels asserts the target. */
+.bar .lk{margin-left:auto;display:flex;gap:clamp(8px,1.4vw,16px);align-items:center}
+.bar .lk a{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+  text-decoration:none;white-space:nowrap;border-bottom:1px solid transparent;padding-bottom:1px}
+.bar .lk a:hover,.bar .lk a:focus-visible{color:var(--ac);border-bottom-color:var(--ac)}
 .kv{display:flex;flex-direction:column;line-height:1.15}
 .kv u{text-decoration:none;font-size:7.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
 .kv b{font-size:clamp(11px,1.3vw,15px);color:var(--ac);font-weight:500;
@@ -465,6 +475,12 @@ function mount(hostEl) {
      ${[['track','kPos'],['tempo','kBpm'],['key','kKey'],['stretch','kStr'],
         ['bass hits','kHit'],['register','kReg']]
         .map(([l,i]) => `<div class="kv"><u>${l}</u><b id="${i}">-</b></div>`).join('')}
+     <div class="lk">
+       <a href="https://www.youtube.com/@deckwave-app" target="_blank" rel="noopener"
+          title="Deckwave sets on YouTube — the deck running, unnarrated, every panel drawing the audio as it plays">&#9654; sets</a>
+       <a href="https://bandcamp.com/deckwave" target="_blank" rel="noopener"
+          title="The LukHash records this was built for. Buy them.">records</a>
+     </div>
    </div>
    <div class="nowline" id="nowline"></div>
    <div class="main">
