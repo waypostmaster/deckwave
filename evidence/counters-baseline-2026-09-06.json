@@ -1,0 +1,263 @@
+{
+ "what": "Baseline of every countable surface, so a later read can be DIFFERENCED. Ledger 135.",
+ "captured_utc": "2026-09-06T22:37:50Z",
+ "provenance": "MEASURED \u2014 every number fetched live at capture time, not carried.",
+ "how_to_use": "Re-run tools that produced this and DIFF. The eight control items are the point: if the treatment item rises and the controls do not, the rise is attributable to deckwave.fm. If all nine rise together, it is the Archive counter waking up, not usage.",
+ "known_fault": "The Archive downloads field reads 0 for the treatment item despite the keeper having pressed demo many times, and deckwave fetching every track in FULL. That 0 is VOID, not a measurement (ledger 121/135). This baseline records it anyway, because a 0 that later moves tells us the counter works after a lag; a 0 that never moves tells us it never counted.",
+ "archive_org": {
+  "counts_are_per_ITEM_never_per_file": true,
+  "items": [
+   {
+    "identifier": "Lukhash-FallingApart",
+    "title": "LukHash - Falling Apart",
+    "downloads": 7248,
+    "publicdate": "2012-09-29",
+    "item_size": 145599887,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "LukhashTheOtherSideFrostClickFrostWireCreativeCommons",
+    "title": "The Other Side",
+    "downloads": 577,
+    "publicdate": "2018-09-27",
+    "item_size": 111310278,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "gdps-2.2-song-1058360",
+    "title": "The Game is On",
+    "downloads": 36,
+    "publicdate": "2024-02-10",
+    "item_size": 10279088,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "gdps-2.2-song-1058371",
+    "title": "Code Veronica",
+    "downloads": 47,
+    "publicdate": "2024-02-14",
+    "item_size": 9895326,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "gdps-2.2-song-864714",
+    "title": "BETTER THAN REALITY",
+    "downloads": 42,
+    "publicdate": "2024-02-05",
+    "item_size": 8872010,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "gdps-2.2-song-990892",
+    "title": "Cloned",
+    "downloads": 27,
+    "publicdate": "2024-01-02",
+    "item_size": 7948032,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "gdps-2.2-song-990895",
+    "title": "The Other Side",
+    "downloads": 27,
+    "publicdate": "2024-02-16",
+    "item_size": 9304857,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "lukhash-3am",
+    "title": "LukHash (SH Music) - 3AM (2006)",
+    "downloads": 153,
+    "publicdate": "2023-07-02",
+    "item_size": 94945926,
+    "arm": "control \u2014 deckwave never fetches this"
+   },
+   {
+    "identifier": "pandacd-315-digital-memories",
+    "title": "LukHash - Digital Memories",
+    "downloads": 0,
+    "publicdate": "2026-06-30",
+    "item_size": 141545274,
+    "arm": "TREATMENT \u2014 the demo fetches this item"
+   }
+  ]
+ },
+ "youtube": {
+  "video": "qoulzN1mLyw",
+  "channel": "@deckwave-app",
+  "views": 109,
+  "note": "Public view count. The deck header links the CHANNEL, not this video."
+ },
+ "github": {
+  "window": "trailing 14 complete days; data older than 14d is deleted by GitHub, not archived",
+  "views_total": 37,
+  "views_uniques": 12,
+  "clones_total": 31,
+  "clones_uniques": 14,
+  "views_by_day": [
+   {
+    "d": "2026-08-23",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-24",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-25",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-26",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-27",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-28",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-29",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-30",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-31",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-09-01",
+    "c": 9,
+    "u": 1
+   },
+   {
+    "d": "2026-09-02",
+    "c": 5,
+    "u": 1
+   },
+   {
+    "d": "2026-09-03",
+    "c": 7,
+    "u": 1
+   },
+   {
+    "d": "2026-09-04",
+    "c": 10,
+    "u": 7
+   },
+   {
+    "d": "2026-09-05",
+    "c": 6,
+    "u": 5
+   }
+  ],
+  "clones_by_day": [
+   {
+    "d": "2026-08-23",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-24",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-25",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-26",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-27",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-28",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-29",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-30",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-08-31",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-09-01",
+    "c": 16,
+    "u": 8
+   },
+   {
+    "d": "2026-09-02",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-09-03",
+    "c": 15,
+    "u": 7
+   },
+   {
+    "d": "2026-09-04",
+    "c": 0,
+    "u": 0
+   },
+   {
+    "d": "2026-09-05",
+    "c": 0,
+    "u": 0
+   }
+  ],
+  "referrers": [
+   {
+    "r": "github.com",
+    "c": 11,
+    "u": 2
+   },
+   {
+    "r": "reddit.com",
+    "c": 2,
+    "u": 2
+   },
+   {
+    "r": "com.reddit.frontpage",
+    "c": 1,
+    "u": 1
+   }
+  ]
+ },
+ "not_measured": [
+  "deckwave.fm visits \u2014 GitHub Pages exposes no traffic API at all (verified 404 against a working control)",
+  "demo presses \u2014 no instrument exists",
+  "per-file Archive downloads \u2014 IA does not expose them"
+ ]
+}

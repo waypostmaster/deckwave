@@ -3121,3 +3121,48 @@ CORRECT standing state and must not be "fixed" by migrating ROADMAP's
 format. That linter is not wired into `package.py` or any harness and must
 not be — vendoring it would breach the bare-`node` rule. Nothing in this
 act was heard, because there is nothing in it to hear.
+
+## Act 44 — The demo-usage counter is void, and the keeper's hand is the control (2026-09-06)
+
+**Ledger 135 [CONFIRMED by the keeper's own use].** Asked whether the
+Internet Archive discloses download numbers for the demo tracks. It does:
+`advancedsearch.php` carries a `downloads` field per item, and it is
+alive — `nasa` returns 47,490,233, and EIGHT other LukHash items return
+27 to 7,248. The item the demo actually plays,
+`pandacd-315-digital-memories`, returns **0**. Queried twice.
+
+**That zero is VOID, and it is void because of a control nobody had to
+build.** The keeper: *"impossible. i have hit the demo button many times.
+too many to count."* `deckwave-libre.js` sets `ORIGIN` to archive.org and
+the demo fetches `/download/<item>/<file>` in FULL for every track —
+Range is only the 16-byte audit probe, and the whole-file path is the one
+that runs. So a known-positive stimulus, applied many times, reads zero on
+the instrument. By ledger 121's amendment, a surface caught misbehaving
+voids every zero taken from it. **This counter cannot be used as a
+demo-usage signal, and its 0 must never be reported as "nobody played
+it."**
+
+**The near-miss is the point.** Twenty minutes earlier the GitHub traffic
+API had been read as "12 uniques, a launch nobody has been told about."
+A 0 here corroborates that story perfectly. Two independent surfaces
+agreeing, both wrong, and the agreement would have been the evidence.
+It was the keeper's ear that broke it, as on beat-phase.
+
+**A second surface was tried and is ALSO void** — scraping the item's
+details page for a count returned nothing, but returned nothing on a
+known-good item too, so the page is JS-rendered and the scrape is not an
+instrument. Recorded as void rather than as a second zero, which is the
+whole of ledger 121.
+
+**Can a beacon file be added to count presses? No, on three grounds.**
+The item is uploaded by a third party (`mizutanien3@gmail.com`, in
+`pandacd-archive`/`folksoundomy`) — not ours to add a file to. IA counts
+per ITEM, never per file, so a beacon would be indistinguishable from a
+track anyway. And the content-relevant downloads ALREADY HAPPEN in full
+on every press; the gap is IA's reporting, not the deck's behaviour.
+Adding requests to a counter that is not counting changes nothing.
+
+**Nothing is measured right now:** Pages gives no visitor data (verified —
+no traffic endpoint, 404, against a working control), the Archive counter
+is void, and GitHub counts only people reading the source. Held for the
+keeper, not scheduled.
