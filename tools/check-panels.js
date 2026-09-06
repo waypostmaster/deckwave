@@ -639,11 +639,27 @@ console.log('\n── the two outbound links in the header ──');
   const lk = (dashSrc.split('<div class="lk">')[1] || '').split('</div>')[0];
   const anchors = lk.match(/<a\b[\s\S]*?<\/a>/g) || [];
   const href = a => (a.match(/href="([^"]+)"/) || [, ''])[1];
-  ok('the header carries the two outbound links',
-     anchors.length === 2
+  ok('the header carries the four outbound links',
+     anchors.length === 4
      && anchors.some(a => /^https:\/\/www\.youtube\.com\/@deckwave-app$/.test(href(a)))
-     && anchors.some(a => /^https:\/\/bandcamp\.com\/deckwave$/.test(href(a))),
+     && anchors.some(a => /^https:\/\/bandcamp\.com\/deckwave$/.test(href(a)))
+     && anchors.some(a => /^https:\/\/www\.youtube\.com\/watch\?v=qoulzN1mLyw$/.test(href(a)))
+     && anchors.some(a => /^https:\/\/github\.com\/waypostmaster\/deckwave$/.test(href(a))),
      'the .lk block holds ' + anchors.length + ' anchor(s): ' + anchors.map(href).join(' | '));
+  /* The two COUNTING links, added 2026-09-06. Deckwave measures nobody: Pages
+     exposes no traffic API, the Archive counter is stale by three weeks, and
+     this page will never carry an analytics script - that is the ethos, not an
+     omission. So the only honest instrument is a link the visitor CHOOSES to
+     follow, counted on a surface that already counts. The github one counts a
+     passive landing (traffic/views + popular/referrers names deckwave.fm) even
+     from someone with no account who does nothing; the youtube one counts an
+     act. Both are asserted by exact href because a typo would silently measure
+     nothing and read exactly like nobody came. */
+  ok('...and the two counting links point at the exact video and repo, not a channel or a search',
+     anchors.some(a => href(a) === 'https://www.youtube.com/watch?v=qoulzN1mLyw')
+     && anchors.some(a => href(a) === 'https://github.com/waypostmaster/deckwave'),
+     'a counting link that 404s or lands on a channel reads identical to nobody clicking: '
+     + anchors.map(href).join(' | '));
   ok('…and EVERY one opens in a new tab',
      anchors.length > 0 && anchors.every(a => /target="_blank"/.test(a)),
      'a same-tab outbound link on the deck destroys the loaded set and the whole analysis session with it — the one loss this page cannot undo');

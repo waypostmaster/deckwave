@@ -124,7 +124,9 @@
   "video": "qoulzN1mLyw",
   "channel": "@deckwave-app",
   "views": 109,
-  "note": "Public view count. The deck header links the CHANNEL, not this video."
+  "likes": 5,
+  "read_how": "scrape \"likeCount\"/\"viewCount\" from the watch page; controlled against dQw4w9WgXcQ (19,374,089 likes) with the IDENTICAL pattern",
+  "note": "BASELINE TAKEN BEFORE the heart link existed, which is the only reason a later read means anything."
  },
  "github": {
   "window": "trailing 14 complete days; data older than 14d is deleted by GitHub, not archived",
@@ -292,7 +294,9 @@
     "c": 1,
     "u": 1
    }
-  ]
+  ],
+  "stars_at_baseline": 1,
+  "forks_at_baseline": 0
  },
  "not_measured": [
   "deckwave.fm visits — GitHub Pages exposes no traffic API at all (verified 404 against a working control)",
@@ -300,7 +304,17 @@
   "per-file Archive downloads — IA does not expose them"
  ],
  "corrections_log": [
-  "2026-09-06T22:43Z: original capture used the advancedsearch `downloads` field and recorded the treatment item as 0. Wrong surface. Corrected to views/v1 and staleness measured. The eight-item control passed because both surfaces agree on the siblings -- a control proves the surface CAN answer, not that it answered THIS query."
+  "2026-09-06T22:43Z: original capture used the advancedsearch `downloads` field and recorded the treatment item as 0. Wrong surface. Corrected to views/v1 and staleness measured. The eight-item control passed because both surfaces agree on the siblings -- a control proves the surface CAN answer, not that it answered THIS query.",
+  "2026-09-06T22:50Z: youtube likes/views and github stars added as the pre-button baseline."
  ],
- "corrected_utc": "2026-09-06T22:43:16Z"
+ "corrected_utc": "2026-09-06T22:43:16Z",
+ "counting_links_added": {
+  "when": "2026-09-06, after the Archive counter was found stale by 3 weeks",
+  "why": "Deckwave measures nobody by design - Pages exposes no traffic API, and no analytics script will ever go in this page. The only honest instrument is a link the visitor CHOOSES to follow, counted on a surface that already counts.",
+  "links": {
+   "heart": "https://www.youtube.com/watch?v=qoulzN1mLyw (counts an ACT; likeCount readable publicly)",
+   "star": "https://github.com/waypostmaster/deckwave (counts a PASSIVE landing - traffic/views plus popular/referrers names deckwave.fm - even from someone with no account who does nothing)"
+  },
+  "what_to_diff": "github traffic/popular/referrers gaining a deckwave.fm row is the cleanest signal, because it attributes SOURCE. youtube gives totals only; external-source data lives behind Studio login. GitHub traffic is deleted after 14 days, so it must be re-captured fortnightly or it is lost."
+ }
 }

@@ -480,6 +480,10 @@ function mount(hostEl) {
           title="Deckwave sets on YouTube — the deck running, unnarrated, every panel drawing the audio as it plays">&#9654; sets</a>
        <a href="https://bandcamp.com/deckwave" target="_blank" rel="noopener"
           title="The LukHash records this was built for. Buy them.">records</a>
+       <a href="https://www.youtube.com/watch?v=qoulzN1mLyw" target="_blank" rel="noopener"
+          title="Enjoying it? Like the launch video. This page counts nothing and never will — a like on YouTube is the only way we can tell anyone is listening.">&#9829; like</a>
+       <a href="https://github.com/waypostmaster/deckwave" target="_blank" rel="noopener"
+          title="The source, and a star if you liked it. Landing there counts even if you do nothing and have no account — which is the point: this page will never count you itself.">&#9733; source</a>
      </div>
    </div>
    <div class="nowline" id="nowline"></div>

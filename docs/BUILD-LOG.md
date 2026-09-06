@@ -3231,3 +3231,48 @@ more necessary, not less.
 **What is withdrawn:** "the counter is void", "downloads = 0", and every
 inference built on them. The `downloads` FIELD is unreliable for this item
 and should not be used; `views/v1` is the surface that answers.
+
+## Act 45 — Two links that count, because the page never will (2026-09-06)
+
+The keeper, after the Archive counter turned out to be three weeks stale:
+*"we just need some kind of 'like' button that people can press, maybe it
+sends them somewhere else to count their enjoyment"* — and then the
+observation that settled the design: *"if they end up on the page and have
+no github account and 'broken cart' we still get a viewership count."*
+
+**That is the whole argument, and it is right.** A YouTube like counts
+only someone who ACTS. A GitHub landing counts a PASSIVE visit —
+`traffic/views` records it and `traffic/popular/referrers` names
+`deckwave.fm` — even from a visitor with no account who does nothing and
+leaves. Better still, the referrer row attributes SOURCE, which YouTube
+will not: its external-traffic breakdown lives behind a Studio login, so a
+public read gives totals and never where they came from. Both links went
+in: `&#9829; like` to the launch video, `&#9733; source` to the repo.
+
+**This is the only instrument the ethos permits.** Pages exposes no
+traffic API at all (verified: 404, against a working control). No
+analytics script will ever go in this page — not Plausible, not
+GoatCounter, none of them — because a tracker in a deck whose pitch is
+that your audio never leaves the machine would be a lie told in
+JavaScript. So the honest form is a link the visitor CHOOSES to follow,
+counted on a surface that already counts. The `title` on each says so in
+the visitor's own view: *this page counts nothing and never will.* The
+privacy cost is named rather than hidden — following either link hands the
+visitor to Google or Microsoft, and that is their choice to make, once,
+per click.
+
+**Two checks, 201 → 202, suite 997 → 998, both shown FAILING against
+`git show HEAD:assets/deckwave-dashboard.js` before being trusted** — this
+harness has no `DECKWAVE_*_SRC` seam, so the old file was swapped in, the
+red observed, and the new one restored and verified byte-identical with
+`cmp`. The count check went from 2 anchors to 4; the second check asserts
+the two counting hrefs EXACTLY, because a counting link with a typo 404s
+and reads precisely like nobody clicked it. The `every()` form of the
+target/rel/https checks written in Act 42 covered both new anchors with no
+edit, which is what that form was for.
+
+**Baseline taken BEFORE the links existed, which is the only reason a
+later read will mean anything**: YouTube 109 views / 5 likes, GitHub 1
+star / 0 forks, in `evidence/counters-baseline-2026-09-06.json`. GitHub
+deletes traffic data after 14 days, so that file must be re-captured
+fortnightly or the launch window is lost for good. Nothing here was heard.
