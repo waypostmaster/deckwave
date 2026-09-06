@@ -3166,3 +3166,32 @@ Adding requests to a counter that is not counting changes nothing.
 no traffic endpoint, 404, against a working control), the Archive counter
 is void, and GitHub counts only people reading the source. Held for the
 keeper, not scheduled.
+
+**AMENDMENT to ledger 135, same day, before the row was pushed — the
+control above is WEAKER than that row claims, and the row is corrected
+here rather than rewritten.** The keeper asked the obvious next question:
+*"So did you find my downloads of the 9 demo tracks?"* Answer: no, zero,
+and looking for them found the flaw in my own control.
+
+`fetchBytes` consults the Cache API BEFORE it fetches
+(`assets/deckwave-libre.js:315` — `const c = range ? null : await
+cacheOpen()`, then `c.match(url)` returns the stored copy on a hit). So
+the SECOND and every later demo press in a browser profile serves all nine
+tracks out of Cache Storage and never touches archive.org at all. "I have
+hit the demo button many times" is therefore NOT many downloads: it is
+about nine files once per profile, plus whatever came from cache clears,
+other browsers and the phone.
+
+**So the stimulus was never as large as the row implies, and I wrote the
+row before checking what the stimulus actually was.** That is the same
+mistake this file keeps cataloguing, in a new coat: I verified the
+INSTRUMENT (eight sibling items return counts) and never verified the
+STIMULUS. A control has two ends and I checked one.
+
+**The finding survives, smaller.** Nine-plus real full-file downloads
+should still not read 0, so the counter remains unusable and the 0 remains
+void. But "many presses, zero counted" overstates it, and the honest form
+is: **a handful of confirmed real downloads, reading zero, on a counter
+that reports for eight sibling items.** Whether that is Archive lag on a
+2026-06-30 item, bot filtering, or a counter that never ran, this desk
+cannot tell from outside — which is exactly why the baseline was taken.
