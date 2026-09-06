@@ -108,6 +108,29 @@ Specifically, these do NOT work and have all lied here:
   recommendation on in the same breath; state it, state that it is
   unconfirmed, and let the keeper's own knowledge meet it first.
 
+**A check can create the state it reports on — measured here 2026-09-06, and
+it is a DIFFERENT fault from everything above.** Every hazard in this section
+so far is an instrument that is BLIND: it cannot see the failure, so it says
+the same thing on a healthy and a sick system. This one is an instrument that
+PARTICIPATES — the act of measuring supplies the condition, and the pass
+condition is perfectly correct. Staring at the falsifier never catches it,
+because what is wrong is that the run manufactured its own premise.
+
+The specimen: a check warned that `.helm.json` was missing. Verifying the fix
+by taking the con CREATES `.helm.json` and clears the warning — for entirely
+the wrong reason, since `helm.py release()` removes that file and its ABSENCE
+is the free state the desk is in almost always. **The fix is to print the
+state in the SAME output as the result**, so the two cannot drift apart, which
+is the same move as putting a control and its search in one output.
+
+**This project already had two specimens and had not named the class.**
+`sequence()` mutates the shared corpus objects, so building a set in order to
+test it restamps the previous set's rows — the measurement consumes the thing
+measured. And reloading the page to check something destroys the loaded set.
+So: before trusting a green, ask **did running this check create the condition
+it reports?** If the instrument writes, locks, mutates, loads or reloads
+anything, capture the state alongside the result.
+
 What works: **draw twice with real signal between, and diff.** Hit-test with
 `elementFromPoint`. Read state from an accessor rather than inferring it from
 rendering — `DWPANELS.hist()` and `DW._dev` exist because unobservable
@@ -163,6 +186,29 @@ mid-surgery in here, and on what.* It is advisory on purpose: the failure
 it guards is two agents being helpful at once, and a real lock that can
 wedge a launch is worse than a note that can be ignored.
 
+**This desk keeps the house file-memory practice, and its two linter warnings
+are CORRECT — do not "fix" them.** Adopted 2026-09-06 on the keeper's word.
+The role map is `memory-map.json`, gitignored and per-machine for the same
+reason `.helm.json` is: house coordination is not product, and a fresh clone
+must still run from a static file server with nothing extra. Run it by hand:
+
+```bash
+node ~/.claude/skills/house-memory/tools/memcheck.js --selftest
+node ~/.claude/skills/house-memory/tools/memcheck.js --map memory-map.json
+```
+
+`--selftest` first, always — a linter nobody has watched complain is worth
+nothing. **Two warnings are the expected standing state**: `literals`
+unassigned (deliberate), and a LEDGER warning saying `docs/ROADMAP.md` is an
+unrecognised format — it is 1707 lines of `## R1..R8` headings, not the
+house's `STAGED-AWAITING-KEEPER` blocks. **Migrating ROADMAP to make that go
+green would be wrong**; the practice is a reference, not a migration, and the
+variances are written out in `memory-map.json` under `_variance_*`.
+**`memcheck` is NOT wired into `package.py` or any harness and must not be** —
+vendoring it would breach the bare-`node`, nothing-third-party rule at the top
+of this file. Green from it is not a read of the file either; it cannot see
+two paragraphs contradicting each other.
+
 **The user's ear is an instrument.** On the beat-phase question it resolved in
 one A/B what three measurements could not. Take their reports seriously and
 literally; "it doesn't pop when I jump directly to it" was the whole diagnosis.
@@ -195,9 +241,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — fourteen of them, 992 checks, all `node tools/check-*.js`
+### Harnesses — fourteen of them, 997 checks, all `node tools/check-*.js`
 
-`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 196 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 — **992 in all, re-counted 2026-09-03 from the fourteen tally lines.**
+`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 201 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 — **997 in all, MEASURED 2026-09-06T19:14Z by running all fourteen and summing the tally lines, not by adding Act 42's delta to the old total.**
 
 **Three go red without the library, on purpose** (`check-flac`,
 `check-pool`, `check-route` each fail ONE check that says the corpus is the
@@ -254,6 +300,43 @@ MEASUREMENTS, not harnesses.
 3. **§20, the instrument column — UNLOOKED-AT.** Ledger 82 is now closed
    on all five surfaces (0.8.1: an engine fact, `DW.deck.origin`, carried
    through `pulse()`); the glance is whether the column earns its 300 px.
+
+### NOT owed — do not re-run these
+
+**This section exists so a successor can tell a drained queue from an
+unstarted one.** Everything above says what is owed; without this, a list of
+open items reads as complete and the next session's first act is work
+somebody already did. There is nothing in a handoff that distinguishes "not
+listed because it is done" from "not listed because I ran out of room" —
+which is the negative-control rule wearing handoff clothes. Adopted from the
+house-memory practice 2026-09-06 (frontier-70's rule, and that desk was bitten
+by its absence before it had a name for it).
+
+- **The launch-day review is closed.** Every finding of
+  `docs/REVIEW-2026-09-01.md` is resolved, measured, or written down as the
+  keeper's call — ledgers 122–132. Do not re-audit it.
+- **0.8.1's boot failure is diagnosed and fixed** (backticks in comments
+  inside CSS template literals; 0.8.2 plus the load sweep, ledger 132, and it
+  caught its own class again two days later as ledger 133). Do not re-diagnose
+  a Pages boot failure from scratch — run the sweep.
+- **The 660-line narrative was retired ON PURPOSE** to
+  `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
+  BUILD-LOG Acts 22–41 carry the same story with the reasoning.
+- **The harness total is settled at 997**, MEASURED 2026-09-06T19:14Z by
+  running all fourteen, not by arithmetic on a delta. All fourteen were green
+  on that run, library present. Do not re-count from the tally lines to check.
+- **DNS is correct and needs no work.** MEASURED 2026-09-06: `deckwave.fm`
+  ALIASes to `waypostmaster.github.io`, resolves to all four Pages A records,
+  serves 200 with the tracked `CNAME` file matching. The other 29 `deckwave.*`
+  domains are parked at Porkbun by choice. Do not go looking for a domain to
+  point; one is already pointed.
+- **`.helm.json` and `memory-map.json` being absent from a fresh clone is the
+  design, not a gap.** Both are gitignored per-machine coordination.
+
+**What IS owed is everything under the two "Open items" headings above**, and
+those are keeper's-ear items, not build tasks. One build task is outstanding
+and is not in this file: `745453f` (the two header links) is committed on
+`public` and NOT pushed, so `deckwave.fm` is serving one commit behind.
 
 ### Load-bearing facts that are not in the code
 

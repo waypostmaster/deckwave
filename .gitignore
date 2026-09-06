@@ -42,3 +42,9 @@ extensions/citywalk/ours.jsonl
 # launch-day operator checklist - registrar record ids, account names,
 # private paths. Useful on the day, not part of the product.
 docs/RUNBOOK.md
+
+# House-memory role map - per-machine coordination plumbing shared with the
+# other desks (Delta = this one), never product. Same reasoning as .helm.json
+# above: this repo is public and a fresh clone must run from a static file
+# server with nothing extra in it. See ~/.claude/skills/house-memory/.
+memory-map.json

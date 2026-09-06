@@ -3079,3 +3079,45 @@ and, through an iframe at a real 390 px viewport, phone width: the bar
 wraps to two rows, the links land on the second, right-aligned, inside
 the viewport, and each one hit-tests to itself. Nothing here was heard,
 because there is nothing here to hear.
+
+## Act 43 — A check that creates what it reports, and a recount (2026-09-06)
+
+**Ledger 134 — the participating instrument.** Every verification hazard
+in CLAUDE.md before today is an instrument that is BLIND: `nslookup`
+exiting 0 on NXDOMAIN, a pixel count a placeholder satisfies, an onset
+match everything passes. They say the same thing on a healthy and a sick
+system, and naming the falsifier catches them. **This one is different and
+the section now says so.** A check warned that `.helm.json` was missing;
+verifying the fix by taking the con CREATES `.helm.json` and clears the
+warning — for entirely the wrong reason, since `helm.py release()` removes
+that file and its absence is the free state the desk is in nearly always.
+The pass condition was correct throughout. What was wrong is that the run
+manufactured its own premise, and no amount of staring at the falsifier
+finds that. The fix is to print the state in the SAME output as the
+result, which is the control-and-search rule wearing different clothes.
+
+**This project already held two specimens and had never named the class.**
+`sequence()` mutates the shared corpus objects, so building a set in order
+to test it restamps the previous set's rows — the measurement consumes the
+thing measured. Reloading the page to check something destroys the loaded
+set. Both were written down as quirks; neither was written down as a kind
+of mistake. MEASURED at this desk 2026-09-06T19:25Z, from an unrelated
+linter warning that was very nearly shrugged off as noise.
+
+**The harness total was stale and is now MEASURED, not derived.** CLAUDE.md
+claimed 992 with `check-panels` at 196; Act 42 had moved it to 201. Rather
+than add the delta, all fourteen were run and the tally lines summed:
+**997, all fourteen green, library present.** The arithmetic would have
+given the same number, which is exactly why it was worth running — a
+derived total and a measured one are different facts and only one of them
+can go wrong quietly. CLAUDE.md now says which it is.
+
+**Two additions to the kernel, both of which are documentation and neither
+of which moves a threshold, calibration or detector.** A `### NOT owed —
+do not re-run these` block in the state section, so a successor can tell a
+drained queue from an unstarted one; and a note that this desk keeps the
+house file-memory practice, whose linter reports two warnings that are the
+CORRECT standing state and must not be "fixed" by migrating ROADMAP's
+format. That linter is not wired into `package.py` or any harness and must
+not be — vendoring it would breach the bare-`node` rule. Nothing in this
+act was heard, because there is nothing in it to hear.
