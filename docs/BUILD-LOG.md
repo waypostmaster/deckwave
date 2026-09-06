@@ -3195,3 +3195,39 @@ is: **a handful of confirmed real downloads, reading zero, on a counter
 that reports for eight sibling items.** Whether that is Archive lag on a
 2026-06-30 item, bot filtering, or a counter that never ran, this desk
 cannot tell from outside — which is exactly why the baseline was taken.
+
+**SECOND AMENDMENT to ledger 135, same hour. THE ROW WAS WRONG. The item
+was never at zero; I queried the wrong surface and then built a
+control-group design on top of the mistake.** The keeper pushed twice —
+*"I have hit the demo button more than 0 times... I have done it on other
+phones"* and *"How far back did you go?"* — and both pushes were right.
+
+`advancedsearch.php`'s `downloads` field reads 0 for this item. IA's views
+API does not: `be-api.us.archive.org/views/v1/short/<id>` returns
+**all_time 27, have_data true**, and the long form gives a real daily
+series — 2026-06-30 ×7, 07-01 ×4, 07-04 ×2, then singles through
+2026-08-07. The two surfaces AGREE on the siblings (lukhash-3am 153 vs
+160; nasa 47.49M vs 47.73M), which is exactly why the eight-item control
+passed and still let a wrong number through. **Ledger 121's amendment,
+suffered rather than quoted: a control proves the surface CAN return hits;
+it does NOT prove it answered THIS query.** I had that rule in front of me,
+applied its letter, and fell in anyway.
+
+**And the pipeline is ~3 WEEKS STALE.** The daily axis ends 2026-08-16
+and the last non-zero day is 2026-08-07. There is NO Archive data covering
+the 2026-09-01 launch or any September press. The keeper's demo presses
+are not missing, they are UNPROCESSED. Any conclusion drawn today about
+launch-period Archive usage is drawn from data that does not exist yet.
+
+**Counting is per ITEM and deduplicated, NOT per file.** Publication day
+scored 7 on an item of 54 files, so IA is not counting one per file; the
+shape fits per-visitor-per-day. **One demo press is therefore about ONE
+count, not nine**, and the "27 ÷ 9 = 3 profiles" arithmetic in this
+session was wrong and is withdrawn. The signal to look for in the baseline
+is one per device per day — small, which makes the eight control items
+more necessary, not less.
+
+**What stands:** the baseline design (keeper's), and the control group.
+**What is withdrawn:** "the counter is void", "downloads = 0", and every
+inference built on them. The `downloads` FIELD is unreliable for this item
+and should not be used; `views/v1` is the surface that answers.

@@ -1,7 +1,7 @@
 {
  "what": "Baseline of every countable surface, so a later read can be DIFFERENCED. Ledger 135.",
  "captured_utc": "2026-09-06T22:37:50Z",
- "provenance": "MEASURED \u2014 every number fetched live at capture time, not carried.",
+ "provenance": "MEASURED — every number fetched live at capture time, not carried.",
  "how_to_use": "Re-run tools that produced this and DIFF. The eight control items are the point: if the treatment item rises and the controls do not, the rise is attributable to deckwave.fm. If all nine rise together, it is the Archive counter waking up, not usage.",
  "known_fault": "The Archive downloads field reads 0 for the treatment item despite the keeper having pressed demo many times, and deckwave fetching every track in FULL. That 0 is VOID, not a measurement (ledger 121/135). This baseline records it anyway, because a 0 that later moves tells us the counter works after a lag; a 0 that never moves tells us it never counted.",
  "archive_org": {
@@ -10,76 +10,115 @@
    {
     "identifier": "Lukhash-FallingApart",
     "title": "LukHash - Falling Apart",
-    "downloads": 7248,
     "publicdate": "2012-09-29",
     "item_size": 145599887,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 7362,
+    "views_last_30day": 29,
+    "views_last_7day": 2,
+    "views_have_data": true,
+    "downloads_field": 7248
    },
    {
     "identifier": "LukhashTheOtherSideFrostClickFrostWireCreativeCommons",
     "title": "The Other Side",
-    "downloads": 577,
     "publicdate": "2018-09-27",
     "item_size": 111310278,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 577,
+    "views_last_30day": 0,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 577
    },
    {
     "identifier": "gdps-2.2-song-1058360",
     "title": "The Game is On",
-    "downloads": 36,
     "publicdate": "2024-02-10",
     "item_size": 10279088,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 36,
+    "views_last_30day": 0,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 36
    },
    {
     "identifier": "gdps-2.2-song-1058371",
     "title": "Code Veronica",
-    "downloads": 47,
     "publicdate": "2024-02-14",
     "item_size": 9895326,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 50,
+    "views_last_30day": 2,
+    "views_last_7day": 1,
+    "views_have_data": true,
+    "downloads_field": 47
    },
    {
     "identifier": "gdps-2.2-song-864714",
     "title": "BETTER THAN REALITY",
-    "downloads": 42,
     "publicdate": "2024-02-05",
     "item_size": 8872010,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 44,
+    "views_last_30day": 0,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 42
    },
    {
     "identifier": "gdps-2.2-song-990892",
     "title": "Cloned",
-    "downloads": 27,
     "publicdate": "2024-01-02",
     "item_size": 7948032,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 27,
+    "views_last_30day": 0,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 27
    },
    {
     "identifier": "gdps-2.2-song-990895",
     "title": "The Other Side",
-    "downloads": 27,
     "publicdate": "2024-02-16",
     "item_size": 9304857,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 27,
+    "views_last_30day": 0,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 27
    },
    {
     "identifier": "lukhash-3am",
     "title": "LukHash (SH Music) - 3AM (2006)",
-    "downloads": 153,
     "publicdate": "2023-07-02",
     "item_size": 94945926,
-    "arm": "control \u2014 deckwave never fetches this"
+    "arm": "control — deckwave never fetches this",
+    "views_all_time": 160,
+    "views_last_30day": 1,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 153
    },
    {
     "identifier": "pandacd-315-digital-memories",
     "title": "LukHash - Digital Memories",
-    "downloads": 0,
     "publicdate": "2026-06-30",
     "item_size": 141545274,
-    "arm": "TREATMENT \u2014 the demo fetches this item"
+    "arm": "TREATMENT — the demo fetches this item",
+    "views_all_time": 27,
+    "views_last_30day": 6,
+    "views_last_7day": 0,
+    "views_have_data": true,
+    "downloads_field": 0
    }
-  ]
+  ],
+  "CORRECTION": "The advancedsearch `downloads` field reads 0 for the treatment item and is UNRELIABLE. Use be-api.us.archive.org/views/v1/short|long/<id>, which reports all_time 27 with a real daily series. Both fields are kept here so a later reader can see they disagree.",
+  "pipeline_staleness": "MEASURED 2026-09-06: the views/v1/long daily axis ends 2026-08-16 and the last non-zero day for the treatment item is 2026-08-07. IA's stats pipeline is ~3 weeks behind, so NO Archive data covers the 2026-09-01 launch. A re-read is only meaningful after the axis passes the dates being asked about -- check days[-1] before differencing anything.",
+  "counting_granularity": "Per ITEM and deduplicated, not per file. Publication day scored 7 on an item of 54 files. One demo press is therefore ~1 count, not 9. Expect one per device per day."
  },
  "youtube": {
   "video": "qoulzN1mLyw",
@@ -256,8 +295,12 @@
   ]
  },
  "not_measured": [
-  "deckwave.fm visits \u2014 GitHub Pages exposes no traffic API at all (verified 404 against a working control)",
-  "demo presses \u2014 no instrument exists",
-  "per-file Archive downloads \u2014 IA does not expose them"
- ]
+  "deckwave.fm visits — GitHub Pages exposes no traffic API at all (verified 404 against a working control)",
+  "demo presses — no instrument exists",
+  "per-file Archive downloads — IA does not expose them"
+ ],
+ "corrections_log": [
+  "2026-09-06T22:43Z: original capture used the advancedsearch `downloads` field and recorded the treatment item as 0. Wrong surface. Corrected to views/v1 and staleness measured. The eight-item control passed because both surfaces agree on the siblings -- a control proves the surface CAN answer, not that it answered THIS query."
+ ],
+ "corrected_utc": "2026-09-06T22:43:16Z"
 }
