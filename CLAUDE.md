@@ -367,10 +367,21 @@ by its absence before it had a name for it).
 **What IS owed is everything under the two "Open items" headings above**, and
 those are keeper's-ear items, not build tasks. **No build task is outstanding.**
 
-**ONE commit is unpushed — `41a92eff507096ffa77b25d1060ed8350c1700b1`, ledger
-136, docs only.** `deckwave.fm` is not behind in any way a visitor can see:
-the diff touches `CLAUDE.md` and `docs/BUILD-LOG.md` and nothing under
-`assets/`. Push it or leave it; it is not a build task.
+**Do not read a push state from this file. Run the command:**
+
+```bash
+git log --oneline origin/main..public        # what is unpushed, if anything
+git ls-remote origin refs/heads/main         # what GitHub actually serves
+```
+
+The second is not the first: `.git/refs/remotes/origin/main` is only what this
+clone last HEARD. **This paragraph replaced two successive attempts to state
+the count as a fact — "nothing is unpushed", then "ONE commit is unpushed" —
+each true when written and falsified by the commit that saved it** (ledger
+136b, then 136d). The third attempt stores the instrument instead, which is the
+only version that cannot go stale. Whatever the count is, the ledger-136
+commits are docs-only: nothing under `assets/`, so `deckwave.fm` is not behind
+in any way a visitor can see, and pushing them is optional, not a build task.
 
 **And the sentence that stood here for four minutes is the best specimen of
 Act 43's class this desk has produced.** It read *"Nothing is unpushed and
