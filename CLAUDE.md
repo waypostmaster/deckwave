@@ -367,10 +367,26 @@ by its absence before it had a name for it).
 **What IS owed is everything under the two "Open items" headings above**, and
 those are keeper's-ear items, not build tasks. **No build task is outstanding.**
 
-**Nothing is unpushed and `deckwave.fm` is current** — MEASURED
-2026-09-07T04:57Z against the REMOTE, not the local ref: `git ls-remote origin
-refs/heads/main` serves `a1d49da97175c3cc5ca315ba877e14e9274c9600`, and
-`git log origin/main..public` is empty. This block previously said `745453f`
+**ONE commit is unpushed — `41a92eff507096ffa77b25d1060ed8350c1700b1`, ledger
+136, docs only.** `deckwave.fm` is not behind in any way a visitor can see:
+the diff touches `CLAUDE.md` and `docs/BUILD-LOG.md` and nothing under
+`assets/`. Push it or leave it; it is not a build task.
+
+**And the sentence that stood here for four minutes is the best specimen of
+Act 43's class this desk has produced.** It read *"Nothing is unpushed and
+`deckwave.fm` is current"* — MEASURED, correct, with `ls-remote` cited. Then
+committing the file that said it MADE something unpushed. **The instrument did
+not merely participate in the condition; the act of RECORDING the fact
+destroyed the fact.** No falsifier catches this, because the claim was true at
+the instant it was written and the write is what ended it. The general form,
+which is worth more than the instance: **a note about the tree, stored in the
+tree, is inside its own subject.** Anything of the shape "the tree is clean",
+"nothing is staged", "no commit is pending" self-invalidates on being saved.
+Prefer the command to the value — this block now names a SHA, which stays true,
+rather than a state, which did not. The literals below survive that:
+`git ls-remote origin refs/heads/main` served
+`a1d49da97175c3cc5ca315ba877e14e9274c9600` at 2026-09-07T04:57Z, and at that
+moment `git log origin/main..public` was empty. This block previously said `745453f`
 (the two header links) was committed and NOT pushed, so the site was a commit
 behind. That was true when written and is now false. **The correction is also
 the method note: `.git/refs/remotes/origin/main` is what this clone last

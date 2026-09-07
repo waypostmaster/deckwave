@@ -3367,7 +3367,34 @@ id cannot be rotated the way a token can, you would have to move the domain.
 `On-device only` is a LICENCE BOUNDARY, not a filing convention. `speech/` —
 501.3 MB across 54 files, practical rather than sensitive.
 
+**Ledger 136d · A note about the tree, stored in the tree, is inside its own
+subject. [MEASURED 2026-09-07T05:20Z]** Addendum to 136b, written four minutes
+after it and correcting it — the entry above is left standing rather than
+edited, because the sequence is the finding.
+
+136b was recorded in the kernel as *"Nothing is unpushed and `deckwave.fm` is
+current."* Measured, correct, `ls-remote` cited. **Committing the file that
+said so made something unpushed.** Commit
+`41a92eff507096ffa77b25d1060ed8350c1700b1` falsified a sentence inside itself.
+
+This is Act 43's participating-instrument class taken one step further and the
+step matters. In the `.helm.json` specimen the act of MEASURING supplied the
+condition. Here the act of **RECORDING** destroyed it. No falsifier catches
+this one either, and for a stranger reason than usual: the claim was true at
+the instant it was written, the pass condition was sound, and **the write is
+what ended it.** There is no moment at which staring harder would have helped.
+
+The general form is the useful part: anything of the shape *"the tree is
+clean"*, *"nothing is staged"*, *"no commit is pending"*, *"the working
+directory matches HEAD"* **self-invalidates on being saved into that tree.**
+The fix is the same move as printing state beside result, applied to storage
+instead of output: **prefer the command to the value.** The kernel now names a
+SHA — which stays true — rather than a state, which did not survive its own
+commit. Where a state genuinely must be written down, write the reading WITH
+its stamp and the instrument that produced it, so a later reader can see it as
+a photograph rather than a standing claim.
+
 **Nothing in this act was heard, and nothing in it moved a threshold,
-calibration constant or detector.** Three documents were corrected and one
-paragraph was added to the kernel. The review it was staged for had not run
+calibration constant or detector.** Three documents were corrected and two
+paragraphs were added to the kernel. The review it was staged for had not run
 at seal.
