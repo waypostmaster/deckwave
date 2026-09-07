@@ -241,9 +241,14 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — fourteen of them, 997 checks, all `node tools/check-*.js`
+### Harnesses — fourteen of them, 998 checks, all `node tools/check-*.js`
 
-`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 201 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 — **997 in all, MEASURED 2026-09-06T19:14Z by running all fourteen and summing the tally lines, not by adding Act 42's delta to the old total.**
+`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 — **998 in all, MEASURED 2026-09-07T05:10Z by running all fourteen and summing the tally lines. All fourteen green, zero red, library and python present.**
+
+**This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
+the same tree** — Act 45 added the check and updated the journal, not the
+kernel. A number in two places drifts in one of them; the tie is broken by
+running the thing, never by choosing the more recent sentence (ledger 136).
 
 **Three go red without the library, on purpose** (`check-flac`,
 `check-pool`, `check-route` each fail ONE check that says the corpus is the
@@ -260,6 +265,30 @@ against the OLD source first (`git show HEAD:<file>` + the harness's
 `DECKWAVE_*_SRC` env seam) and must fail there. Run them before and after
 anything. `tools/measure-worklet.js` and `tools/phrase-scan.js` are
 MEASUREMENTS, not harnesses.
+
+**997 green is a floor, and here is exactly where it stops — MEASURED
+2026-09-07T04:57Z (ledger 136). No harness has ever touched real Web Audio.**
+There is no browser driver in the tree: puppeteer 0, playwright 0, jsdom 0,
+selenium 0 across `tools/*.js`, against a control of `require(` = 42. The
+Player is `eval`'d against a hand-written fake `AudioContext`
+(`tools/check-player.js:36-67`). The sharpest number: **24 gain-envelope
+scheduling calls in `assets/*.js`** — `setValueAtTime` 10,
+`linearRampToValueAtTime` 8, `cancelScheduledValues` 4, `setTargetAtTime` 2 —
+and **all six occurrences of those names anywhere in `tools/check-*.js` are
+no-op stub definitions, zero assertions** (`check-player.js:38-39`,
+`check-phrase.js:65-66`, `check-route.js:21-22`).
+
+So the harnesses cover **which track, in which order, in which state after a
+replan** — and they cover it well; hand-resolved decode promises make the
+replan-during-decode interleavings exact rather than raced, which caught a real
+bug. They CANNOT cover **what value, at what time, on which node**. Blind by
+construction, five ways: every AudioParam write (`param()` no-ops all four
+setters); graph topology (`connect()` is `{}`); clock drift (`let now = 100`
+IS `currentTime`, so the audio clock and a timer cannot disagree); real buffers
+(decode resolves `{duration, name}`, so `sampleRate`/`numberOfChannels`/`length`
+are never exercised); real timers (anything over 1000 ms is captured and fired
+by hand). **Do not read a green sweep as covering a crossfade, a leak over
+hours, or drift.** Those need the ear or a browser.
 
 ### Open items — BASE (each needs the keeper's ear; none is a build task)
 
@@ -322,9 +351,11 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is settled at 997**, MEASURED 2026-09-06T19:14Z by
-  running all fourteen, not by arithmetic on a delta. All fourteen were green
-  on that run, library present. Do not re-count from the tally lines to check.
+- **The harness total is 998**, MEASURED 2026-09-07T05:10Z by running all
+  fourteen, not by arithmetic on a delta. All fourteen green, zero red,
+  library and python present. Do not re-count to check — but DO re-run if
+  another document in this tree disagrees with this number, which is how the
+  stale 997 was caught (ledger 136).
 - **DNS is correct and needs no work.** MEASURED 2026-09-06: `deckwave.fm`
   ALIASes to `waypostmaster.github.io`, resolves to all four Pages A records,
   serves 200 with the tracked `CNAME` file matching. The other 29 `deckwave.*`
@@ -334,9 +365,17 @@ by its absence before it had a name for it).
   design, not a gap.** Both are gitignored per-machine coordination.
 
 **What IS owed is everything under the two "Open items" headings above**, and
-those are keeper's-ear items, not build tasks. One build task is outstanding
-and is not in this file: `745453f` (the two header links) is committed on
-`public` and NOT pushed, so `deckwave.fm` is serving one commit behind.
+those are keeper's-ear items, not build tasks. **No build task is outstanding.**
+
+**Nothing is unpushed and `deckwave.fm` is current** — MEASURED
+2026-09-07T04:57Z against the REMOTE, not the local ref: `git ls-remote origin
+refs/heads/main` serves `a1d49da97175c3cc5ca315ba877e14e9274c9600`, and
+`git log origin/main..public` is empty. This block previously said `745453f`
+(the two header links) was committed and NOT pushed, so the site was a commit
+behind. That was true when written and is now false. **The correction is also
+the method note: `.git/refs/remotes/origin/main` is what this clone last
+HEARD, not what GitHub serves** — they agreed here, but they are two
+measurements and only one of them is about the world (ledger 136).
 
 ### Load-bearing facts that are not in the code
 

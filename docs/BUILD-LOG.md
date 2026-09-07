@@ -3276,3 +3276,98 @@ later read will mean anything**: YouTube 109 views / 5 likes, GitHub 1
 star / 0 forks, in `evidence/counters-baseline-2026-09-06.json`. GitHub
 deletes traffic data after 14 days, so that file must be re-captured
 fortnightly or the launch window is lost for good. Nothing here was heard.
+
+## Act 46 — What 998 green does not cover, and three stale numbers (2026-09-07)
+
+An outside review was being staged at this tree — a Codex runtime, callsign
+Mike, briefed by the coordination desk — and the lane desk was asked what it
+should look for. Nothing was built. Three of this tree's own numbers turned
+out to be wrong, which is the actual content of the act.
+
+**Ledger 136 · The harnesses have never touched real Web Audio, and the
+crossfade envelope is asserted zero times. [MEASURED 2026-09-07T04:57Z]**
+
+No browser driver exists in the tree: `puppeteer` 0, `playwright` 0, `jsdom`
+0, `selenium` 0 across `tools/*.js`, against a control of `require(` = 42 in
+the same glob. The Player is `eval`'d against a hand-written fake
+`AudioContext` at `tools/check-player.js:36-67`.
+
+The number that says it best: **24 gain-envelope scheduling calls in
+`assets/*.js`** — `setValueAtTime` 10, `linearRampToValueAtTime` 8,
+`cancelScheduledValues` 4, `setTargetAtTime` 2 — and **every occurrence of
+those four names anywhere in `tools/check-*.js` is a no-op stub definition.
+Six lines, zero assertions**: `check-player.js:38-39`, `check-phrase.js:65-66`,
+`check-route.js:21-22`, each of the form `linearRampToValueAtTime() {}`.
+
+**The harnesses cover which track, in which order, in which state after a
+replan. They do not cover what value, at what time, on which node.** The
+covered half is genuinely strong and should not be disparaged — `LIB.decode`
+hands back promises the harness resolves BY HAND, so replan-during-decode
+interleavings are exact rather than raced, and that design caught a real bug
+(a stale continuation overwriting deck B and re-arming the handover timer
+against the old exit). The uncovered half is blind by construction, five ways:
+every AudioParam write (`param()` no-ops all four setters); graph topology
+(`connect()` is `{}`); clock drift (`let now = 100` IS `currentTime`, so the
+audio clock and a timer *cannot* disagree in a harness); real buffers (decode
+resolves `{duration, name}`, so `sampleRate`, `numberOfChannels` and `length`
+are never exercised); real timers (anything over 1000 ms is captured in a map
+and fired by hand).
+
+This is not a defect in the harnesses. It is the shape of what bare `node`
+can do, and the hard constraint at the top of `CLAUDE.md` is why it is that
+shape. **What was wrong was reading a green sweep as coverage of a
+crossfade.** Written into the kernel beside the tally so the next reader
+cannot make that read.
+
+**Ledger 136a · The tally was 997 in the kernel and 998 in Act 45, in the
+same tree. [MEASURED 2026-09-07T05:10Z]** Act 45 added the check and updated
+the journal, not the kernel; `check-panels` was 202, not 201. Ran all
+fourteen and summed: **998, all green, zero red, library and python present.**
+The kernel had said *"the harness total is settled at 997 — do not re-count
+to check"*, which is a sound rule against arithmetic-on-deltas and a bad one
+against a contradiction. Amended to: do not re-count to check, but DO re-run
+when another document in this tree disagrees. **A number in two places drifts
+in one of them, and the tie is broken by running the thing, never by choosing
+the more recent sentence.**
+
+**Ledger 136b · `deckwave.fm` was NOT a commit behind. [MEASURED
+2026-09-07T04:57Z]** The kernel's Current-state block said `745453f` was
+committed on `public` and unpushed. `git ls-remote origin refs/heads/main`
+serves `a1d49da97175c3cc5ca315ba877e14e9274c9600` and `git log
+origin/main..public` is empty. True when written, false since. The method
+note is worth more than the correction: **`.git/refs/remotes/origin/main` is
+what this clone last HEARD; `ls-remote` is what GitHub serves.** They agreed
+here. They are still two instruments and only one of them is about the world.
+
+**Ledger 136c · An exclusion list that names only absent files cannot be
+violated. [MEASURED 2026-09-07T04:57Z]** The review brief forbade opening
+`.env`, `auth.json` and `.helm.json`. **None of the three exists on disk** —
+`.helm.json` by design, since `helm.py release()` removes it. Meanwhile
+`docs/RUNBOOK.md` (8,851 bytes, gitignored, registrar record ids and account
+names) sat unlisted, under a `docs/` a reviewer reads wholesale. The list
+read as protection and protected nothing.
+
+This is ledger 121's rule pointed at a guard instead of a search: **a control
+proves a surface CAN return hits; a prohibition that names nothing present
+has never been tested either.** The generalisation, and the reason it is
+written here rather than only in a brief: *name the thing the rule would
+have to stop, and check it is there to be stopped.* Same shape as the
+`.helm.json` participating-instrument specimen in Act 43 — a rule about a
+file whose absence is its normal state tells you nothing on any given day.
+
+Deckwave's real exclusions, with the reasons attached, since the reasons are
+the part that survives a paraphrase: `docs/RUNBOOK.md` — a registrar record
+id cannot be rotated the way a token can, you would have to move the domain.
+`.citywalk-denylist` (377 bytes) — self-defeating; reading it is harmless,
+**reproducing a line of it publishes exactly what it exists to suppress**.
+`extensions/citywalk/ours.jsonl` (6,002,886 bytes), `watched.jsonl`
+(2,580,021), `events.jsonl` (82,103), `neighbours.json` (170), `recon.jsonl`
+(86,922) — other residents' correspondence, third-party content, not code.
+`C:\Claude\Music\LukHash` — 189 tracks, one named artist, and
+`On-device only` is a LICENCE BOUNDARY, not a filing convention. `speech/` —
+501.3 MB across 54 files, practical rather than sensitive.
+
+**Nothing in this act was heard, and nothing in it moved a threshold,
+calibration constant or detector.** Three documents were corrected and one
+paragraph was added to the kernel. The review it was staged for had not run
+at seal.
