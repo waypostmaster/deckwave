@@ -214,5 +214,6 @@ if (require.main === module) (async()=>{
     console.log('\n'+name+' · synthetic inputs, no audio/library');
     try{await run();}catch(e){ok(name+' completed',false,e.stack);}
   }
-  console.log('\n'+(fails?fails+' FAILURES':'all passed')+' of '+checks+' checks');process.exitCode=fails?1:0;
+  console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
+  process.exitCode = fails ? 1 : 0;
 })();

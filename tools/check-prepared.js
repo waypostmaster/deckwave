@@ -68,4 +68,8 @@ async function checksForSession() {
     ok('decode failure keeps the preparation available',error==='corrupt fixture'&&r.sets.prepared===candidate&&r.sets.current.length===0,{error,prepared:!!r.sets.prepared});r.player.stop();
   }
 }
-(async()=>{try{await checksForSession();}catch(e){ok('session checks complete',false,e.stack);}console.log('\n'+(fails?fails+' FAILURES':'all passed')+' of '+checks+' checks');process.exitCode=fails?1:0;})();
+(async () => {
+  try { await checksForSession(); } catch (e) { ok('session checks complete', false, e.stack); }
+  console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
+  process.exitCode = fails ? 1 : 0;
+})();
