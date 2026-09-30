@@ -3591,3 +3591,56 @@ origin/main..public` says so; GitHub served `a1d49da` at 2026-09-30T17:25Z).
 It did not run `preview-prepared.py`. Mike's browser QA toggled the theme,
 which writes `localStorage dw-theme` on whichever origin served it; which
 origin is unknown.
+
+**Ledger 137a · Fixed, with the falsifier written first. [MEASURED
+2026-09-30T22:51Z]** The keeper said "go on your recommendations", and the
+recommendation on 137 was to restore what `build()` had always done rather
+than teach the router a new rule. `classifyPool()` is the first step of
+`sequence()` factored out unchanged (same filter, same cut, same
+`_gridErr`/`_locked` stamps); `prepare()` runs it on the ORIGINALS, marks a
+track above the cut straight exactly as `sequence()` marks a placed one
+(`_unlocked = true, _unlockReason = 'grid'`; a locked one loses any stale
+mark), then plans on copies as before. The plan never reaches the originals
+— asserted, not assumed. `check-pool` grew a ledger-137 block on the real
+corpus: **five tracks sit above the 9% cut** (that is the size of 137 on this
+library — five stones the router could have stretched), the control demands
+at least one so the question is posed, and the block **fails 2 of 54 against
+`8bf6f82`'s source and its control fails against `public`**, which has no
+`prepare()` at all. Sizing note: `best`/`phrase` builds never placed an
+unlocked track, so before Mike those modes already left a track above the
+cut with `_locked === false` and no straight mark — the same hole, older, and
+closed by the same change. Commit `579da82`.
+
+**Ledger 140a · ▶ arms the call-focus proxy before the prepared branch.
+[MEASURED]** One line moved up; `armCalls` is idempotent (`phone.js:561-564`,
+`ensureSilent` reuses the element). `check-prepared` gained a compiled
+source-order check (ledger 111 shape: `vm.Script` first, then the handler's
+text order) that fails on `8bf6f82`. Whether the later "kick" re-arm had
+made it harmless on a device stays [INFERRED]; the ordering is now right
+either way. Not touched from 140: the apply-remaining mode conflict (a
+design call — what should Apply do to a `best` set whose remainder cannot
+all be reached?), the tune switch not reaching the playing copies (sits on
+the §23 A/B), and the small select/focus notes.
+
+**Ledger 141a · Three checks that accepted a crash now match the message;
+the preview script's outputs are ignored. [MEASURED]** `/^prepare this set/`,
+`/^no unplayed tracks/`, `/^refused/`. `tools/qa-prepared.html` and
+`tools/qa-prepared-score.json` are gitignored, so `preview-prepared.py` can
+no longer leave sweepable files. **Sixteen harnesses, 1063 checks, all
+green, MEASURED 2026-09-30T22:51Z** (`check-pool` 54, `check-prepared` 14).
+
+**The A/B is staged, not run.** The main tree (this branch) is on
+`127.0.0.1:8777`; a detached worktree of `public` at `338bdd7` lives at
+`C:/Claude/Code/Deckwave-ab-old` on `127.0.0.1:8778`, both served with
+`--music`. Control that the two ports differ: `classifyPool` occurs 3 times
+in the `deckwave.js` served on 8777 and 0 times on 8778; `changeRate` 5 and
+0. The worktree is disposable (`git worktree remove ../Deckwave-ab-old`).
+
+**Hazard, twice in one session:** a stale `.git/index.lock` (0 bytes, no
+git process) blocked a commit at 17:47Z and again at 22:52Z, created at
+17:29Z and 18:02Z — the second within ninety seconds of this desk's own
+commit and con release. A `codex.exe` process was alive throughout and its
+working set grew from 124 MB to 303 MB across the session. Whether that
+process is Mike, and whether it touches this repo, is unknown; the tree's
+mtimes say nothing of Mike's has moved since 2026-09-08. Each lock was
+removed only after its age and the process list were read.

@@ -222,10 +222,12 @@ addition dated 2026-09-30.**
 contributor's work that `public` does not** — Mike's seven engine/capture/
 render fixes and a prepared-set UI, committed as `8bf6f82` on 2026-09-30 from
 a tree Mike left uncommitted on 2026-09-08, reviewed in Act 47 (ledgers
-137–141). It changes the beatmatch itself (138) and has one confirmed
-regression (137, route stones on untrusted grids). **It is not merged, not
-pushed, and not heard.** Whether it merges is the keeper's A/B, not a build
-task; `git branch -vv` says where the two branches stand, not this sentence.
+137–141). It changes the beatmatch itself (138); its one confirmed
+regression (137, route stones on untrusted grids) is fixed in `579da82` with
+a real-corpus falsifier. **It is not merged, not pushed, and not heard.**
+Whether it merges is the keeper's A/B (ledger 138 — the A/B is staged on
+ports 8777/8778, see 137a), not a build task; `git branch -vv` says where
+the two branches stand, not this sentence.
 
 **Deckwave is PUBLIC.** 0.8.0 was pushed 2026-09-01 ("August 32nd — 8 bars
 of 4") to `waypostmaster/deckwave`, one commit of fresh history, tag
@@ -251,9 +253,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — sixteen of them, 1058 checks, all `node tools/check-*.js`
+### Harnesses — sixteen of them, 1063 checks, all `node tools/check-*.js`
 
-`check-pool` 50 · `check-route` 21 · `check-player` 80 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 13 — **1058 in all, MEASURED 2026-09-30T17:56Z on `codex/mike-reliability-ui` by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); `public` at `338bdd7` still has fourteen and 998. Ledger 141 says exactly what the new 60 can and cannot fail on.
+`check-pool` 54 · `check-route` 21 · `check-player` 80 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1063 in all, MEASURED 2026-09-30T22:51Z on `codex/mike-reliability-ui` by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); `public` at `338bdd7` still has fourteen and 998. Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -361,7 +363,7 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is 1058 on this branch**, MEASURED 2026-09-30T17:56Z
+- **The harness total is 1063 on this branch**, MEASURED 2026-09-30T22:51Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the
