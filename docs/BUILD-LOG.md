@@ -3416,3 +3416,178 @@ silent synthetic buffers at desktop and narrow widths. Build/Apply preserved
 the current track; keyboard actions, focus restoration, theme selection and
 persistent named errors were exercised. See the implementation note for the
 file-picker limitation and the exact coverage boundary. Still unheard.
+
+## Act 47 — Mike's tree, twenty-two days later: committed, reviewed, unheard (2026-09-30)
+
+Mike's work sat as an uncommitted working tree from 2026-09-08 to
+2026-09-30. Nobody touched the repo in between. This act snapshots it as
+`8bf6f82` on `codex/mike-reliability-ui` (Mike's ten files, staged by name;
+the citywalk feed and the circle icon are another session's and were left),
+fixes the one red harness (`19e94a8`), and records a three-reviewer read of
+the commit — three Opus 5.5 subagents, read-only, one each on the core
+engine, the dashboard/capture/render slice, and whether the two new
+harnesses can fail. Every finding below was then checked against the code
+path by this desk before it was written; the tag says how far that went.
+Nothing here has been heard, and nothing in it moved a threshold,
+calibration constant or detector by value.
+
+**Ledger 137 · Route stepping stones are now beatmatched on grids the
+project does not trust. [CONFIRMED by code path; UNMEASURED on the corpus]**
+
+Build now calls `DW.prepare()` (`deckwave.js:2311`), which runs `sequence()`
+over shallow COPIES of the corpus. That is the fix for "`sequence()` mutates
+the shared corpus objects", and for the playing set it works. But the
+classification `sequence()` stamps on the whole pool (`_locked`, line 629)
+now lands on the copies only. **No code path stamps the originals any more**
+(`grep '_locked ='` across `assets/`: `deckwave.js:629` inside `sequence`,
+`deckwave-score.js:239` on score load; nothing else). The router still plans
+over the originals (`deckwave-dashboard.js:1071` and `deckwave-events.js:151`
+pass `DW.corpus`), `commit()` stamps `_stretch` on a stone but never
+`_unlocked` (`nav-commit.js:81-86`), and the gate there is
+`gridOK = t._locked !== false` (`nav-commit.js:132`) — **an unstamped track
+counts as locked**. `chain()` then reads `successor._unlocked`, finds nothing,
+and stretches the stone to the rolling target aligned to its beats
+(`deckwave.js:1594-1604`). Before this commit `build()` had stamped those
+same originals, so a stone above the 9% cut played straight. Scenario: fresh
+session, Build, ▶, then a scenic route, a fast blend, or a DWEVENTS steer
+through any track above the cut. This breaks "grid error IS beatmatch error"
+for exactly the tracks it was written about. How many stones on the real
+corpus sit above the cut is not measured here. `check-prepared` cannot see it:
+its fixtures hand-stamp `_locked: true` (`check-prepared.js:18`). The fix is
+Mike's to make or the keeper's to assign; the shape is obvious (stamp the
+originals' classification too, or make `gridOK` demand `_locked === true`
+and let a loaded score keep its own exemption), and it is NOT made here
+because it changes which tracks the router may stretch, which is a
+detector-input change under the kernel's rule.
+
+**Ledger 138 · The shipped engine lets the two decks disagree by 35% of
+the tempo gap on every transition after the first, and Mike's fix makes
+the correction audible. [CONFIRMED by reading old and new; UNHEARD either way]**
+
+Old `chain()` (`338bdd7:assets/deckwave.js:1422,1494-1495`): the incoming
+deck is made at `tempo / nm.bpm` as a FIXED rate, and only then does `tempo`
+advance to `tempo + (nm.bpm - tempo) * .35`. So B's body plays at the
+PRE-drift tempo for its whole length; at the next transition C enters at the
+POST-drift tempo, and during that crossfade the two trusted decks run
+`.35 × (B.bpm − T0)` bpm apart. `check-reliability` measures it on the old
+source: `120/128/128 second blend shares tempo` prints `[[120, 122.8]]` and
+FAILS there. Every by-ear confirmation this project holds ("hot. Nice mix.",
+"sounding tight now") was heard on that engine. Mike's engine ramps BOTH
+decks' `playbackRate` linearly to the rolling target over the fade
+(`deckwave.js:1426-1438`, `1594-1604`), so the outgoing deck audibly changes
+speed while fading (×1.000 → ×1.023 on a 120 → 128 pair) and the incoming
+track's body then runs at the post-drift rate. The scheduling itself reads
+correct: `cancelScheduledValues` then a ramp from the interpolated value
+(`:1226-1238`), no unset ramp start, no stale event surviving a cancel, both
+decks' ramps agree in bpm end to end. **Nothing changed value** — the full
+literal-by-literal table is in the core reviewer's report and every entry is
+"moved, same value" — but `.35` now drives an audible ramp, settle (still
+`on: false`, `:904`) would ramp the outgoing deck too, and a phrase-mode fade
+is now `2 × phraseSource / (r0 + r1)` seconds rather than the planner's
+length (still 32 source beats). That is a beatmatch change, and the
+kernel's rule puts it with the keeper: one A/B, same seed, three or more
+trusted transitions with unequal bpm, old engine against new. Either verdict
+is a finding — "the old mismatch was the sound I liked" is as real as "the
+ramp is tighter".
+
+Consequences of 138 that are bugs on their own, all [CONFIRMED by reading]:
+the planner's `_stretch` (`sequence`, `:710-712`, pre-drift) no longer
+describes the body rate the deck plays (post-drift, 0.65× the printed
+figure), so any row printing `_stretch` prints a rate no deck holds past one
+fade — the header's `DW.deck.stretchPct` is live and stays right; the
+gap-warning log prints `A.rate` (`:1712`), now only the ENTRY rate, so a
+popping report can read ×1.000 beside gaps that happened at ×1.023 — that is
+the one number LISTENING §7 needs; and "next"/"blend now" pressed during a
+fade now waits for the fade to end (`:1409`, up to 16 s) instead of the next
+downbeat, reported honestly in the return string but a change to what
+"blend asap" meant on 2026-08-19.
+
+**Ledger 139 · Two lifecycle races in the new chain, unproven either way.
+[INFERRED — traced by reading, no harness covers either]**
+(a) Decode now happens before any exit is written (`:1500-1515`), and the
+new completion path in `onended` nulls A and bumps `gen` when nothing
+follows (`:1119-1129`). A re-plan landing about 2 s before a track's end,
+with a next track whose decode takes longer than that, could end A while the
+chain awaits the decode; the chain then returns at `:1516` and the set stops
+with tracks queued. The old code wrote an immediate exit first and started
+the next deck late, with a gap. (b) `cancelPending` restores `tempoBefore`
+only when `currentTime <= B.startedAt` (`:1296-1297`); a skip that lands
+after B started but before the handover timer fires, when A is a straight
+track and B a reach track, leaves `tempo` on the cancelled track's target —
+the 2026-08-19 bug the comment above those lines describes, in a narrow
+window. What would confirm each: a `check-reliability` check with a
+hand-resolved slow decode at T−2 s, and one with a skip in the
+`startedAt < now < handover` window. Neither is written here.
+
+**Ledger 140 · The dashboard slice, smaller findings. [CONFIRMED by reading
+unless tagged]** ▶ on a prepared set returns before `PH().armCalls()`
+(`dashboard.js:1574-1581`); Build now always prepares, so "Build, ▶" always
+takes that branch and the Android call-focus proxy is not armed inside the
+tap — [INFERRED] whether the later "kick" re-arm makes it harmless on a
+device (LISTENING §14, ledger 71). "Apply remaining" re-plans the tail with
+`resequenceTail`, the route-repair greedy, not `sequence()`, then copies
+`mode`/`phrase`/`leftOut` from the candidate onto the result
+(`dashboard.js:515-516`), so a `best` or `phrase` set can go live containing
+straight tracks those modes promise never to include, and `leftOut` ignores
+the played prefix. `DW.retune` restamps `camelot` on the originals only
+(`deckwave.js:167-175`); after Play prepared the deck holds copies, so a tune
+switch mid-set leaves the live set on the old codes and nav scoring against
+the new — the "mixed corpus" state the retune comment names, sitting on the
+§23 A/B the keeper has not heard. Save/Audit/Render take
+`prepared || current` (`:1226`) and a prepared set is never discarded by
+scan, retune, a lock change, a demo or a jump — labelled ("save prepared"),
+not silent. The demo still loads its score against the originals
+(`libre.js:715`), so "Load resolves against copies" is true of the ▴ button
+only. Capture replacement and the render refusal have no finding: the token
+is checked after the picker and after resume, the old graph is disposed only
+once a valid replacement exists, and `decodeRange` throws before the offline
+context and the download with the full name in the error. Track names reach
+`innerHTML` through `esc()`; no inline handlers, no new network surface.
+Smaller UI notes: native `<select>` fires on each arrow key on Chromium for
+Windows (`:1326`); a current value not in `items` leaves the select blank; a
+focused track that leaves the list focuses row 0 (`:907`); a cancelled
+picker is now logged as an Issue (`:2063`, `:2101`); the global `button` rule
+uppercases `.swap` and `.fold`.
+
+**Ledger 141 · The two new harnesses: 22 of 47 is real, the rest is what it
+is. [MEASURED, mutation-tested by the harness reviewer, reproduced here]**
+`check-reliability` against `git show 338bdd7:` sources: 22 FAIL of 47, all
+47 ran; the 25 that pass on both are 6 named controls, 2 fake self-tests,
+and 17 regression guards that fail under mutants of the NEW code (kept — a
+guard is not evidence for the change, and is still worth having). Weak
+ones: the "rolling target advances" pair asserts `120 < tempo < 128`, which
+passes with `.35` changed to `.5` (`check-player`'s "UNROUNDED rolling
+target" catches that mutant, so the fraction is guarded, just not here);
+the "independent numerical integration" (tolerance 1e-7 s, observed error
+3e-11) genuinely integrates the recorded events and catches a ramp 10% long,
+a target 0.1% off, a step for a ramp — but a wrong ramp written
+CONSISTENTLY into both `d.curve` and the params passes it, so it proves
+`pos()` matches the schedule, not that the schedule is right; and the fake
+models `setTargetAtTime` as a step. `check-prepared` on the old dashboard
+runs ONE check (a presence check) and returns early, so its 12 behavioural
+checks have never been shown failing on old source — under mutation all 12
+fail on at least one of 21 mutants, but three of them (`:29`, `:43`, `:50`)
+assert `!!error` and PASS on an injected TypeError, which is a crash
+reported as a correct refusal; the fix is a message match. Two of Mike's
+Apply claims (the phrase flag adopting, the `mode/poolSize/leftOut/phrase`
+copy) have no check that fails when the code is removed. An evidence
+expression that throws inside `ok()` aborts the rest of a group (3 checks
+went dark under one mutant, tally shrank, no red beyond the catch line).
+`preview-prepared.py` writes `tools/qa-prepared.html` and
+`tools/qa-prepared-score.json` into the repo, untracked and NOT ignored —
+absent from the tree now, but a `git add -A` would sweep them. Neither
+harness writes anywhere; `git status` reads the same before and after.
+The tally line: both files built it inline and printed `FAILURES` where the
+template says `FAILED`, so `check-serve` scored them as variants (ledger
+110's exact failure) — fixed in `19e94a8`. **MEASURED 2026-09-30T17:56Z:
+sixteen harnesses, 1058 checks, all green, library and python present.**
+
+**What this act did not do, on purpose.** It fixed no finding in
+`assets/`: 137 and the `_stretch` label are detector-input and display
+changes that need the keeper to say which way; 138 needs an ear before a
+line moves. It did not merge to `public` and did not push. The three
+docs-only ledger-136 commits are still unpushed (`git log --oneline
+origin/main..public` says so; GitHub served `a1d49da` at 2026-09-30T17:25Z).
+It did not run `preview-prepared.py`. Mike's browser QA toggled the theme,
+which writes `localStorage dw-theme` on whichever origin served it; which
+origin is unknown.
