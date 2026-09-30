@@ -1571,6 +1571,10 @@ function buildTransport(dash) {
       if (st.ctx === 'suspended') { log(window.DW.pause()); return; }   /* resume */
       if (st.ctx === 'running') { log('already playing — ❚❚ to pause, ■ to stop'); return; }
     }
+    /* Android: start the call-focus proxy inside this gesture — BEFORE the
+       prepared branch, which is now the normal path since Build always
+       prepares (ledger 140: it returned first and never armed). */
+    if (PH() && PH().armCalls) PH().armCalls();
     if (dash.prepared) {
       try { log(await dash.playPrepared()); dash.renderList(); }
       catch (e) { dash.reportIssue(e, 'play prepared'); log(e.message); }
@@ -1578,7 +1582,6 @@ function buildTransport(dash) {
     }
     if (!dash.set.length) { log('build a set first'); return; }
     if (!window.DW.LIB.files) { log('open the library first'); return; }
-    if (PH() && PH().armCalls) PH().armCalls();   /* Android: start the call-focus proxy inside this gesture */
     try { log(await window.DW.play(dash.set, 0)); }
     catch (e) { dash.reportIssue(e, 'play'); log('cannot play: ' + String((e && e.message) || e) + ' — deck stopped'); } }, true, GRP.play);
   btn('pause', () => log(window.DW.pause()), false, GRP.play);

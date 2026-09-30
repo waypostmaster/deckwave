@@ -583,6 +583,25 @@ const LOCK = { maxGridErrPct: 9, minBeats: 8 };
    refuses them, and only if nothing else qualifies at all does a second pass
    allow one, because ending the set is the thing we are trying to stop
    doing. */
+/* The pool and its classification, stamped ON the records handed in. This
+   used to be the first thing sequence() did and nothing else; it is its own
+   function because ledger 137 needed it run on the corpus ORIGINALS while the
+   plan itself is built on copies (see prepare()). Same filter, same
+   `_gridErr`/`_locked` stamps, same cut — nothing here decides anything
+   sequence() did not already decide. */
+function classifyPool(corpus, opts) {
+  opts = opts || {};
+  const minConf = opts.minConf != null ? opts.minConf : 0;
+  const maxGridErr = opts.maxGridErr != null ? opts.maxGridErr : LOCK.maxGridErrPct;
+  const fullPool = dedupe(corpus, opts).filter(t => t.bpm > 60 && t.dur > 75 && t.conf > minConf);
+  fullPool.forEach(t => {
+    const e = gridError(t);
+    t._gridErr = e == null ? null : +e.toFixed(2);
+    t._locked = e != null && e <= maxGridErr;
+  });
+  return fullPool;
+}
+
 function sequence(corpus, opts) {
   opts = opts || {};
   const maxStretch = opts.maxStretch != null ? opts.maxStretch : 0.08;
@@ -622,12 +641,7 @@ function sequence(corpus, opts) {
                pool is locked-only here. */
   const mode = (opts.mode === 'best' || opts.mode === 'phrase') ? opts.mode : 'all';
   const tight = mode !== 'all';                 /* best and phrase: locked pool, the gate ends the set */
-  const fullPool = dedupe(corpus, opts).filter(t => t.bpm > 60 && t.dur > 75 && t.conf > minConf);
-  fullPool.forEach(t => {
-    const e = gridError(t);
-    t._gridErr = e == null ? null : +e.toFixed(2);
-    t._locked = e != null && e <= maxGridErr;
-  });
+  const fullPool = classifyPool(corpus, opts);
   const pool = tight ? fullPool.filter(t => t._locked) : fullPool;
   if (!pool.length) return [];
   const n = Math.min(opts.length || pool.length, pool.length);
@@ -2307,8 +2321,25 @@ return {
   build(opts) { return sequence(corpus, opts); },
   /* Preparation cannot restamp metadata on a playing deck. The planner only
      writes top-level annotations; analysis arrays and source attribution
-     remain read-only shared data. Keep build()'s live-patching contract. */
-  prepare(opts) { return sequence(corpus.map(t => ({ ...t })), opts); },
+     remain read-only shared data. Keep build()'s live-patching contract.
+
+     ── ledger 137 (2026-09-30): the CLASSIFICATION still goes on the originals.
+     The plan (`_stretch`, `_tempoAt`, the order) is built on copies so a
+     Build can never restamp the deck. But the router plans over the
+     originals, commit() stamps `_stretch` on a stepping stone and never
+     `_unlocked`, and nav-commit's gridOK reads an UNSTAMPED track as locked —
+     so with the originals left bare, a stone above the grid cut was stretched
+     to the rolling target on a grid the project does not trust. build() had
+     always stamped the originals; this restores exactly that half of it: the
+     cut's verdict and the straight mark for a track above it, never the plan.
+     check-pool's ledger-137 block is the falsifier. */
+  prepare(opts) {
+    classifyPool(corpus, opts).forEach(t => {
+      if (t._locked) { delete t._unlocked; delete t._unlockReason; }
+      else { t._unlocked = true; t._unlockReason = 'grid'; }
+    });
+    return sequence(corpus.map(t => ({ ...t })), opts);
+  },
 
   /* Live setting for what counts as a trustworthy grid. Rebuild to apply.
      Derived from the corpus rather than chosen — see LOCK. */

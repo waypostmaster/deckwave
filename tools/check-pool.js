@@ -56,6 +56,9 @@ eval([
   grab(/function dedupe\(corpus, opts\) \{[\s\S]*?\n\}\n/, 'dedupe'),
   grab(/function gridError\(t\) \{[\s\S]*?\n\}\n/, 'gridError'),
   grab(/function camScore\([\s\S]*?\n\}\n/, 'camScore'),
+  /* classifyPool arrived with ledger 137 (2026-09-30); older sources inline it
+     in sequence(), so its absence is not fatal — the 137 block below says so. */
+  (src.match(/function classifyPool\([\s\S]*?\n\}\n/) || [''])[0],
   grab(/function sequence\(corpus, opts\) \{[\s\S]*?\n\}\n/, 'sequence')
 /* `const` declared inside eval() stays in the eval's own lexical scope, so the
    functions above can see LOCK and this file cannot. Hand it out deliberately
@@ -524,6 +527,49 @@ console.log('\n── the opener prefers a locked grid on an exact tie ───
   ok('an exact tie for the opening energy is broken toward the LOCKED track',
      tied.length && tied[0].id === 'l',
      'the set opened on ' + (tied[0] && tied[0].name) + ' — a set opening on a track played straight opens on no beatmatch at all; the locked-first concat before the stable sort is what prevents it');
+}
+
+/* ── ledger 137: prepare() must classify the ORIGINALS, not only its copies ──
+   Build moved from build() to prepare() (8bf6f82), which sequences shallow
+   copies so a build can never restamp a playing deck. Right — but the router
+   still plans over the originals, commit() stamps _stretch on a stepping
+   stone and never _unlocked, and nav-commit's gridOK is `_locked !== false`:
+   an UNSTAMPED original counts as locked. So a stone above the cut, which
+   build() used to leave marked straight, was stretched to the rolling target
+   on a grid the project does not trust. Falsifier: an original above the cut
+   without `_unlocked === true` after prepare(). Runs on the real corpus, where
+   the cut leaves five such tracks — the control asserts there is at least one,
+   so the check cannot pass on a corpus that never poses the question.
+   The copy boundary is asserted in the same breath: originals get their
+   CLASSIFICATION back, never the plan. */
+console.log('\n── ledger 137: prepare() classifies the originals ───────────');
+{
+  const one = src.match(/^  prepare\(opts\) \{.*\},?$/m);
+  const many = src.match(/^  prepare\(opts\) \{[\s\S]*?^  \},?$/m);
+  const text = (one || many || [null])[0];
+  ok('DW.prepare exists to be tested (control)', !!text,
+     'no prepare(opts) method in the source — public at 338bdd7 has none; this block is about the branch that added it');
+  if (text) {
+    const fresh = corpus.map(t => { const c = {}; for (const k in t) if (k[0] !== '_') c[k] = t[k]; return c; });
+    const cp = (src.match(/function classifyPool\([\s\S]*?\n\}\n/) || [''])[0];
+    const prepare = new Function('corpus', 'sequence', 'LOCK', 'dedupe', 'gridError',
+      cp + '\nreturn ({ ' + text.replace(/,\s*$/, '') + ' }).prepare;')(fresh, sequence, LOCK, dedupe, gridError);
+    const set = prepare({ length: 500 });
+    const pool = dedupe(fresh, {}).filter(t => t.bpm > 60 && t.dur > 75 && t.conf > 0);
+    const unstamped = pool.filter(t => t._locked === undefined);
+    const above = pool.filter(t => t._locked === false);
+    const notStraight = above.filter(t => t._unlocked !== true);
+    const leaked = pool.filter(t => t._stretch !== undefined || t._tempoAt !== undefined);
+    ok('prepare() leaves every pool ORIGINAL classified (_locked stamped)',
+       set.length === pool.length && unstamped.length === 0,
+       'set ' + set.length + ' of pool ' + pool.length + ', ' + unstamped.length + ' originals unstamped — the router reads an unstamped track as locked (nav-commit gridOK)');
+    ok('every ORIGINAL above the cut is marked to play straight, as build() marked it',
+       above.length >= 1 && notStraight.length === 0,
+       above.length + ' above the cut (need ≥1 for the question to be posed), ' + notStraight.length + ' of them NOT marked _unlocked: ' + notStraight.map(t => t.name).join(' | '));
+    ok('and prepare() still writes no plan onto the originals (copy boundary holds)',
+       leaked.length === 0,
+       leaked.length + ' originals carry _stretch/_tempoAt after prepare()');
+  }
 }
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');

@@ -149,6 +149,9 @@ eval([
   grab(/function dedupe\(corpus, opts\) \{[\s\S]*?\n\}\n/, 'dedupe'),
   grab(/function gridError\(t\) \{[\s\S]*?\n\}\n/, 'gridError'),
   grab(/function camScore\([\s\S]*?\n\}\n/, 'camScore'),
+  /* classifyPool arrived with ledger 137 (2026-09-30); older sources inline
+     it in sequence(), so its absence is not fatal. */
+  (src.match(/function classifyPool\([\s\S]*?\n\}\n/) || [''])[0],
   grab(/function sequence\(corpus, opts\) \{[\s\S]*?\n\}\n/, 'sequence')
 ].join('\n'));
 /* maxGridErr huge and minConf at the old 0.8 on purpose: this file tests the

@@ -48,3 +48,7 @@ docs/RUNBOOK.md
 # above: this repo is public and a fresh clone must run from a static file
 # server with nothing extra in it. See ~/.claude/skills/house-memory/.
 memory-map.json
+
+# QA fixture written by tools/preview-prepared.py (ledger 141) - disposable, never product
+tools/qa-prepared.html
+tools/qa-prepared-score.json

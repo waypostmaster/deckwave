@@ -26,7 +26,8 @@ async function checksForSession() {
     r.sets.prepare(prepared);
     ok('preparing keeps playing identity, metadata and scheduled next', r.sets.current===current && r.player.nowMeta===b && !b._unlocked && r.player.nextMeta===c, {playing:r.player.nowMeta.name,next:r.player.nextMeta.name,straight:!!b._unlocked});
     let refusal; try { r.sets.adopt(prepared); } catch(e) { refusal=e.message; }
-    ok('an unrelated displayed order is refused while playing', !!refusal && r.sets.current===current, {refusal});
+    /* ledger 141: `!!refusal` passed on an injected TypeError — a crash read as a refusal. Match the message. */
+    ok('an unrelated displayed order is refused while playing', /^prepare this set/.test(refusal) && r.sets.current===current, {refusal});
     const result = await r.sets.apply(); await flush();
     const next = r.sets.current;
     ok('Apply adopts the real player order and preserves the exact history prefix', next===r.player.playOrder && next[0]===a && next[1]===b && next.length===4 && !r.sets.prepared, {result,order:next.map(t=>t.name),idx:r.player.state.idx});
@@ -40,14 +41,14 @@ async function checksForSession() {
     const before=r.player.nextMeta;let error;try{await r.sets.apply();}catch(e){error=e;}
     ok('missing files refuse Apply before replacing the order or next deck',error?.failures?.[0].name==='missing [full title]'&&r.player.playOrder===current&&r.player.nextMeta===before&&r.sets.prepared===bad,{error:error?.message,failures:error?.failures,next:r.player.nextMeta.name});
     r.sets.prepare([{...current[0]}]);let empty;try{await r.sets.apply();}catch(e){empty=e.message;}
-    ok('an all-played prepared set refuses rather than erasing the remainder',!!empty&&r.player.playOrder===current,{empty});
+    ok('an all-played prepared set refuses rather than erasing the remainder',/^no unplayed tracks/.test(empty)&&r.player.playOrder===current,{empty});
     r.player.stop();
   }
   {
     const r=rig(),current=[tune('a'),tune('b')];await r.player.play(current);await flush();r.sets.adopt(current);
     r.player.reorder=async()=> 'refused: fixture changed the current index';
     const candidate=[tune('candidate')];r.sets.prepare(candidate);let error;try{await r.sets.apply();}catch(e){error=e.message;}
-    ok('player refusal preserves both displayed and prepared orders',!!error&&r.sets.current===current&&r.sets.prepared===candidate,{error,order:r.sets.current.map(t=>t.name)});r.player.stop();
+    ok('player refusal preserves both displayed and prepared orders',/^refused/.test(error)&&r.sets.current===current&&r.sets.prepared===candidate,{error,order:r.sets.current.map(t=>t.name)});r.player.stop();
   }
   {
     const r=rig(),current=[tune('a'),tune('b')];await r.player.play(current);await flush();r.sets.adopt(current);
@@ -68,7 +69,27 @@ async function checksForSession() {
     ok('decode failure keeps the preparation available',error==='corrupt fixture'&&r.sets.prepared===candidate&&r.sets.current.length===0,{error,prepared:!!r.sets.prepared});r.player.stop();
   }
 }
+/* ── ledger 140: ▶ on a prepared set must arm the Android call-focus proxy ──
+   Build always prepares now, so "Build, ▶" always takes the prepared branch
+   of the ▶ handler — and that branch returned before PH().armCalls(), the
+   call that has to run INSIDE the user's tap (phone.js) for a call to pause
+   the set (LISTENING §14, ledger 71). Text check on the handler's order, the
+   source compiled first (ledger 111): the arming call must come before the
+   prepared branch. Falsifier: the branch precedes the call, as in 8bf6f82. */
+function checksForSource() {
+  let compiled = false;
+  try { new vm.Script(source); compiled = true; } catch (e) { ok('the dashboard source compiles', false, e.message); }
+  if (!compiled) return;
+  const branch = source.indexOf('if (dash.prepared) {');
+  const before = source.lastIndexOf('PH().armCalls()', branch);
+  const after = source.indexOf('PH().armCalls()', branch);
+  const handlerStart = source.lastIndexOf("btn('▶ play'", branch);
+  ok('▶ arms the call-focus proxy BEFORE the prepared-set branch, inside the same gesture',
+     branch > 0 && handlerStart > 0 && before > handlerStart && before < branch,
+     { handlerStart, armBefore: before, preparedBranch: branch, armAfter: after });
+}
 (async () => {
+  try { checksForSource(); } catch (e) { ok('source checks complete', false, e.stack); }
   try { await checksForSession(); } catch (e) { ok('session checks complete', false, e.stack); }
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exitCode = fails ? 1 : 0;
