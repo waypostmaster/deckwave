@@ -26,6 +26,18 @@ window.DWLISTEN = (function () {
 'use strict';
 const AC = window.AudioContext || window.webkitAudioContext;
 let ctx = null, stream = null, an = null, src = null, anL = null, anR = null;
+let request = 0;
+const graph = new Set();
+const keep = node => { graph.add(node); return node; };
+function endStream(value) {
+  if (value) value.getTracks().forEach(t => { t.onended = null; t.stop(); });
+}
+function dispose() {
+  const old = stream; stream = null;
+  endStream(old);
+  graph.forEach(n => { try { n.disconnect(); } catch (e) {} });
+  graph.clear(); src = an = anL = anR = null; kind = label = null;
+}
 /* What we are listening to, for anything that wants to say so. wire() knew the
    label and threw it away — the now-playing card had no way to report that the
    deck was idle *because* it was listening to something else. */
@@ -35,26 +47,46 @@ let label = null;
    Every analyser here gets a silent path to the destination. This exact bug
    cost an hour: the meter read zero while the audio played fine. */
 function sink(node) {
-  const g = ctx.createGain(); g.gain.value = 0;
+  const g = keep(ctx.createGain()); g.gain.value = 0;
   node.connect(g); g.connect(ctx.destination);
 }
 
 let kind = null;                 /* 'tab' | 'mic' | null — which capture is live */
 function wire(lbl, k) {
   label = lbl; kind = k || null;
-  if (!ctx) ctx = new AC({ sampleRate: 44100 });
-  ctx.resume();
-  src = ctx.createMediaStreamSource(stream);
-  an = ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = 0.7;
+  src = keep(ctx.createMediaStreamSource(stream));
+  an = keep(ctx.createAnalyser()); an.fftSize = 2048; an.smoothingTimeConstant = 0.7;
   src.connect(an); sink(an);
-  const split = ctx.createChannelSplitter(2);
+  const split = keep(ctx.createChannelSplitter(2));
   src.connect(split);
-  anL = ctx.createAnalyser(); anL.fftSize = 2048;
-  anR = ctx.createAnalyser(); anR.fftSize = 2048;
+  anL = keep(ctx.createAnalyser()); anL.fftSize = 2048;
+  anR = keep(ctx.createAnalyser()); anR.fftSize = 2048;
   split.connect(anL, 0); split.connect(anR, 1);
   sink(anL); sink(anR);
-  stream.getAudioTracks()[0].onended = () => api.stop();
+  const owner = stream;
+  stream.getAudioTracks()[0].onended = () => { if (stream === owner) api.stop(); };
   return { source: label, channels: 2 };
+}
+
+async function adopt(candidate, mine, k) {
+  if (mine !== request) { endStream(candidate); throw new Error('capture superseded'); }
+  const tracks = candidate.getAudioTracks();
+  if (!tracks.length) {
+    endStream(candidate);
+    throw new Error('no audio track — tick "Share tab audio" (tab) or ' +
+      '"Share system audio" (entire screen) in the picker');
+  }
+  candidate.getVideoTracks().forEach(t => t.stop());
+  try {
+    if (!ctx) ctx = new AC({ sampleRate: 44100 });
+    await ctx.resume();
+  } catch (e) { endStream(candidate); throw e; }
+  if (mine !== request) { endStream(candidate); throw new Error('capture superseded'); }
+  /* A refused/cancelled picker leaves the existing source intact. Only a
+     validated replacement takes ownership, and releases the old graph. */
+  dispose(); stream = candidate;
+  try { return wire(tracks[0].label || (k === 'tab' ? 'tab' : 'input'), k); }
+  catch (e) { dispose(); throw e; }
 }
 
 const api = {
@@ -68,35 +100,24 @@ const api = {
   async tab() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
       throw new Error('getDisplayMedia unavailable');
-    stream = await navigator.mediaDevices.getDisplayMedia({
+    const mine = ++request;
+    const candidate = await navigator.mediaDevices.getDisplayMedia({
       video: true,
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
     });
-    const tracks = stream.getAudioTracks();
-    if (!tracks.length) {
-      stream.getTracks().forEach(t => t.stop()); stream = null;
-      /* Two different checkboxes depending on what was picked, and naming only
-         the tab one sends people looking for something that is not there when
-         they chose a screen. Entire Screen + "Share system audio" is how you
-         capture a desktop application — Spotify, a DAW, anything not in a tab.
-         Windows and ChromeOS offer it; macOS currently does not. */
-      throw new Error('no audio track — tick "Share tab audio" (tab) or ' +
-        '"Share system audio" (entire screen) in the picker');
-    }
-    stream.getVideoTracks().forEach(t => t.stop());   /* only the sound is wanted */
-    return wire(tracks[0].label || 'tab', 'tab');
+    return adopt(candidate, mine, 'tab');
   },
 
   async mic() {
-    stream = await navigator.mediaDevices.getUserMedia({
+    const mine = ++request;
+    const candidate = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
     });
-    return wire(stream.getAudioTracks()[0].label || 'input', 'mic');
+    return adopt(candidate, mine, 'mic');
   },
 
   stop() {
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-    an = anL = anR = null; kind = null;
+    request++; dispose();
     return 'listening stopped';
   },
 

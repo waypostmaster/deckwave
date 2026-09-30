@@ -746,8 +746,7 @@ function sequence(corpus, opts) {
    happens while the user is choosing. That reorder is harmless on Chromium.
 
    The File objects an <input> yields are the same kind the handles yield:
-   the library Map is keyed by norm(name) either way, and the cache key is
-   name|size|mtime either way, so a corpus scanned one way is found the
+   the library Map and the cache both use name|size|mtime, so a corpus scanned one way is found the
    other way. */
 function pickViaInput(opts) {
   opts = opts || {};
@@ -793,6 +792,13 @@ const canPickFolder = () => !!window.showDirectoryPicker || folderInputUsable();
 
 /* ── library: directory handle retained, files resolved lazily ─────────── */
 const LIB = { dir: null, files: null,
+  /* Use the same identity as the analysis cache. A basename can identify
+     several different recordings; it is only a legacy lookup hint. */
+  id(file) { return file.name + '|' + file.size + '|' + (file.lastModified || 0); },
+  add(file) {
+    if (!this.files) this.files = new Map();
+    this.files.set(this.id(file), file);
+  },
   async pick() {
     let f;
     if (window.showDirectoryPicker) {
@@ -804,20 +810,30 @@ const LIB = { dir: null, files: null,
       if (!f.length) throw new Error('nothing picked');
     }
     this.files = new Map();
-    for (const x of f) this.files.set(norm(x.name), x);
+    for (const x of f) this.add(x);
     return this.files.size;
   },
-  find(meta) { return this.files ? this.files.get(norm(meta.name)) : null; },
+  find(meta) {
+    if (!this.files || !meta) return null;
+    if (meta.id) return this.files.get(meta.id) || null;
+    let found = null;
+    for (const file of this.files.values()) {
+      if (norm(file.name) !== norm(meta.name)) continue;
+      if (found && found !== file) return null;  /* ambiguous: never pick one */
+      found = file;
+    }
+    return found;
+  },
   async decode(meta, ctx) {
     const f = this.find(meta);
-    if (!f) throw new Error('missing file: ' + meta.name.slice(-32));
+    if (!f) throw new Error((meta.id ? 'missing file: ' : 'missing or ambiguous file: ') + meta.name);
     return decodeAudio(ctx, f);
   }
 };
 
 /* ── player ────────────────────────────────────────────────────────────── */
 const Player = (() => {
-  let ctx = null, master = null, analyser = null, booted = false;
+  let ctx = null, master = null, analyser = null, booted = false, booting = null;
   /* the last node before the speakers, and the optional MediaStream tap —
      see outputStream() */
   let comp = null, msDest = null, viaStream = false;
@@ -905,6 +921,11 @@ const Player = (() => {
   let gen = 0;
   /* the deck that most recently handed over — see the handover timer */
   let handed = null;
+  const issues = [];
+  function recordIssue(meta, stage, error) {
+    const issue = { name: meta.name, id: meta.id || null, stage, message: String(error.message || error) };
+    if (!issues.some(i => i.id === issue.id && i.name === issue.name && i.stage === stage && i.message === issue.message)) issues.push(issue);
+  }
   /* ── which worklet the decks are built on ─────────────────────────────
      'deckwave-stretch' is the vendored SoundTouch 2.1.1 processor with ONE
      render block held in its output before the first extraction (the
@@ -943,8 +964,17 @@ const Player = (() => {
      which is exactly how the first stop button failed. */
   const live = new Set();
 
-  async function boot() {
-    if (booted) return;
+  function boot() {
+    if (booted) return Promise.resolve();
+    if (booting) return booting;
+    const pending = bootGraph();
+    booting = pending;
+    const finished = () => { if (booting === pending) booting = null; };
+    pending.then(finished, finished);
+    return pending;
+  }
+
+  async function bootGraph() {
     /* `latencyHint: 'playback'` on phones. This is an OUTPUT BUFFER SIZE, not
        a detector or a calibration: it asks the browser for a larger render
        buffer, which costs a few tens of milliseconds of output latency that
@@ -956,7 +986,8 @@ const Player = (() => {
        track, same set, popping gone or not. */
     const ua = navigator.userAgent, phone = /iPad|iPhone|iPod|Android/.test(ua) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    ctx = new AC(phone ? { sampleRate: 44100, latencyHint: 'playback' } : { sampleRate: 44100 });
+    const audioCtx = new AC(phone ? { sampleRate: 44100, latencyHint: 'playback' } : { sampleRate: 44100 });
+    ctx = audioCtx;
     /* Same-origin worklet. index.html's comment always claimed this was
        self-hosted; until now it was not, and the unpinned URL was silently
        resolving to 0.3.0 (LGPL-2.1) rather than the MPL-2.0 release the
@@ -964,14 +995,15 @@ const Player = (() => {
     /* The held-block wrapper first (see `stretch` above): vendored text +
        wrapper as one blob: module, which also registers the plain name. If
        it cannot be built or the platform refuses it, the plain module. */
-    stretch = { name: 'soundtouch-processor', held: false, why: '' };
+    let choice = { name: 'soundtouch-processor', held: false, why: '' };
     /* 1. the checked-in concatenated module — the path with nothing to refuse */
     try {
-      await ctx.audioWorklet.addModule(STRETCH_MODULE);
-      stretch = { name: 'deckwave-stretch', held: true, why: 'static module' };
-    } catch (e) { stretch.why = 'static module failed: ' + ((e && e.message) || e); }
+      await audioCtx.audioWorklet.addModule(STRETCH_MODULE);
+      choice = { name: 'deckwave-stretch', held: true, why: 'static module' };
+    } catch (e) { choice.why = 'static module failed: ' + ((e && e.message) || e); }
+    if (ctx !== audioCtx) return;             /* killed while loading */
     /* 2. the blob: route, for a deployment missing the file */
-    if (!stretch.held && typeof fetch === 'function' && typeof Blob !== 'undefined' && typeof URL !== 'undefined' && URL.createObjectURL) {
+    if (!choice.held && typeof fetch === 'function' && typeof Blob !== 'undefined' && typeof URL !== 'undefined' && URL.createObjectURL) {
       let url = null;
       try {
         const [vend, wrap] = await Promise.all([
@@ -981,22 +1013,25 @@ const Player = (() => {
         /* the vendored text ends with a sourceMappingURL comment; a newline
            keeps the wrapper off that line */
         url = URL.createObjectURL(new Blob([vend, '\n', wrap], { type: 'text/javascript' }));
-        await ctx.audioWorklet.addModule(url);
-        stretch = { name: 'deckwave-stretch', held: true, why: 'blob module' };
+        await audioCtx.audioWorklet.addModule(url);
+        choice = { name: 'deckwave-stretch', held: true, why: 'blob module' };
       } catch (e) {
-        stretch.why += ' · blob failed: ' + ((e && e.message) || e);
+        choice.why += ' · blob failed: ' + ((e && e.message) || e);
       } finally { if (url) { try { URL.revokeObjectURL(url); } catch (e) {} } }
-    } else if (!stretch.held) stretch.why += ' · no fetch/Blob here';
-    if (!stretch.held) {
-      try { await ctx.audioWorklet.addModule(assetURL('soundtouch')); }
+    } else if (!choice.held) choice.why += ' · no fetch/Blob here';
+    if (ctx !== audioCtx) return;
+    if (!choice.held) {
+      try { await audioCtx.audioWorklet.addModule(assetURL('soundtouch')); }
       catch (e) {
         if (!ASSETS.allowCDN)
           throw new Error('missing ' + assetURL('soundtouch') +
             ' — see vendor/README.md, or set DW.assets.allowCDN = true');
         console.warn('deckwave: falling back to CDN for the worklet — remote code, no integrity check');
-        await ctx.audioWorklet.addModule(CDN.soundtouch);
+        await audioCtx.audioWorklet.addModule(CDN.soundtouch);
       }
     }
+    if (ctx !== audioCtx) return;
+    stretch = choice;
     master = ctx.createGain(); master.gain.value = volume;
     comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -12; comp.ratio.value = 4;
@@ -1081,7 +1116,18 @@ const Player = (() => {
        stop(), cancelPending(), or the last track running out — the deck is
        RELEASED: see releaseDeck. Until 2026-09-01 nothing was, and every
        handed-over deck stayed reachable with its decoded buffer. */
-    live.add(src); src.onended = () => { live.delete(src); releaseDeck(d); };
+    live.add(src); src.onended = () => {
+      live.delete(src); releaseDeck(d);
+      d.track.buf = null;
+      try { src.buffer = null; } catch (e) {}
+      /* A handed-over source ending must not clear the new deck. With no
+         successor, this is actual completion: invalidate pending work too. */
+      if (A === d && !B) {
+        gapsHanded += d.gaps || 0;
+        A = null; handed = null; gen++;
+        clearTimeout(chainTimer);
+      }
+    };
     if (st.port) st.port.onmessage = e => { if (e && e.data && e.data.type === 'metrics') d.metrics = e.data; };
 
     /* ── the source-time ↔ wall-time map ────────────────────────────
@@ -1098,7 +1144,7 @@ const Player = (() => {
        when(p) wall-seconds needed to consume p source-seconds — pos inverted
        Both are relative to the deck's own start; add startedAt for ctx time. */
     const d = {
-      src, st, lo, mid, hi, g, track, rate, ramp: null,
+      src, st, lo, mid, hi, g, track, rate, ramp: null, curve: null,
       origin: origin === 'chain' ? 'chain' : 'play',
       /* the worklet's own metrics, every 100 blocks: `gaps` is the number
          of zero-filled blocks since priming (the wrapper's count; the plain
@@ -1108,15 +1154,52 @@ const Player = (() => {
       get gaps() { const m = d.metrics; if (!m) return null; return m.gaps != null ? m.gaps : null; },
       get underruns() { const m = d.metrics; return m ? m.underrunCount : null; },
       rateAt(t) {
+        if (d.curve) {
+          let prev = d.curve[0];
+          for (const point of d.curve.slice(1)) {
+            if (t < point.t) return point.linear
+              ? prev.v + (point.v - prev.v) * Math.max(0, t - prev.t) / (point.t - prev.t) : prev.v;
+            prev = point;
+          }
+          return prev.v;
+        }
         const r = d.ramp; if (!r) return d.rate;
         return t <= 0 ? r.r0 : t >= r.S ? r.r1 : r.r0 + (r.r1 - r.r0) * (t / r.S);
       },
       pos(t) {
+        if (d.curve) {
+          let prev = d.curve[0], sum = 0;
+          if (t <= 0) return t * prev.v;
+          for (const point of d.curve.slice(1)) {
+            const dt = Math.max(0, Math.min(t, point.t) - prev.t);
+            const slope = point.linear ? (point.v - prev.v) / (point.t - prev.t) : 0;
+            sum += prev.v * dt + slope * dt * dt / 2;
+            if (t <= point.t) return sum;
+            prev = point;
+          }
+          return sum + (t - prev.t) * prev.v;
+        }
         const r = d.ramp; if (!r) return t * d.rate;
         if (t <= r.S) return r.r0 * t + (r.r1 - r.r0) * t * t / (2 * r.S);
         return (r.r0 + r.r1) / 2 * r.S + r.r1 * (t - r.S);
       },
       when(p) {
+        if (d.curve) {
+          let prev = d.curve[0], used = 0;
+          if (p <= 0) return p / prev.v;
+          for (const point of d.curve.slice(1)) {
+            const span = point.t - prev.t;
+            const slope = point.linear ? (point.v - prev.v) / span : 0;
+            const area = prev.v * span + slope * span * span / 2;
+            if (p <= used + area) {
+              const left = p - used;
+              /* Stable positive root, including arbitrarily small slopes. */
+              return prev.t + 2 * left / (prev.v + Math.sqrt(Math.max(0, prev.v * prev.v + 2 * slope * left)));
+            }
+            used += area; prev = point;
+          }
+          return prev.t + (p - used) / prev.v;
+        }
         const r = d.ramp; if (!r) return p / d.rate;
         const pS = (r.r0 + r.r1) / 2 * r.S;
         if (p >= pS) return r.S + (p - pS) / r.r1;
@@ -1125,6 +1208,39 @@ const Player = (() => {
         /* the +root is the one before the parabola's vertex — the physical
            one — for both signs of a; the other is the ramp running backwards */
         return (-b + Math.sqrt(Math.max(0, b * b + 4 * a * p))) / (2 * a);
+      },
+      ratePoints() {
+        if (d.curve) return d.curve;
+        if (d.ramp) return [{ t: 0, v: d.ramp.r0 }, { t: d.ramp.S, v: d.ramp.r1, linear: true }];
+        return [{ t: 0, v: d.rate }];
+      },
+      /* Both the source and pitch compensator get this exact curve. Keep
+         the past part of the clock map when a future blend is replaced. */
+      changeRate(to, seconds, at) {
+        const t = Math.max(0, at - d.startedAt), from = d.rateAt(t);
+        const points = d.ratePoints(), next = points.find(p => p.t > t);
+        d.curve = points.filter(p => p.t < t).concat({ t, v: from, linear: !!(next && next.linear) });
+        if (seconds > 0) d.curve.push({ t: t + seconds, v: to, linear: true });
+        for (const p of [src.playbackRate, st.parameters.get('playbackRate')]) {
+          p.cancelScheduledValues(at);
+          if (next && next.linear) p.linearRampToValueAtTime(from, at);
+          else p.setValueAtTime(from, at);
+          if (seconds > 0) p.linearRampToValueAtTime(to, at + seconds);
+        }
+      },
+      restoreCurve(curve, at) {
+        d.curve = curve;
+        const t = Math.max(0, at - d.startedAt), when = Math.max(at, d.startedAt);
+        const next = d.ratePoints().find(point => point.t > t);
+        for (const p of [src.playbackRate, st.parameters.get('playbackRate')]) {
+          p.cancelScheduledValues(when);
+          if (next && next.linear) p.linearRampToValueAtTime(d.rateAt(t), when);
+          else p.setValueAtTime(d.rateAt(t), when);
+          for (const point of d.ratePoints().filter(point => point.t > t)) {
+            if (point.linear) p.linearRampToValueAtTime(point.v, d.startedAt + point.t);
+            else p.setValueAtTime(point.v, d.startedAt + point.t);
+          }
+        }
       },
       /* Schedule the ride. Called after the start time is known, because the
          start time is chosen by chain() and not by makeDeck(). */
@@ -1169,7 +1285,16 @@ const Player = (() => {
          against a tempo nothing is playing. Seen live on 2026-08-19: a
          cancelled reach track left the target at 120, and the blend-now that
          replaced it was stretched to 120 from a deck running at 100. */
-      if (B.tempoBefore != null) tempo = B.tempoBefore;
+      if (A && Object.prototype.hasOwnProperty.call(B, 'outgoingCurve')) {
+        if (ctx.currentTime <= B.startedAt) A.restoreCurve(B.outgoingCurve, ctx.currentTime);
+        else {
+          /* A blend already heard is history, not something cancellation
+             can undo. Hold its current rate and retain its consumed time. */
+          A.changeRate(A.rateAt(ctx.currentTime - A.startedAt), 0, ctx.currentTime);
+        }
+      }
+      if (ctx.currentTime <= B.startedAt && B.tempoBefore != null) tempo = B.tempoBefore;
+      else if (A && !A.track.meta._unlocked) tempo = A.track.meta.bpm * A.rateAt(ctx.currentTime - A.startedAt);
       B = null;
     }
     if (A) {
@@ -1179,7 +1304,11 @@ const Player = (() => {
         A.g.gain.setValueAtTime(1, ctx.currentTime);
         A.lo.gain.cancelScheduledValues(ctx.currentTime);
         A.lo.gain.setValueAtTime(0, ctx.currentTime);
+        /* A prior stop time cannot be cancelled, but it can be replaced.
+           Keep the natural tail available while a replacement decodes. */
+        A.src.stop(A.startedAt + A.when(A.track.meta.dur - A.entry));
       } catch (e) {}
+      A.outAt = null; A.fade = null;
     }
   }
 
@@ -1275,6 +1404,9 @@ const Player = (() => {
      phrase mode when the playing track has one, else the next downbeat.
      blendNow, reorder({now}) and skip() all go through here. */
   function nextExitAfter(lead) {
+    /* A second requested transition must not retarget the incoming deck
+       while its predecessor is still fading at the shared tempo. */
+    if (handed) lead = Math.max(lead, handed.at + handed.xfade - ctx.currentTime);
     const P = PHR();
     if (phrase && P && A) {
       const ph = phraseOf(A.track);
@@ -1291,6 +1423,31 @@ const Player = (() => {
     const my = gen;                          /* the plan this call belongs to */
     const m = A.track.meta;
     const beats = (m.beats || []).map(b => A.when(b - A.entry));
+    const successor = order[idx + 1];
+    function rates(atRate) {
+      if (!successor) return null;
+      const base = m._unlocked ? tempo : m.bpm * atRate;
+      const rate = successor._unlocked ? 1 : base / successor.bpm;
+      const off = Math.abs(rate - 1);
+      const settled = settle.on && !successor._unlocked && isFinite(rate) && rate > 0 &&
+        off > 1e-4 && (settle.minStretch == null || off > settle.minStretch);
+      const target = successor._unlocked
+        ? (successor._unlockReason === 'reach' ? successor.bpm : tempo)
+        : (settled ? successor.bpm : tempo + (successor.bpm - tempo) * .35);
+      return { rate, settled, target };
+    }
+    const eventual = rates(A.rateAt(Infinity));
+    function naturalExit() {
+      if (!eventual || successor._unlocked || m._unlocked) return A.when(m.dur - A.entry) - xfade;
+      /* Leave enough source material for the SAME fade while its rate
+         changes. The crossfade and drift values themselves are unchanged. */
+      const r0 = A.rateAt(Infinity), r1 = eventual.target / m.bpm;
+      const seconds = eventual.settled ? Math.max(1, settle.seconds) : xfade;
+      const rampFor = Math.min(seconds, xfade);
+      const consumed = r0 * rampFor + (r1 - r0) * rampFor * rampFor / (2 * seconds) +
+        r1 * Math.max(0, xfade - seconds);
+      return A.when(m.dur - A.entry - consumed);
+    }
     /* A stepping stone on a fast route carries `_dwell` — how long it needs to
        exist for, which is blend-in plus a short hold plus blend-out. It plays
        for that instead of its full length; everything else is unchanged.
@@ -1323,7 +1480,7 @@ const Player = (() => {
       }
     }
     if (exit == null && forceOut == null) {
-      const natural = A.when(m.dur - A.entry) - xfade;
+      const natural = naturalExit();
       const playFor = m._dwell
         ? Math.max(MIN_PLAY, Math.min(m._dwell, natural))
         : Math.max(MIN_PLAY, natural);
@@ -1340,6 +1497,23 @@ const Player = (() => {
          policy is right is the keeper's ear's call, not a reading's. */
       exit = (beats.length && !m._unlocked) ? downbeatNear(beats, playFor) : playFor;
     }
+    /* Decode before writing either deck's automation. A point that was
+       future when decoding began can be past when it finishes. */
+    const ni = idx + 1, nm = order[ni];
+    let buf = preBuf;
+    if (nm && !buf) {
+      try { buf = await LIB.decode(nm, ctx); }
+      catch (e) {
+        if (my !== gen) return;
+        recordIssue(nm, 'playback · skipped', e);
+        log.unshift('SKIP ' + nm.name.slice(-30) + ' — ' + e.message);
+        /* idx remains the PLAYING track. Remove only the failed successor,
+           preserve a requested exit, then try the next one. */
+        order.splice(ni, 1);
+        return chain(forceOut);
+      }
+    }
+    if (my !== gen || !A) return;
     let out = forceOut != null ? forceOut : A.startedAt + exit;
     /* ── AN EXIT IN THE PAST ──────────────────────────────────────────────
        chain() plans from the START of the playing track, so it assumes it is
@@ -1371,44 +1545,16 @@ const Player = (() => {
         out = (beats.length && !m._unlocked) ? nextDownbeatAfter(0) : ctx.currentTime;
       }
     }
-    A.outAt = out;
-    A.fade = fade;                           /* read by `blend` and the handover record */
-
-    A.g.gain.setValueAtTime(1, out);
-    A.g.gain.linearRampToValueAtTime(0, out + fade);
-    /* bass swap — only one kick and one bassline sounds at a time */
-    A.lo.gain.setValueAtTime(0, out);
-    A.lo.gain.linearRampToValueAtTime(-30, out + fade * .45);
-    A.src.stop(out + fade + .4);
-
-    const ni = idx + 1;
-    if (ni >= order.length) { log.unshift('end of set'); return; }
-    const nm = order[ni];
-    let buf;
-    if (preBuf) buf = preBuf;              /* already decoded by the caller */
-    else { try { buf = await LIB.decode(nm, ctx); }
-      /* A track that will not decode must leave the ORDER, not move idx.
-         The old line did `idx = ni`, which advanced the set position while A
-         was still playing the previous track — so state.idx named the failed
-         track while the deck played the one before it, for the rest of that
-         track. Observed: card showing "Druid II", deck playing "Big In Japan".
-         idx is the position of the PLAYING deck; nothing but the handover
-         timer may move it.
-         Splicing is the same in-place idiom placeNext() uses, and order is the
-         dashboard's own array, so the list drops the unplayable track too.
-         forceOut is passed through: the old bare chain() silently discarded a
-         blend-now's forced exit if the incoming track failed to decode. */
-      catch (e) {
-        if (my !== gen) return;              /* replanned while decoding — not ours to repair */
-        log.unshift('SKIP ' + nm.name.slice(-30) + ' — ' + e.message);
-        order.splice(ni, 1);
-        return chain(forceOut);
-      } }
-    /* The decode took real time. If the plan changed underneath it — a
-       blend-now, a reorder, a stop, a fresh play — the deck this call was
-       about to build belongs to a set that no longer exists. Building it
-       anyway is how two decks ended up playing at once. */
-    if (my !== gen) return;
+    const writeExit = () => {
+      A.outAt = out; A.fade = fade;
+      A.g.gain.setValueAtTime(1, out);
+      A.g.gain.linearRampToValueAtTime(0, out + fade);
+      /* bass swap — only one kick and one bassline sounds at a time */
+      A.lo.gain.setValueAtTime(0, out);
+      A.lo.gain.linearRampToValueAtTime(-30, out + fade * .45);
+      A.src.stop(out + fade + .4);
+    };
+    if (ni >= order.length) { writeExit(); log.unshift('end of set'); return; }
 
     /* UNLOCKED: play it at its own speed. Stretching by `tempo / nm.bpm` uses
        the declared tempo, and the whole reason this track is unlocked is that
@@ -1419,8 +1565,10 @@ const Player = (() => {
        Entry at 0 rather than at beats[0] for the same reason: beats[0] is a
        position on the grid we are not trusting. */
     const unlocked = !!nm._unlocked;
-    const rate = unlocked ? 1 : tempo / nm.bpm;
+    const planned = rates(A.rateAt(out - A.startedAt));
+    const rate = planned.rate;
     const nd = makeDeck({ meta: nm, buf }, rate, 'chain');
+    nd.startedAt = out;
     nd.entry = unlocked ? 0 : ((nm.beats || [0])[0] || 0);
     /* Phrase mode: enter at the incoming track's own first phrase start, so
        its bar 1 lands on the outgoing track's bar 1. Its grid is trusted
@@ -1435,14 +1583,27 @@ const Player = (() => {
        Scheduled HERE, before the exit is planned below, so the exit is chosen
        against the map that will actually apply — a ramp discovered after the
        schedule was written would move every downbeat under it. */
-    let settled = false;
-    if (settle.on && !unlocked && isFinite(rate) && rate > 0) {
-      const off = Math.abs(rate - 1);
-      if (off > 1e-4 && (settle.minStretch == null || off > settle.minStretch)) {
-        nd.setRamp(rate, 1, Math.max(1, settle.seconds), out);
-        settled = true;
+    const settled = planned.settled;
+    nd.outgoingCurve = A.curve;
+    if (!unlocked) {
+      const at = out - A.startedAt;
+      const phraseSource = atPhrase ? A.pos(at + fade) - A.pos(at) : null;
+      if (settled) {
+        const seconds = Math.max(1, settle.seconds);
+        nd.setRamp(rate, 1, seconds, out);
+        if (!m._unlocked) A.changeRate(planned.target / m.bpm, seconds, out);
+        if (phraseSource != null && !m._unlocked) fade = A.when(A.pos(at) + phraseSource) - at;
+      } else {
+        /* The existing rolling target is now an AUDIO change, shared by
+           both trusted decks over the existing crossfade. Previously only
+           the number advanced; the outgoing source kept its old tempo. */
+        if (phraseSource != null && !m._unlocked)
+          fade = 2 * phraseSource / (A.rateAt(at) + planned.target / m.bpm);
+        if (!m._unlocked) A.changeRate(planned.target / m.bpm, fade, out);
+        nd.changeRate(planned.target / nm.bpm, fade, out);
       }
     }
+    writeExit();
     nd.g.gain.setValueAtTime(0, out);
     nd.g.gain.linearRampToValueAtTime(1, out + fade * .6);
     nd.lo.gain.setValueAtTime(-30, out);
@@ -1491,8 +1652,7 @@ const Player = (() => {
        printed at 0%. Found by reading chain() against sequence(); every
        harness checked the planner and none checked the deck. */
     nd.tempoBefore = tempo;                  /* so cancelPending() can undo the move below */
-    if (unlocked) { if (nm._unlockReason === 'reach') tempo = nm.bpm; }
-    else tempo = settled ? nm.bpm : tempo + (nm.bpm - tempo) * .35;
+    tempo = planned.target;
 
     armHandover(ni, out);
   }
@@ -1539,8 +1699,8 @@ const Player = (() => {
          the crossfade outlives this moment by a whole xfade and the
          transition monitor needs the OUTGOING side from the engine, not
          from whichever frame the render loop last happened to see */
-      handed = { meta: A.track.meta, rate: A.rateAt(ctx.currentTime - A.startedAt),
-                 at: ctx.currentTime, xfade: A.fade || xfade, gaps: A.gaps, underruns: A.underruns,
+      handed = { meta: A.track.meta, points: A.ratePoints().map(p => ({ ...p })), startedAt: A.startedAt,
+                 at: A.outAt == null ? ctx.currentTime : A.outAt, xfade: A.fade || xfade, gaps: A.gaps, underruns: A.underruns,
                  /* carried so the transition monitor can say `∿ first` on the
                     OUTGOING row of a fade out of a play()-built deck instead
                     of ×1.000 — the rate is 1 because nothing preceded it */
@@ -1558,16 +1718,30 @@ const Player = (() => {
 
   return {
     async play(seq, from) {
-      await boot(); await ctx.resume(); this.stop();
-      const my = gen;                        /* stop() just bumped it; this is our plan */
+      this.stop();
+      const my = gen;                        /* cancellation covers EVERY await */
+      await boot();
+      if (my !== gen) return 'superseded';
+      await ctx.resume();
+      if (my !== gen) return 'superseded';
       handed = null;                         /* a fresh ▶ fades from nothing */
-      order = seq; idx = from || 0;
-      gapsHanded = 0;                        /* a fresh ▶ starts a fresh gap tally */
-      phrase = !!seq.phrase;                 /* the build decides; setPhrase() can override after */
-      const m = order[idx], buf = await LIB.decode(m, ctx);
+      const startIndex = from || 0, m = seq && seq[startIndex];
+      if (!m) throw Error('no track to play');
+      let buf;
+      try { buf = await LIB.decode(m, ctx); }
+      catch (e) {
+        if (my !== gen) return 'superseded';
+        recordIssue(m, 'playback', e);
+        const error = Error(String(e.message || e));
+        error.failures = [{ name: m.name, stage: 'playback', message: error.message }];
+        throw error;
+      }
       /* A second ▶ (or a stop) while this decode ran has already replaced
          the plan. Starting this deck too would put two sets on the air. */
       if (my !== gen) return 'superseded';
+      order = seq; idx = startIndex;
+      gapsHanded = 0;                        /* a fresh ▶ starts a fresh gap tally */
+      phrase = !!seq.phrase;                 /* the build decides; setPhrase() can override after */
       tempo = m.bpm;
       const d = makeDeck({ meta: m, buf }, 1, 'play');
       /* Same reasoning as chain(): an unlocked track's beats[0] is a position
@@ -1627,7 +1801,7 @@ const Player = (() => {
     get outputVia() { return viaStream ? 'stream' : 'speakers'; },
 
     kill() { this.stop(); if (ctx) { try { ctx.close(); } catch (e) {} }
-      ctx = null; booted = false; return 'context closed'; },
+      ctx = null; booted = false; booting = null; return 'context closed'; },
     pause() { if (!ctx) return 'not started';
       if (ctx.state === 'running') { ctx.suspend(); return 'paused'; }
       ctx.resume(); return 'resumed'; },
@@ -1714,6 +1888,7 @@ const Player = (() => {
          `phrase` drives the Player; `mode` and `poolSize` are what inspect()
          and a saved score report; `leftOut` is the gate's list minus
          whatever the route just pulled in (review 2026-09-01) */
+      if (typeof opts.phrase === 'boolean') phrase = opts.phrase;
       seq.phrase = phrase;
       if (order && order !== seq) {
         if (seq.mode === undefined && order.mode !== undefined) seq.mode = order.mode;
@@ -1815,6 +1990,8 @@ const Player = (() => {
       sampleRate: ctx ? ctx.sampleRate : null,
       baseLatency: ctx && ctx.baseLatency ? +ctx.baseLatency.toFixed(4) : null }; },
     get log() { return log; },
+    get issues() { return issues; },
+    clearIssues() { issues.length = 0; },
     get analyser() { return analyser; },
 
     /* The META OBJECT on the playing deck, not its name. `state.now` is a
@@ -1822,6 +1999,10 @@ const Player = (() => {
        the list and the deck still agree is `set[state.idx] === DW.nowMeta`,
        so it has to be the object. */
     get nowMeta() { return A ? A.track.meta : null; },
+    /* Shared with steering callers; replace through reorder(), never assign
+       an unrelated displayed array while a deck still owns this one. */
+    get playOrder() { return order; },
+    get planningTempo() { return B && ctx.currentTime <= B.startedAt && B.tempoBefore != null ? B.tempoBefore : tempo; },
     get nextMeta() { return B ? B.track.meta : null; },
     /* The deck that most recently HANDED OVER, while its fade is still
        running: meta, the rate it ran at, and how far into the crossfade we
@@ -1830,7 +2011,18 @@ const Player = (() => {
       if (!handed || !ctx || !A) return null;
       const el = ctx.currentTime - handed.at;
       if (el > handed.xfade) return null;
-      return { meta: handed.meta, name: handed.meta.name, rate: handed.rate,
+      /* Copy scalar automation only: keeping the old deck here would also
+         retain its graph and decoded source. */
+      const t = ctx.currentTime - handed.startedAt;
+      let previous = handed.points[0], rate = previous.v;
+      for (const point of handed.points.slice(1)) {
+        if (t < point.t) {
+          rate = point.linear ? previous.v + (point.v - previous.v) * Math.max(0, t - previous.t) / (point.t - previous.t) : previous.v;
+          break;
+        }
+        previous = point; rate = point.v;
+      }
+      return { meta: handed.meta, name: handed.meta.name, rate,
                fadeElapsed: el, xfade: handed.xfade, prog: Math.max(0, Math.min(1, el / handed.xfade)),
                gaps: handed.gaps,
                /* see makeDeck: 'play' means nothing preceded this deck, so its
@@ -1843,7 +2035,7 @@ const Player = (() => {
     get nextDeck() {
       if (!B) return null;
       const m = B.track.meta;
-      return { meta: m, name: m.name, bpm: m.bpm, camelot: m.camelot, rate: B.rate,
+      return { meta: m, name: m.name, bpm: m.bpm, camelot: m.camelot, rate: B.rateAt(Math.max(0, ctx.currentTime - B.startedAt)),
                straight: !!m._unlocked, reason: m._unlockReason || null,
                startsAt: B.startedAt, entry: B.entry, gaps: B.gaps,
                /* always 'chain' today — B is built nowhere else — but read,
@@ -2002,10 +2194,11 @@ return {
     await bootEssentia();
     const have = new Set(corpus.map(t => t.id));
     let added = 0, cached = 0, failed = 0, dupe = 0, uncached = 0;
+    const failures = [];
     if (!LIB.files) LIB.files = new Map();
     for (let i = 0; i < files.length; i++) {
       if (onProgress) onProgress(i + 1, files.length, files[i].name);
-      LIB.files.set(norm(files[i].name), files[i]);
+      LIB.add(files[i]);
       try {
         const r = await analyse(files[i]);
         /* the record's camelot code follows the CURRENT tune, whatever tune
@@ -2021,11 +2214,11 @@ return {
         have.add(r.id); corpus.push(r); added++;
         if (r.cached) cached++;
         if (r.uncached) uncached++;
-      } catch (e) { failed++; console.warn(files[i].name, e.message); }
+      } catch (e) { failed++; failures.push({ name: files[i].name, stage: 'analysis', message: String(e.message || e) }); console.warn(files[i].name, e.message); }
     }
     normalise(corpus);
     if (uncached) console.warn('deckwave: ' + uncached + ' record(s) could not be written to the analysis cache (storage refused) — they will be re-analysed next load');
-    return { seen: files.length, added, cached, failed, uncached, duplicates: dupe, corpus: corpus.length };
+    return { seen: files.length, added, cached, failed, failures, uncached, duplicates: dupe, corpus: corpus.length };
   },
 
   /* Individual tracks, multi-select. showOpenFilePicker takes many files in
@@ -2097,7 +2290,7 @@ return {
     }
     const r = await this.ingest(files, onProgress);
     return { files: files.length, analysed: r.corpus, cached: r.cached,
-             failed: r.failed, uncached: r.uncached, added: r.added, duplicates: r.duplicates, via };
+             failed: r.failed, failures: r.failures, uncached: r.uncached, added: r.added, duplicates: r.duplicates, via };
   },
 
   /* how much to trust the tempo figures, before anyone quotes them */
@@ -2112,6 +2305,10 @@ return {
   },
 
   build(opts) { return sequence(corpus, opts); },
+  /* Preparation cannot restamp metadata on a playing deck. The planner only
+     writes top-level annotations; analysis arrays and source attribution
+     remain read-only shared data. Keep build()'s live-patching contract. */
+  prepare(opts) { return sequence(corpus.map(t => ({ ...t })), opts); },
 
   /* Live setting for what counts as a trustworthy grid. Rebuild to apply.
      Derived from the corpus rather than chosen — see LOCK. */
@@ -2221,9 +2418,13 @@ return {
      its reason into an array with no reader. A silent SKIP is indistinguishable
      from a track that simply never came up. */
   get log() { return Player.log; },
+  get issues() { return Player.issues; },
+  clearIssues() { Player.clearIssues(); },
   get elapsed() { return Player.elapsed; },
   get blend() { return Player.blend; },
   get nowMeta() { return Player.nowMeta; },
+  get playOrder() { return Player.playOrder; },
+  get planningTempo() { return Player.planningTempo; },
   get nextMeta() { return Player.nextMeta; },
   get nextDeck() { return Player.nextDeck; },
   get prevDeck() { return Player.prevDeck; },

@@ -17,6 +17,7 @@ window.DWLOOP = (function () {
 'use strict';
 
 let raf = null, wave = null, freq = null, prevLow = null, lastT = 0, lastIdx = -1;
+let lastListMeta = null, lastOrder = null, lastOf = -1;
 let lastNow = null, prevMeta = null, prevRate = 1, lastRate = 1;
 /* the last bundle a frame built, and the sampler of the running loop — for
    a caller that needs (T, D) when no frame is running (DWPHONE's lock-screen
@@ -256,7 +257,12 @@ function start(dash) {
     if (window.DWNOWPLAYING) window.DWNOWPLAYING.update(D, D.transLeft);
 
     const s2 = window.DW.state;
-    if (s2.idx !== lastIdx) { lastIdx = s2.idx; if (dash.renderList) dash.renderList(); }
+    const nowMeta = window.DW.nowMeta, order = dash.set;
+    if (s2.idx !== lastIdx || nowMeta !== lastListMeta || order !== lastOrder || s2.of !== lastOf) {
+      lastIdx = s2.idx; lastListMeta = nowMeta; lastOrder = order; lastOf = s2.of;
+      if (dash.renderList) dash.renderList();
+    }
+    if (dash.syncIssues) dash.syncIssues();
   }
   sampler = sample;
   frame();

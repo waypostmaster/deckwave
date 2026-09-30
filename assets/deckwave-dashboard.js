@@ -113,6 +113,23 @@ canvas{display:block;width:100%;height:100%;background:var(--bg)}
 .list{flex:1;overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .tr{display:grid;grid-template-columns:26px 1fr auto;gap:6px;padding:4px 8px;font-size:10px;
   border-bottom:1px solid rgba(34,18,92,.5);align-items:center;cursor:pointer}
+.list button.tr{width:100%;text-align:left;border-width:0 0 1px;letter-spacing:normal;text-transform:none;border-radius:0}
+.list button.tr.free{border-left:2px dashed var(--warn)}
+.list button.tr.now{border-left:2px solid var(--ac2)}
+.prepared[hidden],.issues[hidden]{display:none}
+.prepared{display:flex;flex-direction:column;min-height:0;max-height:48%;border-top:1px solid var(--ac);padding:8px 10px;gap:6px}
+.prepared h2{font-size:9px;font-weight:400;text-transform:uppercase;letter-spacing:.12em;color:var(--ac)}
+.prepared p{font-size:9px;line-height:1.5;color:var(--dim)}
+.prepareActions{display:flex;gap:5px;flex-wrap:wrap}
+.prepareList{overflow:auto;padding-left:24px;font-size:10px;line-height:1.7;min-height:32px;color:var(--txt)}
+.prepareList li{overflow-wrap:anywhere}
+.issues{flex-basis:100%;font-size:10px;color:var(--warn)}
+.issues summary{cursor:pointer;padding:5px 0;width:fit-content}
+.issues ol{max-height:22vh;overflow:auto;padding:4px 12px 8px 28px;line-height:1.6;overflow-wrap:anywhere;color:var(--txt)}
+.srOnly{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+button:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+.navpop button.opt{width:100%;text-align:left;font:inherit;letter-spacing:inherit;text-transform:none}
 .tr:hover{background:rgba(127,127,127,.08)}
 .tr i{color:var(--dim);font-style:normal;font-size:8.5px}
 .tr s{text-decoration:none;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -174,8 +191,8 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .strip>u{display:flex;justify-content:space-between;align-items:center;gap:5px}
 .swap,.hbtn{opacity:0;transition:opacity .15s;flex:none;cursor:pointer;border:1px solid var(--line);color:var(--dim)}
 .swap{font-size:8px;letter-spacing:.1em;padding:1px 5px;white-space:nowrap}
-.hbtn{font-size:9px;width:14px;height:14px;line-height:12px;text-align:center;border-radius:50%;cursor:help}
-.strip:hover .swap,.strip:hover .hbtn{opacity:1}
+.hbtn{font-size:9px;width:14px;height:14px;padding:0;letter-spacing:0;line-height:12px;text-align:center;border-radius:50%;cursor:help}
+.strip:hover .swap,.strip:hover .hbtn,.strip:focus-within .swap,.strip:focus-within .hbtn{opacity:1}
 .swap:hover,.hbtn:hover{color:var(--ac);border-color:var(--ac)}
 /* FIXED, not absolute, and placed by placeMenu(). As an absolute box inside
    the cell it was clipped by .tri's overflow:hidden — on the bottom row the
@@ -189,13 +206,13 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
   border:1px solid var(--ac2);box-shadow:0 0 24px rgba(0,0,0,.8);overflow-y:auto;
   overscroll-behavior:contain}
 .pmenu.open{display:block}
-.pmenu i{display:flex;justify-content:space-between;align-items:center;font-style:normal;padding:7px 10px;
+.pmenu button{display:flex;width:100%;text-align:left;justify-content:space-between;align-items:center;font-style:normal;padding:7px 10px;
   font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);cursor:pointer;
   border-bottom:1px solid var(--line)}
-.pmenu i:last-child{border-bottom:none}
-.pmenu i:hover{background:rgba(127,127,127,.14);color:var(--ac)}
-.pmenu i.on{color:var(--ac2);border-left:2px solid var(--ac2)}
-.pmenu i b{font-weight:400;font-size:7.5px;opacity:.55;margin-left:8px}
+.pmenu button:last-child{border-bottom:none}
+.pmenu button:hover{background:rgba(127,127,127,.14);color:var(--ac)}
+.pmenu button.on{color:var(--ac2);border-left:2px solid var(--ac2)}
+.pmenu button b{font-weight:400;font-size:7.5px;opacity:.55;margin-left:8px}
 /* Same clipping applies to the help card on the lower rows. */
 .hcard{display:none;position:fixed;z-index:80;padding:10px 12px;max-height:60vh;overflow-y:auto;
   overscroll-behavior:contain;
@@ -217,6 +234,7 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
    nothing (ultra review F5). */
 /* dropdown selector used for theme / layout */
 .sel{position:relative;display:inline-flex}
+.sel select{min-width:118px;max-width:220px;background:var(--surf);border:1px solid var(--line);color:var(--dim);font:inherit;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:6px 9px;border-radius:var(--rad)}
 .sel>button{min-width:118px;text-align:left}
 .sel>button::after{content:'\\25be';float:right;opacity:.7;margin-left:8px}
 .sel .menu{display:none;position:absolute;bottom:calc(100% + 4px);left:0;min-width:180px;background:var(--surf);
@@ -272,7 +290,7 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .strip.collapsed{min-height:0!important;height:auto!important}
 .fold{font-size:9px;color:var(--dim);cursor:pointer;border:1px solid var(--line);padding:0 5px;
   opacity:0;transition:opacity .15s;flex:none;line-height:13px}
-.strip:hover .fold{opacity:1}
+.strip:hover .fold,.strip:focus-within .fold{opacity:1}
 .fold:hover{color:var(--ac);border-color:var(--ac)}
 /* MEGA — every panel at once. Steps down rather than shattering.
    Strips without .keep are hidden here to buy vertical room for twelve
@@ -460,6 +478,54 @@ function makeStatusLine(getDW) {
 const STATUS = makeStatusLine(() => window.DW);
 setInterval(() => STATUS.step(), 120);
 
+/* A prepared set is an intention. Only a successful player operation makes
+   it the current set. Async completion may consume only its own candidate. */
+function makeSetSession(getDW, getNav) {
+  let committed = [], prepared = null;
+  const same = (a, b) => a === b || (a.id && b.id && a.id === b.id);
+  const consume = candidate => { if (prepared === candidate) prepared = null; };
+  return {
+    get current() { const dw = getDW(); return dw.nowMeta ? dw.playOrder : committed; },
+    get prepared() { return prepared; },
+    prepare(seq) { if (!Array.isArray(seq) || !seq.length) throw Error('no tracks to prepare'); prepared = seq; },
+    discard() { prepared = null; },
+    adopt(seq) {
+      const dw = getDW();
+      if (dw.nowMeta && dw.playOrder !== seq) throw Error('prepare this set before applying it');
+      committed = seq;
+    },
+    async play() {
+      const dw = getDW(), candidate = prepared;
+      if (dw.nowMeta) throw Error('a set is playing — use Apply remaining');
+      if (!candidate) throw Error('prepare a set first');
+      const result = await dw.play(candidate, 0);
+      if (result !== 'superseded' && dw.playOrder === candidate) { committed = candidate; consume(candidate); }
+      return result;
+    },
+    async apply() {
+      const dw = getDW(), candidate = prepared, nav = getNav();
+      if (!candidate) throw Error('prepare a set first');
+      if (!dw.nowMeta) throw Error('the deck is stopped — use Play prepared');
+      const idx = dw.state.idx, prefix = dw.playOrder.slice(0, idx + 1);
+      if (prefix[idx] !== dw.nowMeta) throw Error('playing order changed — apply again');
+      const tail = candidate.filter(t => !prefix.some(p => same(t, p))).map(t => ({ ...t }));
+      if (!tail.length) throw Error('no unplayed tracks remain in the prepared set');
+      /* Reuse the routing gate and its straight-play policy, from the tempo
+         that survives cancellation of the old pending deck. */
+      const next = nav.resequenceTail(prefix.concat(tail), idx, dw.planningTempo).set;
+      for (const key of ['mode', 'poolSize', 'leftOut', 'phrase']) if (candidate[key] !== undefined) next[key] = candidate[key];
+      const failures = next.slice(idx + 1).filter(t => !dw.LIB.find(t))
+        .map(t => ({ name: t.name, stage: 'apply', message: 'file missing or ambiguous — reopen its library' }));
+      if (failures.length) { const e = Error('prepared set has missing files'); e.failures = failures; throw e; }
+      const result = await dw.reorder(next, { phrase: !!candidate.phrase });
+      if (/^refused/.test(result)) throw Error(result);
+      if (dw.playOrder !== next) return 'superseded — playing order changed';
+      committed = next; consume(candidate);
+      return 'applied remaining · ' + result;
+    }
+  };
+}
+
 function mount(hostEl) {
   const host = document.createElement('div');
   host.id = 'deckwave';
@@ -506,8 +572,17 @@ function mount(hostEl) {
      <div class="strip" style="height:clamp(60px,9vh,110px)"><u data-gl="energy">set arc · energy + tempo across the whole night</u>
        <div class="cw"><canvas id="cArc" part="arc"></canvas></div></div>
    </div>
-   <div class="side"><u id="sideHd">set</u><div class="list" id="list"></div></div>
-   <div class="tp" id="tp"><span class="log" id="logLine">ready</span></div>`;
+   <div class="side"><u id="sideHd">set · stopped</u><div class="list" id="list"></div>
+     <section class="prepared" id="prepared" hidden aria-label="Prepared set">
+       <h2 id="preparedHd">Prepared set</h2><p id="preparedNote"></p>
+       <div class="prepareActions"><button id="applyPrepared">Apply remaining</button><button id="discardPrepared">Discard</button></div>
+       <ol class="prepareList" id="preparedList"></ol>
+     </section>
+   </div>
+   <div class="tp" id="tp"><span class="log" id="logLine">ready</span>
+     <details class="issues" id="issues" hidden><summary id="issueCount">Issues</summary><ol id="issueList"></ol><button id="clearIssues">Clear issues</button></details>
+     <span class="srOnly" id="announcement" role="status" aria-live="polite" aria-atomic="true"></span>
+   </div>`;
   sr.appendChild(app);
 
   /* ── canvases ─────────────────────────────────────────────────────── */
@@ -549,6 +624,55 @@ function mount(hostEl) {
      numbers with them. Deleted 2026-09-01 (review M12): one number, one
      place. DWLOOP owns the measuring half; DWPANELS owns the drawing. */
   let set = [], deckL = null, deckR = null;
+  const sets = makeSetSession(() => window.DW, () => window.DWNAV);
+  const announce = text => { $('announcement').textContent = text; };
+  const issueKeys = new Set();
+  function reportIssue(error, stage) {
+    const before = issueKeys.size;
+    const failures = error.failures || [{ name: '', stage: stage || 'action', message: String(error.message || error) }];
+    for (const f of failures) {
+      const text = [f.stage || stage, f.name, f.message || f.reason].filter(Boolean).join(' · ');
+      if (issueKeys.has(text)) continue;
+      issueKeys.add(text);
+      const li = document.createElement('li'); li.textContent = text; $('issueList').appendChild(li);
+    }
+    if (before === issueKeys.size) return;
+    $('issues').hidden = !issueKeys.size;
+    $('issueCount').textContent = 'Issues · ' + issueKeys.size;
+    announce('Issues · ' + issueKeys.size + '. Open Issues for file names and reasons.');
+  }
+  $('clearIssues').onclick = () => { issueKeys.clear(); if (window.DW.clearIssues) window.DW.clearIssues(); $('issueList').textContent = ''; $('issues').hidden = true; announce('Issues cleared'); $('tp').querySelector('button[data-grp="play"]:not(.phl)')?.focus(); };
+  let paintedPrepared = null;
+  function renderPrepared() {
+    const candidate = sets.prepared, active = !!window.DW.nowMeta;
+    const target = candidate ? 'prepared' : 'set';
+    for (const [action, text] of [['save', '▾ save ' + target], ['audit', '◎ audit ' + target], ['render', '⤓ render ' + (candidate ? 'prepared ' : '') + 'flac']]) {
+      const button = sr.querySelector('[data-set-action="' + action + '"]');
+      if (button) button.textContent = text;
+    }
+    $('prepared').hidden = !candidate;
+    $('applyPrepared').textContent = active ? 'Apply remaining' : 'Play prepared';
+    $('preparedNote').textContent = active
+      ? 'Keeps this track and played history. Replans the remaining prepared tracks from the current tempo; some may play straight.'
+      : 'Ready to play. Your current set is kept until playback starts.';
+    if (candidate !== paintedPrepared) {
+      paintedPrepared = candidate;
+      $('preparedHd').textContent = 'Prepared set · ' + (candidate ? candidate.length : 0) + (candidate && candidate.length === 1 ? ' track' : ' tracks');
+      $('preparedList').innerHTML = (candidate || []).map(t => '<li>' + esc(t.name) + '</li>').join('');
+    }
+  }
+  $('applyPrepared').onclick = async () => {
+    const b = $('applyPrepared'); if (b.disabled) return; b.disabled = true;
+    try {
+      if (!window.DW.nowMeta && window.DWPHONE && window.DWPHONE.armCalls) window.DWPHONE.armCalls();
+      const result = await (window.DW.nowMeta ? sets.apply() : sets.play());
+      set = sets.current; log(result); announce(result); renderList();
+      if (!sets.prepared) $('list').querySelector('button')?.focus();
+    } catch (e) { reportIssue(e, 'prepared set'); log(e.message); }
+    finally { b.disabled = false; renderPrepared(); if (sets.prepared && !sr.activeElement && (document.activeElement === host || document.activeElement === document.body)) b.focus(); }
+  };
+  $('discardPrepared').onclick = () => { sets.discard(); renderPrepared(); announce('Prepared set discarded');
+    ($('list').querySelector('button') || [...$('tp').querySelectorAll('button')].find(b => b.textContent.startsWith('build set')))?.focus(); };
 
   /* split the deck's own analyser — a pass-through, so this is always available */
   function splitDeck() {
@@ -741,6 +865,9 @@ function mount(hostEl) {
   const clean = n => n.replace(/^LukHash\s*-\s*/i,'').replace(/^[^-]+ - /,'').replace(/^\d+\s+/,'');
 
   function renderList() {
+    set = sets.current;
+    const focused = $('list').contains(sr.activeElement) ? sr.activeElement : null;
+    const focusedMeta = focused && focused.trackMeta;
     /* ── which row is playing: ask the deck, then fall back to the index ──
        Highlighting purely by `state.idx` means the list marks whatever
        happens to sit at that index in ITS array — which is only the playing
@@ -750,11 +877,11 @@ function mount(hostEl) {
        the fallback for before playback starts. Ledger 33 and 40. */
     const nm = window.DW.nowMeta;
     const byId = nm ? set.indexOf(nm) : -1;
-    const cur = byId > -1 ? byId : window.DW.state.idx;
-    $('sideHd').textContent = 'set · ' + set.length + ' tracks'
+    const cur = byId;
+    $('sideHd').textContent = (nm ? 'Playing set' : 'Set · stopped') + ' · ' + set.length + ' tracks'
       + (nm && byId < 0 ? ' · ⚠ playing a track that is not in this list' : '');
     $('list').innerHTML = set.map((t,i) => {
-      const cls = i === cur ? 'now' : (i === cur+1 ? 'next' : (i < cur ? 'done' : ''));
+      const cls = cur < 0 ? '' : i === cur ? 'now' : (i === cur+1 ? 'next' : (i < cur ? 'done' : ''));
       /* A track that is NOT being beatmatched should say so in the list.
          Silently mixing it in would put the honesty in the code comments and
          nowhere the listener can see it. */
@@ -762,20 +889,24 @@ function mount(hostEl) {
         ? (t._unlockReason === 'reach' ? ' title="played straight — out of stretch reach"'
                                        : ' title="played straight — beat grid disagrees with its tempo"')
         : '';
-      return `<div class="tr ${cls}${t._unlocked ? ' free' : ''}" data-i="${i}"${free}>`
+      return `<button type="button" class="tr ${cls}${t._unlocked ? ' free' : ''}" data-i="${i}" aria-label="${esc(t.name)} · track actions"${i === cur ? ' aria-current="true"' : ''}${free}>`
            + `<i>${String(i+1).padStart(3,'0')}</i>`
            + `<s>${esc(clean(t.name).slice(0,46))}</s>`
-           + `<em>${t._unlocked ? '∿ ' : ''}${Math.round(t.bpm)} ${esc(t.camelot)}</em></div>`;
+           + `<em>${t._unlocked ? '∿ ' : ''}${Math.round(t.bpm)} ${esc(t.camelot)}</em></button>`;
     }).join('');
     /* A row click opens the steering menu rather than jumping. Jumping is
        still there — it is one of the options — but it is the least
        interesting thing the router can do, and making it the only thing is
        what hid the whole feature. */
-    $('list').querySelectorAll('.tr').forEach(el =>
-      el.onclick = e => { e.stopPropagation(); openNav(el, +el.dataset.i); });
+    $('list').querySelectorAll('.tr').forEach(el => {
+      el.trackMeta = set[+el.dataset.i];
+      el.onclick = e => { e.stopPropagation(); openNav(el, +el.dataset.i); };
+    });
     markQueued();
+    renderPrepared();
+    if (focused) $('list').querySelector('[data-i="' + Math.max(0, set.findIndex(t => t === focusedMeta || (t.id && focusedMeta && t.id === focusedMeta.id))) + '"]')?.focus({ preventScroll: true });
     const n = $('list').querySelector('.now');
-    if (n) n.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (n && !focused) n.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   /* ── steering ─────────────────────────────────────────────────────────
@@ -801,11 +932,12 @@ function mount(hostEl) {
     try {
       const r = await window.DW.addDropped(e.dataTransfer,
         (i, n, nm) => l(i + '/' + n + ' ' + nm.slice(0, 40)));
+      if (r.failures && r.failures.length) reportIssue(r, 'drop');
       l(r.added + ' added · ' + r.corpus + ' in corpus'
         + (r.duplicates ? ' · ' + r.duplicates + ' already had' : '')
         + (r.failed ? ' · ' + r.failed + ' failed' : '')
         + (r.uncached ? ' · ' + r.uncached + ' not cached (storage refused — re-analysed next load)' : ''));
-    } catch (err) { l(String((err && err.message) || err)); }
+    } catch (err) { reportIssue(err, 'drop'); l(String((err && err.message) || err)); }
   });
 
   /* buildTransport has its own log(); mount lost one when the inline
@@ -820,7 +952,17 @@ function mount(hostEl) {
     if (e.target.closest && e.target.closest('h6')) navpop.classList.toggle('min'); };
   sr.appendChild(navpop);
   /* a fresh open starts expanded — a fold is a per-look gesture, not a mode */
-  const closeNav = () => navpop.classList.remove('on', 'min');
+  let navTrigger = null;
+  const closeNav = () => {
+    navpop.classList.remove('on', 'min');
+    const meta = navTrigger && navTrigger.trackMeta;
+    const replacement = [...$('list').querySelectorAll('button')].find(el => el.trackMeta === meta || (meta && meta.id && el.trackMeta.id === meta.id));
+    const target = navTrigger && navTrigger.isConnected ? navTrigger : replacement;
+    if (target) target.focus({ preventScroll: true });
+  };
+  navpop.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeNav(); }
+  });
 
   function markQueued() {
     const N = window.DWNAV; if (!N) return;
@@ -877,6 +1019,7 @@ function mount(hostEl) {
   }
 
   function openNav(el, idx) {
+    set = sets.current; navTrigger = el;
     const N = window.DWNAV, t = set[idx];
     if (!N || !t) return;
     const T = window.DW.state.tempo || (set[window.DW.state.idx] || t).bpm;
@@ -910,10 +1053,10 @@ function mount(hostEl) {
          act: () => later(idx) },
        { cls: '', b: '⇥ jump straight there',
          i: 'Cuts. Does not blend.', act: () => jump(idx) }].forEach(r => {
-        const sp = document.createElement('span');
+        const sp = document.createElement('button'); sp.type = 'button';
         sp.className = 'opt ' + r.cls;
         sp.innerHTML = '<b>' + esc(r.b) + '</b><i>' + esc(r.i) + '</i>';
-        sp.onclick = ev => { ev.stopPropagation(); closeNav(); r.act(); };
+        sp.onclick = ev => { ev.stopPropagation(); closeNav(); Promise.resolve(r.act()).catch(e => reportIssue(e, 'track action')); };
         navpop.appendChild(sp);
       });
       const bb = el.getBoundingClientRect();
@@ -921,6 +1064,7 @@ function mount(hostEl) {
       const hh = navpop.getBoundingClientRect().height;
       navpop.style.top = Math.max(8, Math.min(innerHeight - hh - 8, bb.top)) + 'px';
       navpop.style.left = Math.max(8, bb.left - navpop.getBoundingClientRect().width - 10) + 'px';
+      navpop.querySelector('button')?.focus();
       return;
     }
 
@@ -981,12 +1125,12 @@ function mount(hostEl) {
     navpop.innerHTML = '<h6>' + esc(clean(t.name).slice(0, 44)) + ' · ' +
       Math.round(t.bpm) + ' · ' + esc(t.camelot) + ' · target ' + Math.round(T) + '</h6>';
     rows.forEach(r => {
-      const s = document.createElement('span');
+      const s = document.createElement('button'); s.type = 'button'; s.disabled = !r.act;
       s.className = 'opt ' + r.cls;
       s.innerHTML = '<b>' + esc(r.b) + '</b><i>' + esc(r.i) +
         (r.ladder ? '<span class="route">' + r.ladder.map(n => esc(n)).join(' → ') +
                     ' → <b style="display:inline">' + Math.round(r.dest.bpm) + '</b></span>' : '') + '</i>';
-      if (r.act) s.onclick = ev => { ev.stopPropagation(); closeNav(); r.act(); };
+      if (r.act) s.onclick = ev => { ev.stopPropagation(); closeNav(); Promise.resolve(r.act()).catch(e => reportIssue(e, 'track action')); };
       navpop.appendChild(s);
     });
 
@@ -995,6 +1139,7 @@ function mount(hostEl) {
     const h = navpop.getBoundingClientRect().height;
     navpop.style.top = Math.max(8, Math.min(innerHeight - h - 8, b.top)) + 'px';
     navpop.style.left = Math.max(8, b.left - navpop.getBoundingClientRect().width - 10) + 'px';
+    navpop.querySelector('button:not(:disabled)')?.focus();
   }
 
   /* play() rejects when the target is missing or will not decode — and it
@@ -1076,7 +1221,17 @@ function mount(hostEl) {
        real, it is created above, and handing it over costs one line.
        ro is created before this object — see fit(). */
     ro,
-    get set() { return set; }, set set(v) { set = v; renderList(); },
+    get set() { return sets.current; }, set set(v) { sets.adopt(v); set = sets.current; renderList(); },
+    get prepared() { return sets.prepared; },
+    get fileSet() { return sets.prepared || sets.current; },
+    prepare(v) {
+      sets.prepare(v); app.classList.remove('mini');
+      if (app.getAttribute('data-side') === 'hide') app.removeAttribute('data-side');
+      if (innerWidth <= 720) app.classList.add('ph-list');
+      renderPrepared(); announce('Prepared ' + v.length + (v.length === 1 ? ' track.' : ' tracks.') + ' Playback unchanged.');
+    },
+    playPrepared: () => sets.play(), reportIssue, announce,
+    syncIssues() { if (window.DW.issues && window.DW.issues.length) reportIssue({ failures: window.DW.issues }); },
     renderList, header: head, slots: null, views: null, applyFolds: null,
     stereoSource, drawFixed: null, elapsed: 0, theme: 'cyberpunk'
   };
@@ -1147,7 +1302,8 @@ function buildTransport(dash) {
 
   const btn = (txt, fn, hot, grp) => {
     const b = document.createElement('button');
-    b.textContent = txt; if (hot) b.className = 'hot'; b.onclick = fn;
+    b.textContent = txt; if (hot) b.className = 'hot';
+    b.onclick = async e => { try { await fn(e); } catch (err) { dash.reportIssue(err, txt); log(err.message || err); } };
     b.dataset.grp = grp || GRP.deck;
     tp.insertBefore(b, $('logLine')); return b;
   };
@@ -1158,26 +1314,19 @@ function buildTransport(dash) {
   /* a small dropdown, used for layout / theme / views */
   function select(label, items, onPick, current, grp) {
     const wrap = document.createElement('span'); wrap.className = 'sel';
-    const b = document.createElement('button');
-    const menu = document.createElement('span'); menu.className = 'menu';
-    const nameOf = k => (items.find(x => x.k === k) || items[0]).n;
+    const input = document.createElement('select'); input.setAttribute('aria-label', label);
     const paint = () => {
-      b.textContent = label + ': ' + nameOf(current);
-      /* View names reach here from prompt(), and from an imported views file. */
-      menu.innerHTML = '<u>' + esc(label) + '</u>' + items.map(x =>
-        `<i data-k="${esc(x.k)}" class="${x.k === current ? 'on' : ''}">${esc(x.n)}`
-        + (x.hint ? `<b>${esc(x.hint)}</b>` : '') + '</i>').join('');
-      menu.querySelectorAll('i').forEach(el => el.onclick = ev => {
-        ev.stopPropagation(); current = el.dataset.k;
-        wrap.classList.remove('open'); paint(); onPick(current);
-      });
+      input.replaceChildren();
+      for (const x of items) {
+        const option = document.createElement('option'); option.value = x.k;
+        option.textContent = label + ': ' + x.n + (x.hint ? ' · ' + x.hint : ''); input.appendChild(option);
+      }
+      input.value = current;
     };
     paint();
-    b.onclick = e => { e.stopPropagation();
-      sr.querySelectorAll('.sel').forEach(o => { if (o !== wrap) o.classList.remove('open'); });
-      wrap.classList.toggle('open'); };
+    input.onchange = () => { current = input.value; onPick(current); };
     wrap.onclick = e => e.stopPropagation();
-    wrap.appendChild(b); wrap.appendChild(menu);
+    wrap.appendChild(input);
     wrap.dataset.grp = grp || GRP.cfg;
     tp.insertBefore(wrap, $('logLine'));
     return { el: wrap, refresh: paint, set(k) { current = k; paint(); } };
@@ -1194,6 +1343,7 @@ function buildTransport(dash) {
     if (PH()) PH().hold('scan');
     try {
       const r = await window.DW.scan((i, n, nm) => log(i + '/' + n + ' ' + nm.slice(0, 40)));
+      if (r.failures && r.failures.length) dash.reportIssue(r, 'scan');
       log(r.added + ' added · ' + r.analysed + ' in corpus · ' + r.cached + ' cached'
         + (r.duplicates ? ' · ' + r.duplicates + ' already had' : '')
         + (r.failed ? ' · ' + r.failed + ' failed' : '')
@@ -1205,6 +1355,7 @@ function buildTransport(dash) {
          "pick your music folder…" forever — the UI claiming to be waiting for
          a dialog the user had already dismissed. */
       log(e && e.name === 'AbortError' ? 'scan cancelled' : String((e && e.message) || e));
+      if (e.name !== 'AbortError') dash.reportIssue(e, 'scan');
     } finally { if (PH()) PH().release('scan'); }
   }, true);
 
@@ -1216,12 +1367,14 @@ function buildTransport(dash) {
     if (PH()) PH().hold('scan');
     try {
       const r = await window.DW.addFiles((i, n, nm) => log(i + '/' + n + ' ' + nm.slice(0, 40)));
+      if (r.failures && r.failures.length) dash.reportIssue(r, 'add tracks');
       log(r.added + ' added · ' + r.corpus + ' in corpus'
         + (r.duplicates ? ' · ' + r.duplicates + ' already had' : '')
         + (r.failed ? ' · ' + r.failed + ' failed' : '')
         + (r.uncached ? ' · ' + r.uncached + ' not cached (storage refused — re-analysed next load)' : ''));
     } catch (e) {
       log(e && e.name === 'AbortError' ? 'cancelled' : String((e && e.message) || e));
+      if (e.name !== 'AbortError') dash.reportIssue(e, 'add tracks');
     } finally { if (PH()) PH().release('scan'); }
   });
 
@@ -1301,10 +1454,11 @@ function buildTransport(dash) {
   const build = mode => {
     if (!window.DW.corpus.length) { log('scan first'); return; }
     if (mode === 'phrase' && !window.DWPHRASE) { log('phrase module missing — build · best matches instead'); return; }
-    dash.set = window.DW.build({ length: 500, dedupe: !keepDupes, mode });
-    const i = window.DW.inspect(dash.set);
+    const prepared = window.DW.prepare({ length: 500, dedupe: !keepDupes, mode });
+    dash.prepare(prepared);
+    const i = window.DW.inspect(prepared);
     if (typeof i === 'string') { log(i); return; }
-    log((LABEL[mode] || LABEL.all)
+    log('prepared · ' + (LABEL[mode] || LABEL.all)
       + i.tracks + ' tracks · ' + Math.floor(i.runtimeMin / 60) + 'h' + (i.runtimeMin % 60)
       + ' · max stretch ' + i.maxStretchPct + '%'
       + (i.maxStretchPct > 15 ? ' ⚠ OVER BUDGET' : '')
@@ -1329,8 +1483,8 @@ function buildTransport(dash) {
   const libBtn = btn('library', async () => {
     try {
       const n = await window.DW.openLibrary();
-      const miss = dash.set.filter(t => !window.DW.LIB.find(t)).length;
-      log(n + ' files · ' + (dash.set.length - miss) + '/' + dash.set.length + ' resolvable'
+      const target = dash.fileSet, miss = target.filter(t => !window.DW.LIB.find(t)).length;
+      log(n + ' files · ' + (target.length - miss) + '/' + target.length + ' resolvable'
         + (miss ? ' · ' + miss + ' missing' : ''));
     } catch (e) {
       const m = String((e && e.message) || e);
@@ -1351,14 +1505,16 @@ function buildTransport(dash) {
      stage is reported separately. The full list goes to the console because
      the log line is one line. */
   const auditBtn = btn('◎ audit set', async () => {
-    if (!dash.set.length) { log('build a set first'); return; }
+    const target = dash.fileSet;
+    if (!target.length) { log('build a set first'); return; }
     if (!window.DW.LIB.files) { log('open the library first'); return; }
     log('auditing…');
-    const r = await window.DW.audit(dash.set,
+    const r = await window.DW.audit(target,
       (i, n, nm) => log('audit ' + i + '/' + n + ' · ' + String(nm).slice(-34)));
     if (typeof r === 'string') { log(r); return; }
+    if (r.failures.length) dash.reportIssue(r, 'audit');
     log(r.playable + '/' + r.checked + ' playable'
-      + (r.failed ? ' · ' + r.failed + ' FAILED — see console' : ' · none failed')
+      + (r.failed ? ' · ' + r.failed + ' failed — open Issues' : ' · none failed')
       + (r.viaLibflac && r.viaLibflac.length ? ' · ' + r.viaLibflac.length + ' decoded via libflac (browser refused them)' : '')
       + (r.durationMismatch.length ? ' · ' + r.durationMismatch.length + ' length mismatch' : ''));
     console.log('%cdeckwave audit', 'font-weight:bold',
@@ -1371,6 +1527,7 @@ function buildTransport(dash) {
     }
   });
   auditBtn.dataset.ph = 'cfg';        /* phone: behind ⚙ display */
+  auditBtn.dataset.setAction = 'audit';
 
   sep(GRP.play);
   /* phone only (CSS hides it elsewhere): panels or the set, one screen at a
@@ -1414,11 +1571,16 @@ function buildTransport(dash) {
       if (st.ctx === 'suspended') { log(window.DW.pause()); return; }   /* resume */
       if (st.ctx === 'running') { log('already playing — ❚❚ to pause, ■ to stop'); return; }
     }
+    if (dash.prepared) {
+      try { log(await dash.playPrepared()); dash.renderList(); }
+      catch (e) { dash.reportIssue(e, 'play prepared'); log(e.message); }
+      return;
+    }
     if (!dash.set.length) { log('build a set first'); return; }
     if (!window.DW.LIB.files) { log('open the library first'); return; }
     if (PH() && PH().armCalls) PH().armCalls();   /* Android: start the call-focus proxy inside this gesture */
     try { log(await window.DW.play(dash.set, 0)); }
-    catch (e) { log('cannot play: ' + String((e && e.message) || e) + ' — deck stopped'); } }, true, GRP.play);
+    catch (e) { dash.reportIssue(e, 'play'); log('cannot play: ' + String((e && e.message) || e) + ' — deck stopped'); } }, true, GRP.play);
   btn('pause', () => log(window.DW.pause()), false, GRP.play);
   /* next BLENDS since 2026-08-19 — leaves the playing track at the next
      downbeat and crossfades over the set's xfade (keeper: "the next button
@@ -1461,7 +1623,7 @@ function buildTransport(dash) {
       ? 'settle ON — a deck stretched past the gate rides back to its own speed over '
         + S.seconds + 's. UNTESTED BY EAR. It also hands over at the track’s own BPM '
         + 'instead of the 35% drift target, so the whole tempo plan downstream changes.'
-      : 'settle off — decks hold the rate they started at, as before');
+      : 'settle off — trusted decks share the rolling tempo change over each crossfade');
   });
   sb.dataset.grp = GRP.cfg;
 
@@ -1588,9 +1750,10 @@ function buildTransport(dash) {
   db.dataset.grp = GRP.cfg;
 
   sep(GRP.files);
-  btn('▾ save set', () => {
-    if (!dash.set.length) { log('build a set first'); return; }
-    const sc = window.DWSCORE.score(dash.set, { xfade: 16 });
+  const saveBtn = btn('▾ save set', () => {
+    const target = dash.fileSet;
+    if (!target.length) { log('build a set first'); return; }
+    const sc = window.DWSCORE.score(target, { xfade: 16 });
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     const dl = (txt, name, mime) => { const b = new Blob([txt], { type: mime });
       const u = URL.createObjectURL(b), a = document.createElement('a');
@@ -1601,6 +1764,7 @@ function buildTransport(dash) {
       'deckwave-set-' + stamp + '.cue', 'text/plain'), 350);
     log('downloaded · ' + sc.summary.tracks + ' tracks');
   }, true, GRP.files);
+  saveBtn.dataset.setAction = 'save';
 
   const lsb = btn('▴ load set', () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
@@ -1610,10 +1774,11 @@ function buildTransport(dash) {
     inp.style.display = 'none'; document.body.appendChild(inp);
     inp.oncancel = () => inp.remove();
     inp.onchange = async () => { if (!inp.files[0]) { inp.remove(); return; }
-      try { const r = window.DWSCORE.load(await inp.files[0].text(), window.DW.corpus);
-        dash.set = r.set;
-        log('loaded ' + r.loaded + (r.missing.length ? ' · ' + r.missing.length + ' missing' : ' · complete'));
-      } catch (e) { log('load failed: ' + e.message); } finally { inp.remove(); } };
+      try { const r = window.DWSCORE.load(await inp.files[0].text(), window.DW.corpus.map(t => ({ ...t })));
+        if (r.missing.length) dash.reportIssue({ failures: r.missing.map(name => ({ name, message: 'not in the library — add this track and load the set again' })) }, 'load');
+        dash.prepare(r.set);
+        log('prepared ' + r.loaded + (r.missing.length ? ' · ' + r.missing.length + ' missing — open Issues' : ' · complete'));
+      } catch (e) { dash.reportIssue(e, 'load'); log('load failed: ' + e.message); } finally { inp.remove(); } };
     inp.click();
   });
   lsb.dataset.grp = GRP.files;
@@ -1895,7 +2060,7 @@ function buildTransport(dash) {
     try { log('pick a tab · tick "Share tab audio"');
       const r = await window.DWLISTEN.tab();
       log('listening to ' + r.source.slice(0, 40) + ' · visuals only, no analysis');
-    } catch (e) { log(String(e.message || e)); }
+    } catch (e) { dash.reportIssue(e, 'tab capture'); log(String(e.message || e)); }
     paintCapture(); });
   lb.dataset.grp = GRP.cap;
 
@@ -1904,7 +2069,7 @@ function buildTransport(dash) {
      See the header of deckwave-render.js. */
   const rb = btn('⤓ render flac', async () => {
     if (!window.DWRENDER) { log('render module not loaded'); return; }
-    const set = dash.set || [];
+    const set = dash.fileSet || [];
     if (!set.length) { log('build a set first'); return; }
     const est = window.DWRENDER.estimate(set, {});
     if (est.overCeiling) {
@@ -1916,10 +2081,12 @@ function buildTransport(dash) {
       const r = await window.DWRENDER.exportMix(set, { to, onStatus: log });
       log('saved ' + r.file + ' · ' + r.mb + 'MB · ' + r.tracks + ' tracks · NOT tempo-matched');
     } catch (e) {
+      dash.reportIssue(e, 'render');
       log('render failed: ' + String((e && e.message) || e));
     } finally { rb.className = ''; }
   });
   rb.dataset.grp = GRP.files;
+  rb.dataset.setAction = 'render';
 
   /* Recovered from the live build. DWLISTEN.mic() was already in the package;
      nothing in the packaged UI ever called it. Same catch as scan — cancelling
@@ -1931,6 +2098,7 @@ function buildTransport(dash) {
       const r = await window.DWLISTEN.mic();
       log('input: ' + r.source.slice(0, 40) + ' · visuals only, no analysis');
     } catch (e) {
+      dash.reportIssue(e, 'input capture');
       log(e && e.name === 'NotAllowedError' ? 'input permission refused'
         : String((e && e.message) || e));
     }
@@ -2063,10 +2231,11 @@ DWDASH.slots = function (dash) {
        first two fixes each covered the rebuild path and missed the swap. */
     if (dash.glossary && dash.glossary.tag) setTimeout(dash.glossary.tag, 0);
     slot.menu.innerHTML = window.DWPANELS.list().map(x =>
-      `<i data-k="${x.k}" class="${x.k === slot.panel ? 'on' : ''}">${x.n}${x.hint ? '<b>' + x.hint + '</b>' : ''}</i>`).join('');
-    slot.menu.querySelectorAll('i').forEach(el => el.onclick = ev => {
+      `<button type="button" data-k="${x.k}" class="${x.k === slot.panel ? 'on' : ''}">${x.n}${x.hint ? '<b>' + x.hint + '</b>' : ''}</button>`).join('');
+    slot.menu.querySelectorAll('button').forEach(el => el.onclick = ev => {
       ev.stopPropagation(); slot.panel = el.dataset.k;
       slot.menu.classList.remove('open'); paint(slot); save();
+      slot.el.querySelector('.swap').focus();
       setTimeout(dash.fit, 40);
     });
   }
@@ -2118,7 +2287,7 @@ DWDASH.slots = function (dash) {
       if (!window.DWPANELS.has(pid)) pid = defaults[i] || 'spectrum';
       const cid = 'slot' + i;
       const d = document.createElement('div'); d.className = 'strip';
-      d.innerHTML = `<u><span class="lbl"></span><span class="hbtn">?</span><span class="swap">swap &#9662;</span></u>`
+      d.innerHTML = `<u><span class="lbl"></span><button type="button" class="hbtn" aria-label="Panel help">?</button><button type="button" class="swap" aria-label="Swap panel">swap &#9662;</button></u>`
                   + `<div class="cw"><canvas id="${cid}"></canvas></div>`
                   + `<span class="pmenu"></span><div class="hcard"></div>`;
       tri.appendChild(d);
@@ -2133,13 +2302,15 @@ DWDASH.slots = function (dash) {
         sr.querySelectorAll('.pmenu,.hcard').forEach(m => { if (m !== slot.menu) m.classList.remove('open'); });
         const opening = !slot.menu.classList.contains('open');
         slot.menu.classList.toggle('open');
-        if (opening) placeMenu(slot.menu, swapBtn, 190); };
+        if (opening) { placeMenu(slot.menu, swapBtn, 190); slot.menu.querySelector('button')?.focus(); } };
+      slot.menu.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); slot.menu.classList.remove('open'); swapBtn.focus(); } });
       helpBtn.onclick = e => { e.stopPropagation();
         sr.querySelectorAll('.pmenu,.hcard').forEach(c => { if (c !== slot.help) c.classList.remove('open'); });
         help(slot);
         const opening = !slot.help.classList.contains('open');
         slot.help.classList.toggle('open');
-        if (opening) placeMenu(slot.help, helpBtn, Math.max(240, d.getBoundingClientRect().width - 12)); };
+        if (opening) { placeMenu(slot.help, helpBtn, Math.max(240, d.getBoundingClientRect().width - 12)); slot.help.querySelector('a')?.focus(); } };
+      slot.help.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); slot.help.classList.remove('open'); helpBtn.focus(); } });
       d.onclick = e => e.stopPropagation();
       if (dash.ro) dash.ro.observe(d);
     });
@@ -2297,7 +2468,7 @@ DWDASH.folds = function (dash) {
       const u = s.el.querySelector('u');
       let btn = u.querySelector('.fold');
       if (!btn) {
-        btn = document.createElement('span'); btn.className = 'fold';
+        btn = document.createElement('button'); btn.type = 'button'; btn.className = 'fold';
         u.insertBefore(btn, u.querySelector('.swap'));
         btn.onclick = e => { e.stopPropagation();
           const st = read(); st[s.panel] = !st[s.panel]; write(st);
@@ -2307,6 +2478,8 @@ DWDASH.folds = function (dash) {
       s.el.classList.toggle('collapsed', on);
       btn.textContent = on ? '\u25b8' : '\u25be';
       btn.title = on ? 'expand' : 'collapse';
+      btn.setAttribute('aria-label', (on ? 'Expand ' : 'Collapse ') + s.panel);
+      btn.setAttribute('aria-expanded', String(!on));
     });
   };
 };

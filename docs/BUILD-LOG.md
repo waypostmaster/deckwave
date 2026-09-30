@@ -3398,3 +3398,21 @@ a photograph rather than a standing claim.
 calibration constant or detector.** Three documents were corrected and two
 paragraphs were added to the kernel. The review it was staged for had not run
 at seal.
+
+## Mike implementation · 2026-09-08
+
+[MEASURED] The follow-up reliability harness rejects 20 of 44 checks on the
+reviewed base source and passes all 44 on the edited implementation. The
+seven review defects and the first UI slice are tracked, with controls and
+remaining work, in [MIKE-IMPLEMENTATION-2026-09-08.md](MIKE-IMPLEMENTATION-2026-09-08.md).
+This is synthetic scheduling/lifetime evidence; the audio changes are unheard.
+The user explicitly asked to preserve the existing visual style.
+
+[MEASURED · final checkpoint] The expanded reliability suite passes 47 checks
+and rejects 22 on the reviewed base source. Prepared-set transactions add 13
+passing checks. The selected existing suites plus these two ran 923 checks:
+919 pass, four require the excluded music fixtures. The UI was exercised with
+silent synthetic buffers at desktop and narrow widths. Build/Apply preserved
+the current track; keyboard actions, focus restoration, theme selection and
+persistent named errors were exercised. See the implementation note for the
+file-picker limitation and the exact coverage boundary. Still unheard.

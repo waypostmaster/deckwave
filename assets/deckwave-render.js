@@ -97,14 +97,23 @@ async function decodeRange(set, p, from, to, onprog) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR });
   const bufs = new Map();
   const needed = p.steps.filter(s => (s.out + p.xfade) >= from && s.at <= to);
-  for (let n = 0; n < needed.length; n++) {
-    const s = needed[n];
-    if (onprog) onprog(n / needed.length, set[s.i].name);
-    try { bufs.set(s.i, await window.DW.LIB.decode(set[s.i], ctx)); }
-    catch (e) { console.warn('render: skipping', set[s.i].name, e.message); }
-  }
-  ctx.close();
-  return bufs;
+  const failures = [];
+  try {
+    for (let n = 0; n < needed.length; n++) {
+      const s = needed[n];
+      if (onprog) onprog(n / needed.length, set[s.i].name);
+      try { bufs.set(s.i, await window.DW.LIB.decode(set[s.i], ctx)); }
+      catch (e) { failures.push({ name: set[s.i].name, stage: 'decode', message: e.message }); }
+    }
+    if (failures.length) {
+      bufs.clear();
+      const error = new Error('render cancelled — could not decode ' +
+        failures.map(f => f.name + ': ' + f.message).join('; '));
+      error.failures = failures;
+      throw error;
+    }
+    return bufs;
+  } finally { await ctx.close(); }
 }
 
 async function render(set, opts) {
