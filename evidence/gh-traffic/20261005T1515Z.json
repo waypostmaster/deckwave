@@ -1,0 +1,282 @@
+{
+ "what": "GitHub traffic window for waypostmaster/deckwave, captured by tools/gh-traffic.py",
+ "captured_utc": "2026-10-05T15:15:45Z",
+ "window": {
+  "first_day": "2026-09-21",
+  "last_day": "2026-10-04",
+  "days": 14,
+  "note": "trailing 14 complete UTC days; GitHub deletes older data, it does not archive it"
+ },
+ "summary": {
+  "views": 103,
+  "views_uniques": 21,
+  "clones": 13,
+  "clones_uniques": 13,
+  "stars": 7,
+  "forks": 0,
+  "watchers": 0,
+  "pushed_at": "2026-09-06T23:45:09Z",
+  "referrers": [
+   [
+    "DuckDuckGo",
+    87,
+    12
+   ],
+   [
+    "youtube.com",
+    7,
+    1
+   ],
+   [
+    "deckwave.fm",
+    3,
+    2
+   ],
+   [
+    "chatgpt.com",
+    1,
+    1
+   ],
+   [
+    "reddit.com",
+    1,
+    1
+   ]
+  ],
+  "paths": [
+   [
+    "/waypostmaster/deckwave/blob/main/README.md",
+    87,
+    12
+   ],
+   [
+    "/waypostmaster/deckwave",
+    15,
+    8
+   ],
+   [
+    "/waypostmaster/deckwave/commit/90daacb9e67c704eb5b551363d125dcca6bae868",
+    1,
+    1
+   ]
+  ]
+ },
+ "errors": {},
+ "provenance": {
+  "measured": "every number above, by `gh api` at captured_utc as the authenticated account",
+  "not_measured": [
+   "deckwave.fm visits \u2014 GitHub Pages exposes no traffic API (verified 404 against a working control, 2026-09-06)",
+   "demo presses \u2014 no instrument exists"
+  ],
+  "uniques_caveat": "GitHub uniques are per-day and per-window; day uniques do not sum to window uniques"
+ },
+ "raw": {
+  "traffic/views": {
+   "count": 103,
+   "uniques": 21,
+   "views": [
+    {
+     "timestamp": "2026-09-21T00:00:00Z",
+     "count": 10,
+     "uniques": 2
+    },
+    {
+     "timestamp": "2026-09-22T00:00:00Z",
+     "count": 4,
+     "uniques": 2
+    },
+    {
+     "timestamp": "2026-09-23T00:00:00Z",
+     "count": 5,
+     "uniques": 2
+    },
+    {
+     "timestamp": "2026-09-24T00:00:00Z",
+     "count": 9,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-09-25T00:00:00Z",
+     "count": 5,
+     "uniques": 2
+    },
+    {
+     "timestamp": "2026-09-26T00:00:00Z",
+     "count": 7,
+     "uniques": 5
+    },
+    {
+     "timestamp": "2026-09-27T00:00:00Z",
+     "count": 9,
+     "uniques": 2
+    },
+    {
+     "timestamp": "2026-09-28T00:00:00Z",
+     "count": 7,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-09-29T00:00:00Z",
+     "count": 14,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-09-30T00:00:00Z",
+     "count": 5,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-10-01T00:00:00Z",
+     "count": 7,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-10-02T00:00:00Z",
+     "count": 9,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-10-03T00:00:00Z",
+     "count": 9,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-10-04T00:00:00Z",
+     "count": 3,
+     "uniques": 2
+    }
+   ]
+  },
+  "traffic/clones": {
+   "count": 13,
+   "uniques": 13,
+   "clones": [
+    {
+     "timestamp": "2026-09-21T00:00:00Z",
+     "count": 0,
+     "uniques": 0
+    },
+    {
+     "timestamp": "2026-09-22T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-09-23T00:00:00Z",
+     "count": 3,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-09-24T00:00:00Z",
+     "count": 3,
+     "uniques": 3
+    },
+    {
+     "timestamp": "2026-09-25T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-09-26T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-09-27T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-09-28T00:00:00Z",
+     "count": 0,
+     "uniques": 0
+    },
+    {
+     "timestamp": "2026-09-29T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-09-30T00:00:00Z",
+     "count": 0,
+     "uniques": 0
+    },
+    {
+     "timestamp": "2026-10-01T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-10-02T00:00:00Z",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "timestamp": "2026-10-03T00:00:00Z",
+     "count": 0,
+     "uniques": 0
+    },
+    {
+     "timestamp": "2026-10-04T00:00:00Z",
+     "count": 0,
+     "uniques": 0
+    }
+   ]
+  },
+  "traffic/popular/referrers": [
+   {
+    "referrer": "DuckDuckGo",
+    "count": 87,
+    "uniques": 12
+   },
+   {
+    "referrer": "youtube.com",
+    "count": 7,
+    "uniques": 1
+   },
+   {
+    "referrer": "deckwave.fm",
+    "count": 3,
+    "uniques": 2
+   },
+   {
+    "referrer": "chatgpt.com",
+    "count": 1,
+    "uniques": 1
+   },
+   {
+    "referrer": "reddit.com",
+    "count": 1,
+    "uniques": 1
+   }
+  ],
+  "traffic/popular/paths": [
+   {
+    "path": "/waypostmaster/deckwave/blob/main/README.md",
+    "title": "/blob/main/README.md",
+    "count": 87,
+    "uniques": 12
+   },
+   {
+    "path": "/waypostmaster/deckwave",
+    "title": "Overview",
+    "count": 15,
+    "uniques": 8
+   },
+   {
+    "path": "/waypostmaster/deckwave/commit/90daacb9e67c704eb5b551363d125dcca6bae868",
+    "title": "/commit/90daacb9e67c704eb5b551363d125dcca6bae868",
+    "count": 1,
+    "uniques": 1
+   }
+  ]
+ },
+ "raw_repo": {
+  "stargazers_count": 7,
+  "forks_count": 0,
+  "subscribers_count": 0,
+  "pushed_at": "2026-09-06T23:45:09Z",
+  "updated_at": "2026-10-01T12:53:37Z",
+  "created_at": "2026-09-01T00:11:45Z"
+ }
+}

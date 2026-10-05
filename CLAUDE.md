@@ -224,10 +224,17 @@ render fixes and a prepared-set UI, committed as `8bf6f82` on 2026-09-30 from
 a tree Mike left uncommitted on 2026-09-08, reviewed in Act 47 (ledgers
 137–141). It changes the beatmatch itself (138); its one confirmed
 regression (137, route stones on untrusted grids) is fixed in `579da82` with
-a real-corpus falsifier. **It is not merged, not pushed, and not heard.**
-Whether it merges is the keeper's A/B (ledger 138 — the A/B is staged on
-ports 8777/8778, see 137a), not a build task; `git branch -vv` says where
-the two branches stand, not this sentence.
+a real-corpus falsifier. **HEARD 2026-10-05: the keeper ran the A/B and
+said the new engine "sounds fine" (ledger 138, CONFIRMED).** It is not yet
+merged or pushed; `git branch -vv` says where the two branches stand, not
+this sentence. The old engine stays reachable at `v0.8.2`; there is no
+switch between the two and there should not be.
+
+**GitHub traffic is captured weekly** (Act 48, ledger 142): a Windows
+scheduled task runs `tools/gh-traffic.py` every Saturday into
+`evidence/gh-traffic/`, dated files, never git. `schtasks /query /tn
+"Deckwave GitHub traffic capture" /v /fo list` says when it last ran and
+with what result; do not read that from here.
 
 **Deckwave is PUBLIC.** 0.8.0 was pushed 2026-09-01 ("August 32nd — 8 bars
 of 4") to `waypostmaster/deckwave`, one commit of fresh history, tag

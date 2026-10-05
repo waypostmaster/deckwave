@@ -3644,3 +3644,59 @@ working set grew from 124 MB to 303 MB across the session. Whether that
 process is Mike, and whether it touches this repo, is unknown; the tree's
 mtimes say nothing of Mike's has moved since 2026-09-08. Each lock was
 removed only after its age and the process list were read.
+
+**Ledger 138 · HEARD. [CONFIRMED by the keeper's ear, 2026-10-05]** The
+keeper ran the staged A/B and said *"I also listened to the new engine, and
+it sounds fine."* So the ramp stays: the two trusted decks agreeing on tempo
+through the fade, with the outgoing deck audibly moving to the rolling
+target, is at least as good to the ear as the shipped engine's silent
+35%-of-the-gap disagreement. What this does NOT settle, and is written so
+nobody reads it in: whether the OLD mismatch was ever audible as a fault
+(the keeper heard the new engine, not a side-by-side on one pair), the
+next-during-fade wait (still a preference, still open), and the `_stretch`
+label and gap-log rate from 138's consequences, which are now build tasks
+since the ramp is kept. The keeper's follow-up question — keep both
+engines? — is answered in the same turn: no; the old one lives at `v0.8.2`
+and in `public`'s history, reachable for any future A/B in one checkout,
+and a switch would be a second `chain()` to keep green and to hear.
+
+## Act 48 — The GitHub traffic window is being kept (2026-10-05)
+
+**Ledger 142 · A weekly capture of GitHub's 14-day traffic window, and the
+thirteen days that were already gone. [MEASURED 2026-10-05T15:16Z]**
+
+The keeper asked at the Echo desk whether GitHub traffic was being captured.
+It was not: one baseline on 2026-09-06 (ledger 135, `a1d49da`) read the
+trailing window 2026-08-23..09-05 and nothing read it again until this desk
+did on 2026-10-03 — so **2026-09-06 through 09-18 are gone**, deleted by
+GitHub, which keeps fourteen days and archives none. The 10-03 read was
+preserved as `evidence/gh-traffic/20261003T2243Z.json` (window 09-19..10-02:
+views 109/21 unique, clones 13/13, stars 7; referrers DuckDuckGo 93/12,
+youtube.com 7/1, **deckwave.fm 2/1 — the passive-landing row Act 45 was
+built to produce, first seen non-zero**, chatgpt.com 1/1, reddit.com 1/1;
+93 of the 109 views are the README via DuckDuckGo, which reads as a few
+repeat visitors, not a crowd).
+
+The instrument: `tools/gh-traffic.py`, standard library only, reads the four
+traffic endpoints and the repository record through `gh api` (the token
+stays in gh's store), writes ONE dated file whole-or-not-at-all with every
+raw body verbatim, exits non-zero if any endpoint failed, and **never runs
+git**. Its first test run caught its own fault — the repository call carried
+a trailing slash and GitHub answered 404; the tool marked the error and
+exited 1, which is the falsifier working before the tool was trusted.
+
+The persistence: a Windows scheduled task, `Deckwave GitHub traffic
+capture`, weekly Saturday 03:00 local, start-when-available so a missed
+start runs at next logon, as the keeper's user at interactive logon (the
+credential store is per-user). **Fired once by hand after registration:
+exit 0, and it wrote `20261005T1516Z.json` by itself** — that file is the
+proof the task works outside a shell, kept for that reason beside the
+hand-run `20261005T1515Z.json`. Seven days against a fourteen-day window
+means one missed run costs nothing. Next run 2026-10-10.
+
+What a capture is NOT: it is a file on this machine until a person commits
+and pushes it, and this repository is public. The keeper was told and chose
+the tracked path (precedent: the 2026-09-06 baseline is already public).
+Not measured, still: `deckwave.fm` visits (Pages has no traffic API —
+verified 404 against a working control on 2026-09-06) and demo presses.
+The uniques are per-window and per-day and do not sum across captures.
