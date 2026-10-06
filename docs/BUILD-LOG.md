@@ -3716,3 +3716,34 @@ I'm not entirely sure."* So this is a preference, not a hearing of the
 wait. What would reopen it: next pressed a few seconds into a fade on the
 merged build, and the wait reading as a dead button — which is how
 "quick blend just seems to sit there" was caught the first time.
+
+**Ledger 143 · Quiet stretches: what the engine does with them, measured on
+the five tracks the keeper named. [MEASURED 2026-10-06; what is rain is
+UNHEARD]** The keeper asked whether the mixer could mix out long quiet
+passages ("a track that has a long period of rain ... Gone too soon, winter
+error, or something like that"; then Requiem for a Friend, "starts slow";
+then Lullaby). Today the engine cannot see them: per track it stores ONE
+rms of a centred excerpt, the beat grid runs through quiet audio (GONE TOO
+SOON has beats to 506.2 s of 507.0), so `entry = beats[0]` is ~0.5 s on
+every track named, and the exit is `dur - xfade` snapped. Measured with
+`tools/quiet-scan.js` (libflac under bare node; 4 s windows, dB relative to
+the track's loudest window; control WALKMAN single, which is within 4 dB of
+its peak from 0:08 to 3:00 and ends in 8 s):
+- GONE TOO SOON (8:27): loud 1:24-4:04; a -13 dB section to 6:08; then
+  **6:16-8:20 sits at -30 to -44 dB, with low-band -37 to -49 — two minutes
+  of near-quiet.** Natural exit 491 s (8:11) is inside it, so about two
+  minutes play alone before the next track arrives. Most likely the rain;
+  confirmed only by listening at 6:16.
+- WINTER ERROR (3:44): **no long quiet stretch** — loud from 0:00, a 12 s
+  dip at 2:00, a 40 s fade-out from 2:52. Not the rain track by loudness.
+- REQUIEM FOR A FRIEND: 20 s soft intro (-15..-21 dB, low band -25..-38),
+  24 s fade from 4:12.
+- LULLABY: 32 s soft intro and a 36 s soft outro (2:48-3:24), both with the
+  low band at -43..-59 dB — no kick. Natural exit 197 s leaves ~28 s of
+  outro alone before the fade. **The corpus holds it twice** (EIGHTY-FIVE
+  02 and GHOSTS 06): identical profile, bpm, duration and grid.
+What this does NOT establish: any threshold. "Quiet" here is read off five
+profiles by eye; a detector needs the per-bar curve across all 189 and the
+keeper's ear on where it should cut. Loudness alone also cannot tell rain
+from a soft musical intro — the low-band column is the better separator on
+these five (no kick), and that too is unmeasured across the library.
