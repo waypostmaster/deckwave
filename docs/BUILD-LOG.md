@@ -3700,3 +3700,19 @@ the tracked path (precedent: the 2026-09-06 baseline is already public).
 Not measured, still: `deckwave.fm` visits (Pages has no traffic API —
 verified 404 against a working control on 2026-09-06) and demo presses.
 The uniques are per-window and per-day and do not sum across captures.
+
+**Ledger 138b · Next during a fade waits for that fade: kept, on the
+keeper's call. [KEEPER'S CALL 2026-10-06 — the wait itself UNHEARD as such]**
+Mike's `nextExitAfter()` (`deckwave.js:1421-1423`) pushes any requested exit
+(next, blend fast, blendNow) past the end of the fade the playing track
+arrived on, because under the ramp the incoming deck still holds the tempo
+it shares with the outgoing one; `public` left on the next downbeat >= 1.2 s
+out and ran three decks at once while retargeting the middle one. Told the
+cost (up to one xfade plus a bar of nothing, more in phrase mode), the
+keeper said *"I think it's best with Mike's version."* Stated with its
+uncertainty, in their words: they have pressed next several times and
+"heard the blendery", and *"might have tested it on the new engine too ...
+I'm not entirely sure."* So this is a preference, not a hearing of the
+wait. What would reopen it: next pressed a few seconds into a fade on the
+merged build, and the wait reading as a dead button — which is how
+"quick blend just seems to sit there" was caught the first time.
