@@ -3874,3 +3874,25 @@ live change; refusal reported; refusal at boot still boots, logged) —
 control has no harness — it was seen, not tested. What would confirm the
 whole thing: the keeper names the outputs once, picks Sonar - Media, and
 Sonar's Media meter moves while Meet stays on Chat.
+
+**Ledger 147 · The UI review: too many equal-weight controls, one accent
+with two meanings, and no visible order of operations. [MEASURED live and
+in code; nothing changed; the redesign is NOT implementation-ready]**
+Keeper, 2026-10-07: "There are far too many buttons, and it is not
+intuitive how to use the buttons." A 93-agent read-only workflow (five code
+readers, a live-page inspector, six lens reviewers, a blind Codex CLI
+review, two skeptics per finding, a synthesis, a Codex red-team and a
+completeness critic) is written whole to `docs/UI-REVIEW-2026-10-07.md`.
+Measured on the live page (keeper's saved state, drawer open): 44
+reachable bar controls, ~63 with glossary labels; 28 with the drawer
+closed; 11 selects with 84 options; ~8-10 accented controls because `hot`
+means both "primary" and "on", and `▶ demo` is not among them; at 400 px
+with the drawer open the panel area is 0 px tall. 38 findings survived
+verification (0 refuted on the facts, 13 corrected as partly right). The
+synthesised redesign was then **rejected as implementation-ready by the
+Codex red-team** on code-backed grounds (a literal ▶/❚❚ merge loses pause;
+Set ▾ beside the Prepared card hides Open Set when it is needed; the
+control-budget gate cannot run in check-panels' sandbox; nav history stores
+indices, so "return to ‹track›" needs a model change) — the document says
+Parts 3-4 win where they disagree with Part 2. Owed: the keeper's
+decisions (Part 2 section 8) before any step is built.
