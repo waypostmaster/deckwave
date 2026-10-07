@@ -3747,3 +3747,28 @@ profiles by eye; a detector needs the per-bar curve across all 189 and the
 keeper's ear on where it should cut. Loudness alone also cannot tell rain
 from a soft musical intro — the low-band column is the better separator on
 these five (no kick), and that too is unmeasured across the library.
+
+**Ledger 143a · The corpus scan: one outlier, not a class. [MEASURED
+2026-10-06; no cut chosen]** All 189 FLACs through `tools/quiet-scan.js
+--corpus` (2 s windows, 0 decode errors), profiles kept as
+`evidence/quiet-profiles-2026-10-06.json`, summarised by
+`tools/quiet-summary.js` at -10/-15/-20/-25 dB below each track's loudest
+window. "Alone" = quiet tail minus the 16 s xfade, i.e. quiet audio heard
+before the next track arrives under today's `dur - xfade` exit. Control:
+the six tracks of ledger 143 read the same here as on the 4 s scan
+(GONE TOO SOON tail 134 s at -20 full; WALKMAN 4 s). The falsifier for
+"one outlier" would have been a long list at a moderate cut; there isn't one.
+- **Full band, -20 dB: ONE track has more than 18 s alone — GONE TOO SOON,
+  118 s.** Next is UNDER YOUR SKIN at 18 s. At -15: 6 tracks >= 15 s, 3
+  >= 30 s, 1 >= 60 s. At -10 (barely quieter than the body): 14 / 5 / 1.
+- **Low band (no kick/bass), -20 dB: 7 tracks >= 15 s alone** — GONE TOO
+  SOON 138, R3B0RN 38, both LULLABYs 30, UNDER YOUR SKIN 24, 8BIT FAIRY TALE
+  20, REQUIEM 18. These are soft outros with no beat, not silence; whether
+  a DJ would mix them out is the ear's call.
+- Intros: at -20 full nobody exceeds 18 s. Low band: STARGAZE runs **152 s
+  without bass** from the top (it is also the arc's usual opener, ledger
+  126), Lullaby 36, UNDER YOUR SKIN 42.
+- Mid-track: nothing longer than 26 s (Lullaby), FINAL CHAPTER 16.
+So on this library "long quiet that plays alone" is GONE TOO SOON and
+nothing else at any cut below -10 dB; the bass-less outros are a separate,
+smaller and musical question. Which is the rain is still UNHEARD.
