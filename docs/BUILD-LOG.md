@@ -3772,3 +3772,55 @@ the six tracks of ledger 143 read the same here as on the 4 s scan
 So on this library "long quiet that plays alone" is GONE TOO SOON and
 nothing else at any cut below -10 dB; the bass-less outros are a separate,
 smaller and musical question. Which is the rain is still UNHEARD.
+
+## Act 49 — Quiet endings: ledger 72 revisited on the keeper's word (2026-10-06)
+
+**Ledger 144 · No track leaves later than where its quiet tail starts.
+[MEASURED in harness and on real audio; the cut is DERIVED, UNHEARD]**
+Ledger 72 (2026-08-22) logged GONE TOO SOON's rain taking a set "literally
+to quiet" and was NOT repaired by explicit instruction ("Don't fix
+anything. We're just logging it."), with the note that the honest fix needs
+a loudness envelope and is the ear's question first. On 2026-10-06 the
+keeper asked for it ("Is there a way for us to include that in the mixer
+engine somehow?"), named the tracks, read ledgers 143/143a, and said
+**"Go ahead with your recommendation."** This desk found ledger 72 only
+after building — the earlier answers that session described the gap
+without citing it.
+
+What changed (`deckwave.js`, QUIET ENDINGS block beside `phraseOf`):
+`loudOf(track)` computes a 2 s full-band loudness curve from the decoded
+buffer the first time a track plays, stamps it on the meta as `loud`
+(`{v:1, win:2, db:[...]}`) and writes it back to the analysis record
+additively, exactly as `phrase` is — no `ANALYSIS_V` bump, no re-scan, and
+no analysis detector sees anything different. `quietAt(m)` is the start of
+the run of trailing windows below `DW.quiet.cutDb`. `chain()` caps all three
+natural exits (downbeat, ramped, phrase) at it; a tail shorter than the fade
+is already earlier than `dur - xfade` and changes nothing, so there is no
+minimum-length constant. `DWSCORE.plan` and `DWRENDER.plan` apply the same
+cap through `DW.quietAt`, and a score step carries `quietSec`. A track that
+has never played has no curve and leaves as it always did; the score says
+the same for it, as it does for phrase offsets. Forced exits (next, blend
+fast, blendNow) are untouched.
+
+**The cut: -20 dB, derived, live, unheard.** It is the level at which
+exactly one tail in the 189-track library plays alone for more than 18 s
+(143a). `DW.quiet.cutDb = null` restores ledger 72's behaviour — which is
+what VIDEO-CLEARANCE shot 3 (the rain under the credits) was filmed on; a
+re-shoot of that shot needs the cut off.
+
+Measured: the engine's own `loudOf`/`quietAt`, fed the libflac decode of
+the real files, reproduce the corpus scan to 0.00 dB at every window and
+the same tail starts — GONE TOO SOON 372 s (leaves at ~6:12, was ~8:11),
+UNDER YOUR SKIN 202 s (19 s earlier), WALKMAN 188 s (later than dur-xfade,
+so unchanged). Harness: `check-player` +7 (a real buffer with a 90 s quiet
+tail leaves at 150 s on a downbeat; a tail shorter than the fade does not
+move; cut null restores the old exit; a loud control) — **4 FAIL against
+HEAD's source, tally printed**; `check-pool` +3 on the score — **2 FAIL
+against HEAD's score**. Sixteen harnesses, **1073 checks, all green,
+MEASURED 2026-10-07T03:00Z**.
+
+Not measured: the main-thread cost of `loudOf` in a browser (one pass over
+the buffer at the top of each track, once per track ever; `phraseOf` does
+comparable work at the same point), and anything audible. What would
+confirm: one play through GONE TOO SOON in a set — the next track should
+arrive as the rain begins, not two minutes into it.

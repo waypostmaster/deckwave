@@ -1405,6 +1405,64 @@ const Player = (() => {
       DB.get(m.id).then(r => { if (r && r.v === m.v) { r.phrase = ph; return DB.put(r); } }).catch(() => {});
     } catch (e) {}
   }
+  /* ── QUIET ENDINGS (ledgers 143, 143a, 144) ─────────────────────────────
+     Keeper, 2026-10-06: tracks with "a long period of rain" at the end. The
+     exit was `dur - xfade`, so a quiet tail longer than the fade played
+     ALONE before the next track arrived — GONE TOO SOON's was two minutes.
+     Now no track leaves later than the start of its quiet tail: the fade
+     begins where the music goes quiet and the tail plays out under the
+     incoming track. A tail shorter than the fade changes nothing, because
+     `dur - xfade` is already earlier — so there is no minimum-length
+     constant, only the cut.
+
+     THE CUT IS DERIVED, NOT HEARD. -20 dB below the track's loudest 2 s
+     window is the level at which, across all 189 tracks of the keeper's
+     library, exactly one tail plays alone for more than 18 s (ledger 143a;
+     -15 catches six, -10 fourteen). It is live as `DW.quiet.cutDb`; null
+     switches the behaviour off. Moving it is the keeper's ear's call.
+
+     The loudness curve is computed from the decoded buffer the first time
+     a track plays — the same pattern as phraseOf(), the same additive
+     write-back — so no re-scan and nothing the analysis detectors see has
+     changed. Arithmetic identical to tools/quiet-scan.js, which measured
+     the cut: mono = per-sample channel mean, 2 s windows, full windows
+     only, 10·log10(window mean square / loudest window's). A track that
+     has never played has no curve and leaves exactly as it always did;
+     DWSCORE says the same for it. */
+  const QUIET = { cutDb: -20 };
+  const LOUD_V = 1, LOUD_WIN = 2;
+  function loudOf(track) {
+    const m = track && track.meta;
+    if (!m) return null;
+    if (m.loud && m.loud.v === LOUD_V) return m.loud;
+    const b = track.buf;
+    if (!b || typeof b.getChannelData !== 'function' || !(b.sampleRate > 0)) return null;
+    const chs = b.numberOfChannels || 1, ch = [];
+    for (let c = 0; c < chs; c++) ch.push(b.getChannelData(c));
+    const W = Math.round(LOUD_WIN * b.sampleRate), e = [];
+    for (let s = 0; s + W <= b.length; s += W) {
+      let sum = 0;
+      for (let i = s; i < s + W; i++) { let x = 0; for (let c = 0; c < chs; c++) x += ch[c][i] / chs; sum += x * x; }
+      e.push(sum / W);
+    }
+    let max = 0; for (const v of e) if (v > max) max = v;
+    const db = e.map(v => (v > 0 && max > 0) ? +(10 * Math.log10(v / max)).toFixed(1) : -120);
+    m.loud = { v: LOUD_V, win: LOUD_WIN, db };
+    try {
+      if (typeof DB !== 'undefined' && m.id)
+        DB.get(m.id).then(r => { if (r && r.v === m.v) { r.loud = m.loud; return DB.put(r); } }).catch(() => {});
+    } catch (e2) {}
+    return m.loud;
+  }
+  /* where the quiet tail starts, in SOURCE seconds; m.dur when there is
+     none, no curve, or the cut is off */
+  function quietAt(m) {
+    const L = m && m.loud;
+    if (!m || !L || L.v !== LOUD_V || !L.db || !L.db.length || QUIET.cutDb == null) return m ? m.dur : 0;
+    let i = L.db.length;
+    while (i > 0 && L.db[i - 1] < QUIET.cutDb) i--;
+    return i === L.db.length ? m.dur : Math.min(m.dur, i * L.win);
+  }
   /* the grid of a deck in WALL seconds from its start — what every exit
      choice works in */
   const wallBeats = d => (d.track.meta.beats || []).map(b => d.when(b - d.entry));
@@ -1438,6 +1496,10 @@ const Player = (() => {
     const m = A.track.meta;
     const beats = (m.beats || []).map(b => A.when(b - A.entry));
     const successor = order[idx + 1];
+    /* the latest this track may leave: where its quiet tail starts (see
+       QUIET ENDINGS) — every natural exit below is capped by it */
+    loudOf(A.track);
+    const quietWall = A.when(quietAt(m) - A.entry);
     function rates(atRate) {
       if (!successor) return null;
       const base = m._unlocked ? tempo : m.bpm * atRate;
@@ -1452,7 +1514,7 @@ const Player = (() => {
     }
     const eventual = rates(A.rateAt(Infinity));
     function naturalExit() {
-      if (!eventual || successor._unlocked || m._unlocked) return A.when(m.dur - A.entry) - xfade;
+      if (!eventual || successor._unlocked || m._unlocked) return Math.min(A.when(m.dur - A.entry) - xfade, quietWall);
       /* Leave enough source material for the SAME fade while its rate
          changes. The crossfade and drift values themselves are unchanged. */
       const r0 = A.rateAt(Infinity), r1 = eventual.target / m.bpm;
@@ -1460,7 +1522,7 @@ const Player = (() => {
       const rampFor = Math.min(seconds, xfade);
       const consumed = r0 * rampFor + (r1 - r0) * rampFor * rampFor / (2 * seconds) +
         r1 * Math.max(0, xfade - seconds);
-      return A.when(m.dur - A.entry - consumed);
+      return Math.min(A.when(m.dur - A.entry - consumed), quietWall);
     }
     /* A stepping stone on a fast route carries `_dwell` — how long it needs to
        exist for, which is blend-in plus a short hold plus blend-out. It plays
@@ -1487,7 +1549,7 @@ const Player = (() => {
         fade = phraseLenAt(P, beats, phA, forceOut - A.startedAt) || xfade; atPhrase = true;
       } else {
         const one = P.lengthAt(beats, phA.beat) || xfade;
-        const nat = A.when(m.dur - A.entry) - one;
+        const nat = Math.min(A.when(m.dur - A.entry) - one, quietWall);
         const pf = m._dwell ? Math.max(MIN_PLAY, Math.min(m._dwell, nat)) : Math.max(MIN_PLAY, nat);
         const s = P.lastStartWithin(beats, phA, Math.min(MIN_PLAY, pf), pf);
         if (s) { exit = s.t; fade = P.lengthAt(beats, s.i) || xfade; atPhrase = true; }
@@ -2090,6 +2152,11 @@ const Player = (() => {
        it asked for — see MIN_PLAY. */
     get dwellFloor() { return MIN_PLAY; },
 
+    /* Live config for quiet endings (see QUIET ENDINGS): `cutDb`, null = off.
+       Read at each chain(), so a change reaches the next exit planned. */
+    get quiet() { return QUIET; },
+    quietAt(m) { return quietAt(m); },
+
     /* Live config for the settle ride. Mutable on purpose; see the block at
        the top of the Player for what turning it on changes. */
     get settle() { return settle; },
@@ -2462,6 +2529,8 @@ return {
   get deck() { return Player.deck; },
   get dwellFloor() { return Player.dwellFloor; },
   get settle() { return Player.settle; },
+  get quiet() { return Player.quiet; },
+  quietAt(m) { return Player.quietAt(m); },
 
   /* ── does this set actually PLAY? ───────────────────────────────────────
      "Songs with brackets in the title won't load" is a report about a handful

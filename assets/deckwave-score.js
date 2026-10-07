@@ -71,16 +71,22 @@ function plan(set, opts) {
     const entry = straight ? 0 : ph ? (m.beats[ph.beat] || 0) : ((m.beats || [0])[0] || 0);
     const k = 1 / rate;
     const beats = (m.beats || []).map(b => (b - entry) * k);
+    /* QUIET ENDINGS (ledger 144): the Player leaves no later than where the
+       track's quiet tail starts. Known only for a track that has played
+       (the curve is computed from its decoded audio, like the phrase
+       offset); quietSec says which, null when unknown or no tail. */
+    const Q = (window.DW && window.DW.quietAt) ? window.DW.quietAt(m) : m.dur;
+    const quietCap = (Q - entry) * k;
     let fade = XF, exit = null, onPhrase = false;
     if (ph) {
       const one = PH.lengthAt(beats, ph.beat) || XF;
-      const nat = ((m.dur - entry) * k) - one;
+      const nat = Math.min(((m.dur - entry) * k) - one, quietCap);
       const pf = m._dwell ? Math.max(floor, Math.min(m._dwell, nat)) : Math.max(floor, nat);
       const s = PH.lastStartWithin(beats, ph, Math.min(floor, pf), pf);
       if (s) { exit = s.t; fade = PH.lengthAt(beats, s.i) || XF; onPhrase = true; }
     }
     if (exit == null) {
-      const natural = ((m.dur - entry) * k) - XF;
+      const natural = Math.min(((m.dur - entry) * k) - XF, quietCap);
       const playFor = m._dwell ? Math.max(floor, Math.min(m._dwell, natural)) : Math.max(floor, natural);
       exit = (beats.length && !straight) ? downbeatNear(beats, playFor) : playFor;
     }
@@ -120,6 +126,7 @@ function plan(set, opts) {
       atSec: +clock.toFixed(2),
       xfadeSec: +fade.toFixed(2), bassSwapSec: +(fade * 0.45).toFixed(2),
       durSec: m.dur,
+      quietSec: Q < m.dur ? +Q.toFixed(1) : null,
       /* 2026-08-19, additive: a track fetched from a libre source (DWLIBRE)
          carries its licence and attribution. A score that holds such a track
          MUST carry the terms — most CC licences require attribution, and a

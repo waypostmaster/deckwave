@@ -66,7 +66,9 @@ function plan(set, opts) {
   for (let i = 0; i < set.length; i++) {
     const m = set[i];
     const entry = (m.beats && m.beats.length) ? m.beats[0] : 0;
-    const playFor = Math.max(24, (m.dur - entry) - XF);
+    /* no later than the quiet tail, as the Player (ledger 144) */
+    const Q = (window.DW && window.DW.quietAt) ? window.DW.quietAt(m) : m.dur;
+    const playFor = Math.max(24, Math.min((m.dur - entry) - XF, Q - entry));
     const exit = downbeatNear(m, entry + playFor) - entry;
     out.push({ i, name: m.name, entry, at: t, exit, out: t + exit });
     t += exit;

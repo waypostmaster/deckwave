@@ -556,6 +556,54 @@ const x = mk('x', 200);
      'exit ' + (D.A.outAt - startedL) + 's into a grid whose downbeats are every 2s');
   Player.stop();
 
+  console.log('\n── quiet endings: no exit later than the quiet tail (ledger 144) ──');
+  /* A REAL buffer this time — settle() hands back {duration, name}, which
+     has no getChannelData, so every check above runs with no loudness
+     curve and exits exactly as before (that is the "never played" path).
+     sampleRate 100 keeps the arithmetic small; the window is 2 s whatever
+     the rate. Loud (amplitude 0.5) until `quietFrom`, then 0.005: -40 dB,
+     below the -20 cut. Falsifier for the whole block: on the old source the
+     exit is ~224 s (dur - xfade) on every track here. */
+  const SR = 100;
+  const bufOf = (dur, quietFrom) => {
+    const d = new Float32Array(dur * SR);
+    for (let i = 0; i < d.length; i++) d[i] = (i % 2 ? 1 : -1) * (i / SR < quietFrom ? 0.5 : 0.005);
+    return { duration: dur, length: d.length, sampleRate: SR, numberOfChannels: 1, getChannelData: () => d };
+  };
+  const settleBuf = (name, buf) => { const p = pending.get(name); pending.delete(name);
+    p.res(buf); return new Promise(r => setTimeout(r, 0)); };
+  const exitOf = async (name, quietFrom) => {
+    const s = [mk(name, 240), mk(name + 'n', 240)];
+    now += 1000; longTimers.clear(); pending.clear();
+    const p = Player.play(s, 0); await tick(); await settleBuf(name, bufOf(240, quietFrom)); await p; await tick();
+    await settle(name + 'n'); await tick();
+    const r = { exit: D.A.outAt - D.A.startedAt, meta: s[0] };
+    Player.stop();
+    return r;
+  };
+  const loudAll = await exitOf('Qa', 1e9);
+  const longTail = await exitOf('Qb', 150);
+  const shortTail = await exitOf('Qc', 232);
+  ok('control: a track loud to the end leaves near dur - xfade, as always',
+     loudAll.exit > 220 && loudAll.exit <= 224, 'exit ' + loudAll.exit + 's — the control itself moved');
+  ok('the loudness curve is computed from the playing buffer and kept on the meta',
+     longTail.meta.loud && longTail.meta.loud.v === 1 && longTail.meta.loud.db.length === 120,
+     'meta.loud = ' + JSON.stringify(longTail.meta.loud && { v: longTail.meta.loud.v, n: longTail.meta.loud.db.length }));
+  ok('a 90 s quiet tail: the track leaves where the quiet starts (150 s), not at 224 s',
+     longTail.exit <= 150 && longTail.exit > 146, 'exit ' + longTail.exit + 's — the quiet tail would play alone');
+  ok('…on a downbeat of its grid', +(longTail.exit % 2).toFixed(6) === 0, 'exit ' + longTail.exit + 's, downbeats every 2 s');
+  ok('a tail SHORTER than the fade changes nothing (no minimum-length constant needed)',
+     shortTail.exit === loudAll.exit, 'short-tail exit ' + shortTail.exit + ' vs loud ' + loudAll.exit);
+  /* catching seam (ledger 130): on a source without the API these must
+     FAIL and let the tally print, not crash the harness */
+  let qa; try { qa = Player.quietAt(longTail.meta); } catch (e) { qa = 'threw: ' + e.message; }
+  ok('Player.quietAt reads the tail start from the curve', qa === 150, 'quietAt = ' + qa);
+  let cutSet = false; try { Player.quiet.cutDb = null; cutSet = true; } catch (e) {}
+  const off = await exitOf('Qd', 150);
+  ok('cut switched off (null): the same track leaves at dur - xfade again — the cut is what moved it',
+     cutSet && off.exit === loudAll.exit, 'cut set ' + cutSet + ', exit with the cut off ' + off.exit + ' vs loud ' + loudAll.exit);
+  try { Player.quiet.cutDb = -20; } catch (e) {}
+
   /* review 2026-09-01 M6: analyse() runs under no harness (Essentia/WASM),
      so this is a TEXT pin on ordering — the re-throw must come before the
      cache write. Weak, and labelled so. */

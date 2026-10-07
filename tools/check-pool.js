@@ -379,6 +379,32 @@ ok('a pre-2026-08-19 score (no straight field) still loads and leaves classifica
    ld2.loaded === set.length && ld2.set.every(t => t._unlocked === undefined),
    'loaded ' + ld2.loaded + '/' + set.length);
 
+/* ── quiet endings reach the score (ledger 144) ─────────────────────────
+   The Player leaves no later than DW.quietAt(m). The score must plan the
+   same exit or it stops describing the mix. One locked step is given a
+   quiet tail 60 s after its entry; its exitSec must fall to within one bar
+   of that, every other step must be unchanged, and quietSec must say so.
+   Falsifier on the old source: that step's exit is unchanged (minutes
+   later) and quietSec is undefined. */
+{
+  const qi = set.findIndex((t, i) => i > 0 && !t._unlocked && t.dur > 200);
+  const qm = set[qi], qEntry = steps[qi].entrySec, Qs = qEntry + 60;
+  global.DW.quietAt = m => m === qm ? Qs : m.dur;
+  let qsteps; try { qsteps = S.plan(set, { xfade: 16 }); } catch (e) { qsteps = null; }
+  delete global.DW.quietAt;
+  const k = 1 / steps[qi].rate, bar = 4 * 60 / qm.bpm * k;
+  const qs = qsteps && qsteps[qi];
+  ok('a quiet tail moves that step\'s planned exit to where the quiet starts (within a bar)',
+     !!qs && qs.exitSec <= 60 * k + bar + 1e-6 && qs.exitSec < steps[qi].exitSec,
+     'exitSec ' + (qs && qs.exitSec) + ' vs cap ' + (60 * k).toFixed(2) + ' (+bar), unchanged plan ' + steps[qi].exitSec);
+  ok('…and the step says so: quietSec is the tail start; null on the others',
+     !!qs && qs.quietSec === +Qs.toFixed(1) && qsteps.every((s, i) => i === qi || s.quietSec === null),
+     'quietSec ' + (qs && qs.quietSec));
+  ok('…and no other step moved',
+     !!qsteps && qsteps.every((s, i) => i === qi || s.exitSec === steps[i].exitSec),
+     'moved: ' + (qsteps ? qsteps.filter((s, i) => i !== qi && s.exitSec !== steps[i].exitSec).length : 'plan threw'));
+}
+
 /* ── the score in phrase mode ─────────────────────────────────────────
    A phrase-match set carries the flag; a meta the Player has stamped with
    a phrase offset plans its entry at that beat, its exit at a phrase start,
