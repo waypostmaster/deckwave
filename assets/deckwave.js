@@ -851,6 +851,20 @@ const Player = (() => {
   /* the last node before the speakers, and the optional MediaStream tap —
      see outputStream() */
   let comp = null, msDest = null, viaStream = false;
+  /* ── WHICH OUTPUT DEVICE (keeper, 2026-10-07) ─────────────────────────
+     SteelSeries Sonar (and Windows' own per-app routing) sorts audio by
+     PROCESS, and every Chrome tab is chrome.exe — so with Google Meet in
+     the same browser the deck landed on Sonar's Chat channel. Chromium
+     lets a page pick its own sink: AudioContext.setSinkId(id). Sonar's
+     channels are output devices ("SteelSeries Sonar - Media", …), so the
+     deck can be sent to one directly, whatever Chrome is assigned to.
+     '' is the system default. Applied at boot (the context is born on the
+     first ▶) and live on change. Absent on Safari/Firefox/iOS: `output`
+     says unsupported and the dashboard shows no control. On the iOS
+     stream experiment (outputStream) the sink is an <audio> element and
+     this setting does not reach it — `output.via` says which. */
+  let outputId = '', outputErr = null;
+  const sinkOK = () => typeof AC === 'function' && !!AC.prototype && typeof AC.prototype.setSinkId === 'function';
   let A = null, B = null, order = [], idx = 0, tempo = 0, xfade = 16;
   /* ── phrase mode ──────────────────────────────────────────────────────
      ON for a set built with `build · phrase match` (sequence() stamps
@@ -1002,6 +1016,17 @@ const Player = (() => {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const audioCtx = new AC(phone ? { sampleRate: 44100, latencyHint: 'playback' } : { sampleRate: 44100 });
     ctx = audioCtx;
+    /* the chosen output device, before anything can sound (see WHICH
+       OUTPUT DEVICE). A refusal — the device was unplugged, or the id is
+       stale — plays on the default and SAYS so, rather than failing boot. */
+    if (outputId && typeof audioCtx.setSinkId === 'function') {
+      try { await audioCtx.setSinkId(outputId); outputErr = null; }
+      catch (e) {
+        outputErr = (e && e.message) || String(e);
+        log.unshift('⚠ output device refused — playing on the system default · ' + outputErr);
+      }
+      if (ctx !== audioCtx) return;
+    }
     /* Same-origin worklet. index.html's comment always claimed this was
        self-hosted; until now it was not, and the unpinned URL was silently
        resolving to 0.3.0 (LGPL-2.1) rather than the MPL-2.0 release the
@@ -1876,6 +1901,24 @@ const Player = (() => {
     },
     get outputVia() { return viaStream ? 'stream' : 'speakers'; },
 
+    /* the output device (see WHICH OUTPUT DEVICE). `active` is what the
+       live context reports, not what was asked for — the two differ when a
+       device was refused. */
+    get output() {
+      return { supported: sinkOK(), id: outputId, error: outputErr, via: viaStream ? 'stream' : 'speakers',
+               active: ctx && typeof ctx.sinkId === 'string' ? ctx.sinkId : null };
+    },
+    async setOutput(id) {
+      outputId = id || '';
+      if (!sinkOK()) return 'output: this browser cannot choose a device';
+      if (!ctx) { outputErr = null; return 'output saved · applies when playback starts'; }
+      try { await ctx.setSinkId(outputId); outputErr = null; return 'output: ' + (outputId ? 'device set' : 'system default'); }
+      catch (e) {
+        outputErr = (e && e.message) || String(e);
+        return 'output refused: ' + outputErr + ' · still playing on ' + (ctx.sinkId ? 'the previous device' : 'the system default');
+      }
+    },
+
     kill() { this.stop(); if (ctx) { try { ctx.close(); } catch (e) {} }
       ctx = null; booted = false; booting = null; return 'context closed'; },
     pause() { if (!ctx) return 'not started';
@@ -2584,6 +2627,26 @@ return {
   set volume(v) { Player.volume = v; },
   async outputStream(on) { return Player.outputStream(on); },
   get outputVia() { return Player.outputVia; },
+  get output() { return Player.output; },
+  async setOutput(id) { return Player.setOutput(id); },
+  /* The audio outputs this browser will name. Labels (and usable ids) are
+     withheld until the page has been granted the microphone once — a
+     Chromium privacy rule, not ours — so `name: true` asks for it, stops
+     every track at once and records nothing. Only ever called from a
+     click on the dashboard's "name my outputs" item. 'default' maps to ''
+     (the system default) so there is one spelling of it. */
+  async outputs(name) {
+    const md = navigator.mediaDevices;
+    if (!md || typeof md.enumerateDevices !== 'function') return { supported: false, named: false, devices: [] };
+    if (name) {
+      const s = await md.getUserMedia({ audio: true });
+      s.getTracks().forEach(t => t.stop());
+    }
+    const outs = (await md.enumerateDevices()).filter(d => d.kind === 'audiooutput');
+    return { supported: Player.output.supported, named: outs.some(d => !!d.label),
+             devices: outs.filter(d => d.deviceId && d.deviceId !== 'default')
+                          .map(d => ({ id: d.deviceId, label: d.label || '' })) };
+  },
 
   /* What this browser can and cannot do, asked rather than assumed. The
      boot screen reads it; so can a bug report. */

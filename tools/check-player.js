@@ -56,7 +56,13 @@ function AC() {
       if (!AC.moduleOk && /deckwave-stretch\.module|^blob:/.test(String(u))) throw new Error('refused (test)');
     } },
     createGain: node, createDynamicsCompressor: node, createAnalyser: node,
-    createBufferSource: node, createBiquadFilter: node };
+    createBufferSource: node, createBiquadFilter: node,
+    /* output device (2026-10-07): records every sink asked for; AC.sinkRefuse
+       makes the next call throw, as Chromium does for a vanished device.
+       Inert unless a check sets AC.prototype.setSinkId (the Player's
+       capability test) and an output id. */
+    sinkId: '', async setSinkId(id) { AC.sinks.push(id);
+      if (AC.sinkRefuse) { AC.sinkRefuse = false; throw new Error('NotFoundError (test)'); } this.sinkId = id; } };
 }
 /* RECORD THE PROCESSOR NAME. Until 2026-09-01 this fake ignored both
    arguments, so the check below that `makeDeck` builds decks on the worklet
@@ -64,6 +70,7 @@ function AC() {
    in makeDeck would have passed it (review 2026-09-01; ledger 98's class).
    The name is the whole difference between the held pipe and the one that
    zero-fills a block a few times a minute. */
+AC.sinks = []; AC.sinkRefuse = false;
 const AudioWorkletNode = function (c, name) { const n = node(); n._processorName = name; return n; };
 /* ── fake LONG timers ───────────────────────────────────────────────────
    chain()'s handover timer is minutes away on the fake clock. Anything
@@ -603,6 +610,48 @@ const x = mk('x', 200);
   ok('cut switched off (null): the same track leaves at dur - xfade again — the cut is what moved it',
      cutSet && off.exit === loudAll.exit, 'cut set ' + cutSet + ', exit with the cut off ' + off.exit + ' vs loud ' + loudAll.exit);
   try { Player.quiet.cutDb = -20; } catch (e) {}
+
+  console.log('\n── output device: setSinkId, so Sonar can be told apart ──');
+  /* Every call through a catching seam (ledger 130). Falsifiers: the saved
+     device never reaching the context at boot; a live change not reaching
+     it; a refused device failing boot or passing silently; an unsupported
+     browser claiming support. */
+  const tryP = async f => { try { return await f(); } catch (e) { return 'threw: ' + e.message; } };
+  const outOf = () => { try { return Player.output; } catch (e) { return null; } };
+  Player.stop(); Player.kill();
+  const unsup = outOf();
+  ok('without setSinkId the Player says unsupported, and setOutput says so',
+     !!unsup && unsup.supported === false && /cannot choose/.test(await tryP(() => Player.setOutput('x'))),
+     'output ' + JSON.stringify(unsup));
+  AC.prototype.setSinkId = function () {};
+  await tryP(() => Player.setOutput(''));
+  AC.sinks.length = 0;
+  const pre = await tryP(() => Player.setOutput('dev-media'));
+  ok('chosen before playback: saved, nothing to apply yet', /applies when playback starts/.test(pre) && AC.sinks.length === 0,
+     'returned ' + pre + ', sinks asked ' + JSON.stringify(AC.sinks));
+  await tryP(() => Player.outputStream(false));          /* boots the graph without playing */
+  const o1 = outOf();
+  ok('at boot the saved device is applied to the new context before anything sounds',
+     AC.sinks[0] === 'dev-media' && !!o1 && o1.active === 'dev-media' && o1.error === null,
+     'sinks ' + JSON.stringify(AC.sinks) + ' output ' + JSON.stringify(o1));
+  const live = await tryP(() => Player.setOutput(''));
+  ok('a live change reaches the running context (back to the system default)',
+     AC.sinks[AC.sinks.length - 1] === '' && /system default/.test(live), 'returned ' + live + ' sinks ' + JSON.stringify(AC.sinks));
+  AC.sinkRefuse = true;
+  const ref = await tryP(() => Player.setOutput('gone'));
+  ok('a refused device is reported, not swallowed, and the context keeps its sink',
+     /refused/.test(ref) && outOf().error && outOf().active === '', 'returned ' + ref + ' output ' + JSON.stringify(outOf()));
+  Player.kill();
+  AC.sinkRefuse = true;
+  await tryP(() => Player.setOutput('gone-at-boot'));
+  const bootR = await tryP(() => Player.outputStream(false));
+  const logTop = (() => { try { return Player.log[0] || ''; } catch (e) { return ''; } })();
+  ok('a device refused AT BOOT still boots, on the default, and the log says why',
+     bootR === null && /output device refused/.test(logTop) && outOf().error,
+     'boot returned ' + bootR + ', log top ' + JSON.stringify(logTop));
+  delete AC.prototype.setSinkId; AC.sinkRefuse = false;
+  await tryP(() => Player.setOutput(''));
+  Player.kill();
 
   /* review 2026-09-01 M6: analyse() runs under no harness (Essentia/WASM),
      so this is a TEXT pin on ordering — the re-throw must come before the

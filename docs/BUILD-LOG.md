@@ -3846,3 +3846,31 @@ opened in a browser, exposed `DW.quiet {cutDb:-20}`, `DW.quietAt`,
 132). The A/B worktree was removed; its 8778 server was already down. The
 old engine stays reachable at `v0.8.2`. Nothing in this release has been
 heard on the site; ledger 138's "sounds fine" was on the branch.
+
+**Ledger 146 · The deck picks its own output device, so Sonar can be told
+apart from Chrome. [MEASURED in harness and in a live page; the routing
+itself UNHEARD]** Keeper, 2026-10-07: SteelSeries Sonar assigns Chrome to
+its Chat channel (Google Meet), and Sonar sorts audio by process, so every
+tab and every installed Chrome app is the same chrome.exe. Fix in the page:
+`AudioContext.setSinkId`. Sonar's channels are output devices, so the deck
+can play to "SteelSeries Sonar - Media" from inside Chrome. `Player.output`
+/ `DW.output` (supported, id, active, error, via) and `setOutput(id)`;
+the saved device is applied in `bootGraph()` before anything sounds, a
+refusal plays on the default and writes a log line instead of failing
+boot, and a change mid-set is applied live. `DW.outputs(name)` lists
+devices; `name: true` asks for the microphone once and stops every track
+at once — Chromium hides output names AND ids until a page has mic
+permission. **Measured live on 127.0.0.1:8777, permission "prompt": one
+audiooutput entry, id "" and label "".** So the dashboard's new `output`
+select in ⚙ (beside `tune`, only where the browser supports it,
+remembered per browser as {id,label}) offers "system default" and an
+explicit "name my outputs…" item; seen rendered with exactly those two
+options. Not reached: the iOS stream experiment (`outputStream`), whose
+sink is an `<audio>` element — `output.via` says which. Harness:
+`check-player` +6 (unsupported says so; saved-before-boot applied at boot;
+live change; refusal reported; refusal at boot still boots, logged) —
+**6 FAIL against HEAD's source, tally printed.** Sixteen harnesses,
+**1079 checks, all green, MEASURED 2026-10-07T05:38Z.** The dashboard
+control has no harness — it was seen, not tested. What would confirm the
+whole thing: the keeper names the outputs once, picks Sonar - Media, and
+Sonar's Media meter moves while Meet stays on Chat.

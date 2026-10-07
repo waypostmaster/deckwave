@@ -260,9 +260,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — sixteen of them, 1073 checks, all `node tools/check-*.js`
+### Harnesses — sixteen of them, 1079 checks, all `node tools/check-*.js`
 
-`check-pool` 57 · `check-route` 21 · `check-player` 87 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1073 in all, MEASURED 2026-10-07T03:00Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); `public` at `338bdd7` still has fourteen and 998. Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); `public` at `338bdd7` still has fourteen and 998. Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -335,6 +335,9 @@ hours, or drift.** Those need the ear or a browser.
    tail; the -20 dB cut is derived (143a), live as `DW.quiet.cutDb`, null =
    the old behaviour (and what video shot 3 was filmed on). One play
    through GONE TOO SOON in a set confirms or moves it.
+   **Output device (ledger 146) — built 2026-10-07, UNHEARD.** `output`
+   in ⚙; one "name my outputs…" (a single mic prompt), pick Sonar -
+   Media, watch Sonar's Media meter.
 8. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
@@ -374,7 +377,7 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is 1073 on this branch**, MEASURED 2026-10-07T03:00Z
+- **The harness total is 1079 on this branch**, MEASURED 2026-10-07T05:38Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the

@@ -1927,6 +1927,48 @@ function buildTransport(dash) {
       + ' · ' + r.restamped + ' of ' + r.corpus + ' keys restamped · the play order changes at the next build');
     renderList();
   }, tune0);
+  /* THE OUTPUT — keeper, 2026-10-07: SteelSeries Sonar puts all of Chrome
+     on its Chat channel (Google Meet lives there too), and Sonar sorts by
+     process, so no tab can be told apart. The deck now picks its own
+     output device (DW.setOutput → AudioContext.setSinkId); Sonar's
+     channels are devices, so "SteelSeries Sonar - Media" works from inside
+     Chrome. Shown only where the browser can do it. Remembered per browser
+     as {id, label}. Device NAMES need the microphone permission once —
+     Chromium's rule — so that is an explicit item, never automatic. */
+  if (window.DW.output && window.DW.output.supported) {
+    let saved = { id: '', label: '' };
+    try { const s = JSON.parse(localStorage.getItem('dw-output') || 'null'); if (s && typeof s.id === 'string') saved = s; } catch (e) {}
+    const outItems = [{ k: '', n: 'system default' }];
+    const outSel = select('output', outItems, async k => {
+      if (k === '__name') {
+        outSel.set(saved.id);
+        log('output: asking for the microphone once, only so the browser will name its outputs — nothing is recorded');
+        try { await fillOutputs(true); log('output: ' + (outItems.length - 1) + ' devices named'); }
+        catch (e) { log('output: not named — ' + ((e && e.message) || e)); }
+        return;
+      }
+      const it = outItems.find(x => x.k === k);
+      saved = { id: k, label: k ? ((it && it.label) || '') : '' };
+      try { localStorage.setItem('dw-output', JSON.stringify(saved)); } catch (e) {}
+      log(await window.DW.setOutput(k) + (k ? ' · ' + saved.label : ''));
+    }, saved.id);
+    async function fillOutputs(name) {
+      const r = await window.DW.outputs(name);
+      outItems.length = 1;
+      for (const d of r.devices) if (d.label) outItems.push({ k: d.id, n: d.label, label: d.label });
+      /* a saved device the browser no longer lists (unplugged, or the
+         permission was revoked so ids are hidden) stays visible and
+         selected, marked, rather than silently becoming "default" */
+      if (saved.id && !outItems.some(x => x.k === saved.id))
+        outItems.push({ k: saved.id, n: (saved.label || 'saved device') + ' (not listed now)', label: saved.label });
+      if (!r.named) outItems.push({ k: '__name', n: 'name my outputs…', hint: 'asks for the microphone ONCE so the browser will show device names (e.g. SteelSeries Sonar - Media); the mic is closed at once and nothing is recorded' });
+      outSel.set(saved.id);
+    }
+    if (saved.id) window.DW.setOutput(saved.id);
+    fillOutputs(false).catch(() => {});
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener)
+      navigator.mediaDevices.addEventListener('devicechange', () => fillOutputs(false).catch(() => {}));
+  }
   /* A saved view carries its theme and its column count. views.load() puts
      the attributes on the grid but could not reach these controls, so the
      theme never changed, the layout label kept its old text, and
