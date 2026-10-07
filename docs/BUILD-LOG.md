@@ -3824,3 +3824,25 @@ the buffer at the top of each track, once per track ever; `phraseOf` does
 comparable work at the same point), and anything audible. What would
 confirm: one play through GONE TOO SOON in a set — the next track should
 arrive as the rain begins, not two minutes into it.
+
+**Ledger 145 · Mike's engine and quiet endings are public. [MEASURED
+2026-10-07T03:28Z]** On the keeper's go, `public` was fast-forwarded to
+`a3a21f9` (13 commits: Act 47's review and fixes, Act 48, ledgers 138b,
+143, 143a, 144). Before the push: all sixteen harnesses on a clean
+checkout of that exact commit, **1073 green** — `check-citywalk` failed
+there first, correctly, because its denylist is gitignored and absent from
+a fresh checkout; with the list copied in it scanned and passed. Private
+sweep over the 3080 added lines with a control (the product name, 67
+hits) and a token-shape regex proven on a planted string: no secrets, no
+emails, no user paths; the registrar/runbook hits are sentences saying the
+runbook is gitignored; the one denylist hit is the GitHub account name,
+public since launch. This desk's `git push` was refused by the session's
+permission classifier as a production deploy; **the keeper ran the push
+themselves.** Then: `ls-remote` served `a3a21f9`; the Pages build for it
+reported built; `deckwave.fm/assets/deckwave.js` carried `QUIET ENDINGS`
+and `classifyPool` (control `const Player =` present); and the live page,
+opened in a browser, exposed `DW.quiet {cutDb:-20}`, `DW.quietAt`,
+`DWSCORE`, `DWRENDER` and `DWDASH` — it booted, not merely parsed (ledger
+132). The A/B worktree was removed; its 8778 server was already down. The
+old engine stays reachable at `v0.8.2`. Nothing in this release has been
+heard on the site; ledger 138's "sounds fine" was on the branch.
