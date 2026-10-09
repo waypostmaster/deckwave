@@ -1594,8 +1594,8 @@ function buildTransport(dash) {
     try { log(await window.DW.skip()); }
     catch (e) { log('cannot play next: ' + String((e && e.message) || e) + ' — deck stopped'); } }, false, GRP.play);
   nextBtn.title = 'blend into the next track at the next downbeat (a cut only when nothing is playing)';
-  btn('■ stop', () => log(window.DW.stop()), false, GRP.play);
-  btn('kill', () => log(window.DW.kill()), false, GRP.play).dataset.ph = 'cfg';
+  /* ■ stop and the engine reset are created AFTER the level slider, at the
+     end of the play group and in the cfg group respectively — see there. */
 
   sep(GRP.cfg);
   const rc = btn('register colour: off', () => {
@@ -2195,6 +2195,31 @@ function buildTransport(dash) {
   setInterval(() => { if (document.activeElement !== vslider) paintVol(); }, 1000);
   vol.appendChild(vlabel); vol.appendChild(vslider);
   tp.insertBefore(vol, $('logLine'));
+
+  /* ── ■ stop: DEMOTED and TITLED, 2026-10-09 (UI review Part 5 §6) ────────
+     stop() clears both decks, so the next ▶ falls through to DW.play(set, 0)
+     and the set restarts from track 1 — the loss the ▶ guard above was
+     written to prevent, reachable by one button that never said so. The
+     keeper's call: keep it, last in the transport, and let the title say what
+     ▶ does afterwards. "Remember the index" was declined: stop() bumps `gen`
+     and drops every source, so a resume after it would be a fresh
+     play(order, idx), a cut from the top of the track, not a resume — and it
+     would reopen the paused-set guard reasoning. The engine is untouched. */
+  const stopBtn = btn('■ stop', () => log(window.DW.stop()), false, GRP.play);
+  stopBtn.title = 'stops the set — ▶ then starts again from track 1 (pause keeps your place)';
+
+  /* ── reset audio engine: out of the transport, 2026-10-09 (Part 5 §5) ──
+     Was `kill`, a bare button beside stop with no title, visible at all
+     times on desktop. It is stop() plus closing the AudioContext — the "last
+     resort — always works, whatever state the graph is in" button for a
+     wedged engine (the popping question, ledgers 65/69, still unheard). The
+     keeper has not needed it to clear popping, so it goes behind the ⚙
+     drawer as the Troubleshoot entry; `DW.kill()` stays in the console. The
+     drawer is DOM only, so a wedged graph cannot stop it opening. Settings
+     has no sections yet; when it gets them this is the first Troubleshoot
+     item. */
+  const killBtn = btn('reset audio engine', () => log(window.DW.kill()), false, GRP.cfg);
+  killBtn.title = 'troubleshoot — last resort if sound is stuck: stops everything and closes the audio engine; ▶ boots a fresh one from track 1. Always works, whatever state the graph is in.';
 
   /* ── the collapse ──────────────────────────────────────────────────────
      One toggle for everything in the cfg group. Persisted, because a

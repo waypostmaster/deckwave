@@ -552,6 +552,26 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
      iRunning > -1 && iRunning < iRestart && /st\.now/.test(h),
      'the ▶ handler falls through to DW.play(set, 0) while a set is on the air — pressing play twice destroys the session it just resumed');
 }
+/* STOP IS TITLED AND KILL IS OUT OF THE TRANSPORT. UI review, 2026-10-07,
+   the keeper's Part 5 decisions 5 and 6 (2026-10-09). Finding 8: stop
+   silently restarts the set at track 1 and a destructive engine reset sat one
+   button from it with no title. Pinned at the source: the stop button must
+   carry a title that names track 1, and the ONLY button whose handler calls
+   DW.kill() must be in the cfg group, never the play group. All three shown
+   failing against the 2026-10-08 source. */
+{
+  const stopH = (dashSrc.split("btn('■ stop'")[1] || '').split('\n\n')[0];
+  ok('■ stop carries a title that says ▶ restarts from track 1',
+     stopH.length > 0 && /\.title = '[^']*track 1[^']*'/.test(stopH),
+     'stop clears both decks and the next ▶ plays track 1; a stop with no title is the lost-session trap with a different button');
+  const killers = (dashSrc.match(/btn\('[^']*', \(\) => log\(window\.DW\.kill\(\)\), false, GRP\.\w+\)/g) || []);
+  ok('the engine reset is ONE button, in the cfg group, and it is not called kill',
+     killers.length === 1 && /GRP\.cfg\)$/.test(killers[0]) && !/btn\('kill'/.test(killers[0]),
+     'DW.kill() buttons found: ' + JSON.stringify(killers));
+  ok('…and it has a title that calls itself a last resort',
+     /killBtn\.title = '[^']*last resort[^']*'/.test(dashSrc),
+     'the reset lost the wording that tells a person what it is for');
+}
 ok('the card\'s attribution href is SCHEME-GATED, not merely escaped (F1 — the review\'s one real vulnerability)',
    /const safeHref = u =>/.test(npSrc2) && /p === 'http:' \|\| p === 'https:'/.test(npSrc2)
    && /t\.source && safeHref\(t\.source\.page\)/.test(npSrc2)
