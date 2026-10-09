@@ -262,9 +262,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — sixteen of them, 1079 checks, all `node tools/check-*.js`
+### Harnesses — sixteen of them, 1089 checks, all `node tools/check-*.js`
 
-`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T01:09Z at `1ffb197`: all sixteen green, 1079.** Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 212 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T02:53Z at `a1bc3da`: all sixteen green, 1089 (ledger 148 added ten to check-panels).** Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -352,8 +352,11 @@ hours, or drift.** Those need the ear or a browser.
    to Settings › Troubleshoot; stop stays, demoted and titled "restarts from
    track 1"; the library button leaves the bar and appears only when files
    are missing (picker still REPLACES); the folder handle is NOT persisted.
-   The other twelve decisions in Part 2 §8 are not yet asked; the desk's
-   reads are in the review's Part 5. Parts 3–4 win over Part 2 where they
+   **ALL FIVE BUILT 2026-10-09 (ledger 148, `04ede5a`..`a1bc3da`), seen in
+   Chrome by this desk, NOT yet seen by the keeper** — one look at the bar
+   with the drawer closed, one press of `set`, is the confirmation. The
+   other twelve decisions in Part 2 §8 are not yet asked; the desk's reads
+   are in the review's Part 5. Parts 3–4 win over Part 2 where they
    disagree.
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
@@ -394,7 +397,7 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is 1079 on this branch**, MEASURED 2026-10-07T05:38Z
+- **The harness total is 1089 on this branch**, MEASURED 2026-10-09T02:53Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the
@@ -418,12 +421,13 @@ by its absence before it had a name for it).
   design, not a gap.** Both are gitignored per-machine coordination.
 
 **What IS owed is everything under the two "Open items" headings above.**
-All of them are keeper's-ear items except BASE item 8: **five build tasks
-are outstanding as of 2026-10-09** (the two-link header, the set menu,
-kill under Troubleshoot, stop demoted, the library button made contextual;
-all decided in `docs/UI-REVIEW-2026-10-07.md` Part 5). Build them as the review's §7 says: small, reversible, one
-commit each, harness changed in the same commit, nothing heard-path
-rewritten (§9).
+All of them are keeper's-ear (or eye) items. **No build task is
+outstanding as of 2026-10-09T02:53Z**: the five decided in
+`docs/UI-REVIEW-2026-10-07.md` Part 5 are built (ledger 148) and await the
+keeper's look. The next build task appears only when the keeper answers
+another of Part 2 §8's twelve open questions; build it as the review's §7
+says — small, reversible, one commit each, harness changed in the same
+commit, nothing heard-path rewritten (§9).
 
 **Do not read a push state from this file. Run the command:**
 

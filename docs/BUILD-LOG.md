@@ -3896,3 +3896,33 @@ control-budget gate cannot run in check-panels' sandbox; nav history stores
 indices, so "return to ‹track›" needs a model change) — the document says
 Parts 3-4 win where they disagree with Part 2. Owed: the keeper's
 decisions (Part 2 section 8) before any step is built.
+
+**Ledger 148 · The UI review's first five steps, built. [MEASURED in the
+harness and seen in Chrome at localhost:8777; NOT yet seen by the keeper]**
+2026-10-09. Walked the keeper through Part 2 §8 decision by decision; four
+more calls recorded in the review's Part 5 (kill → Troubleshoot; stop kept,
+demoted, titled; library button contextual; folder handle not persisted).
+Then five commits, one step each, every one with its check shown failing
+against the 2026-10-08 source first: `04ede5a` the header drops the channel
+and Bandcamp links and keeps the two counting ones, check-panels pins
+EXACTLY two; `c1b2c28` ■ stop is last in the transport with a title that
+names track 1, and `kill` becomes "reset audio engine" at the end of the ⚙
+drawer, titled "last resort", `DW.kill()` untouched; `0ab8a72` save set and
+load set move into a `set` menu — a `.sel` wrapper in the files group,
+anchored in the BAR so it exists when nothing is prepared (Part 3 §4), save
+set loses its accent; `a1bc3da` `library` becomes "re-link music folder…",
+hidden until a folder is open AND a fresh count of the file set's
+unresolvable tracks is non-zero — drawn three times with signal between
+(hidden fresh; "⚠ 1 missing" with an empty folder map and a one-track
+prepared set; hidden again once the file resolves), and the four texts that
+sent a person to a button named "library" now say "scan", swept with
+'build a set first' as the control. `LIB.pick` still REPLACES the map; the
+title says so. No engine, threshold, or heard path changed. Sixteen
+harnesses, **1089 green, MEASURED 2026-10-09T02:53Z** (check-panels 212).
+The 2 s `paintRelink` tick is 189 map lookups by id; not measured, judged.
+What the keeper's eye would confirm: the bar with the drawer closed now
+reads scan · + tracks · ⊕ libre · ▶ demo · three builds · audit · ⚙ ·
+play · pause · next · now playing · level · stop · set · caches · render ·
+two captures, and the menu opens upward over the deck group. What would
+falsify step 5: a loaded set whose files ARE present showing the ⚠ button,
+or a missing file never showing it — neither seen in the three draws.
