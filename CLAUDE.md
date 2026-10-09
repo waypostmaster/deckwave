@@ -348,9 +348,13 @@ hours, or drift.** Those need the ear or a browser.
    would vanish exactly when needed); header keeps `♥ like` and `★ source`
    (the two counting links, Act 48) and drops `▶ sets` and `records` —
    `check-panels` pins all four hrefs at `tools/check-panels.js:642-650` and
-   must change in the same commit. OPEN: where `kill` (reset audio engine)
-   goes, pending how often it is used. The other sixteen decisions in Part 2
-   §8 are not yet asked. Parts 3–4 win over Part 2 where they disagree.
+   must change in the same commit. Second sitting 2026-10-09: `kill` goes
+   to Settings › Troubleshoot; stop stays, demoted and titled "restarts from
+   track 1"; the library button leaves the bar and appears only when files
+   are missing (picker still REPLACES); the folder handle is NOT persisted.
+   The other twelve decisions in Part 2 §8 are not yet asked; the desk's
+   reads are in the review's Part 5. Parts 3–4 win over Part 2 where they
+   disagree.
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
@@ -414,10 +418,10 @@ by its absence before it had a name for it).
   design, not a gap.** Both are gitignored per-machine coordination.
 
 **What IS owed is everything under the two "Open items" headings above.**
-All of them are keeper's-ear items except BASE item 8: **two build tasks
-are outstanding as of 2026-10-09** (the set menu and the two-link header,
-decided in `docs/UI-REVIEW-2026-10-07.md` Part 5), and one decision is
-open (`kill`). Build them as the review's §7 says: small, reversible, one
+All of them are keeper's-ear items except BASE item 8: **five build tasks
+are outstanding as of 2026-10-09** (the two-link header, the set menu,
+kill under Troubleshoot, stop demoted, the library button made contextual;
+all decided in `docs/UI-REVIEW-2026-10-07.md` Part 5). Build them as the review's §7 says: small, reversible, one
 commit each, harness changed in the same commit, nothing heard-path
 rewritten (§9).
 
