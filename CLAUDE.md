@@ -352,9 +352,8 @@ hours, or drift.** Those need the ear or a browser.
    to Settings › Troubleshoot; stop stays, demoted and titled "restarts from
    track 1"; the library button leaves the bar and appears only when files
    are missing (picker still REPLACES); the folder handle is NOT persisted.
-   **ALL FIVE BUILT 2026-10-09 (ledger 148, `04ede5a`..`a1bc3da`), seen in
-   Chrome by this desk, NOT yet seen by the keeper** — one look at the bar
-   with the drawer closed, one press of `set`, is the confirmation. The
+   **ALL FIVE BUILT, PUSHED AND SEEN BY THE KEEPER 2026-10-09 (ledger
+   148/148a, "All seems fine", CONFIRMED).** The
    other twelve decisions in Part 2 §8 are not yet asked; the desk's reads
    are in the review's Part 5. Parts 3–4 win over Part 2 where they
    disagree.
@@ -423,8 +422,8 @@ by its absence before it had a name for it).
 **What IS owed is everything under the two "Open items" headings above.**
 All of them are keeper's-ear (or eye) items. **No build task is
 outstanding as of 2026-10-09T02:53Z**: the five decided in
-`docs/UI-REVIEW-2026-10-07.md` Part 5 are built (ledger 148) and await the
-keeper's look. The next build task appears only when the keeper answers
+`docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
+148a). The next build task appears only when the keeper answers
 another of Part 2 §8's twelve open questions; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).
