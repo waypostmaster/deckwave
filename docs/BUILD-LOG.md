@@ -3926,3 +3926,7 @@ play · pause · next · now playing · level · stop · set · caches · render
 two captures, and the menu opens upward over the deck group. What would
 falsify step 5: a loaded set whose files ARE present showing the ⚠ button,
 or a missing file never showing it — neither seen in the three draws.
+**148a · Pushed by the keeper 2026-10-09T03:0xZ** — `ls-remote` served
+`a9250f5`; `deckwave.fm/assets/deckwave-dashboard.js` carried "re-link
+music folder" (3) and no `bandcamp.com/deckwave` (0), control `DECKWAVE.FM`
+(1). Live, still unseen by the keeper's eye on the live page.
