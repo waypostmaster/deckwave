@@ -283,7 +283,7 @@ const TERMS = {
    pop-up in deckwave-dashboard.js). The other 28 are a destination, not a
    description: the transport hard-codes its own labels. See the header. */
 const UI = {
-  'ui.scan': 'scan', 'ui.build': 'build set', 'ui.library': 'library',
+  'ui.scan': 'scan', 'ui.build': 'build set', 'ui.library': 're-link music folder…',
   'ui.play': 'play', 'ui.pause': 'pause', 'ui.next': 'next', 'ui.stop': 'stop',
   'ui.kill': 'kill', 'ui.saveSet': 'save set', 'ui.loadSet': 'load set',
   'ui.layout': 'layout', 'ui.theme': 'theme', 'ui.view': 'view',
@@ -292,7 +292,7 @@ const UI = {
   'ui.resetViews': 'reset views', 'ui.swap': 'swap', 'ui.collapse': 'collapse',
   'ui.expand': 'expand', 'ui.pickFolder': 'pick your music folder',
   'ui.buildFirst': 'build a set first', 'ui.scanFirst': 'scan first',
-  'ui.libraryFirst': 'open the library first', 'ui.noTrack': 'no track playing',
+  'ui.libraryFirst': 'open your music folder first — scan', 'ui.noTrack': 'no track playing',
   'ui.finalTrack': 'final track', 'ui.idle': 'idle', 'ui.cancelled': 'cancelled',
   'ui.verified': 'link verified',
   'ui.unverified': 'article title unverified \u2014 opens Wikipedia search',

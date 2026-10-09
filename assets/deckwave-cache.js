@@ -213,7 +213,7 @@ return {
       expected, after,
       matches: mode === 'replace' ? mismatches.length === 0 : null,
       mismatches: mode === 'replace' ? mismatches : ['(merge mode — totals will differ if the store was not empty)'],
-      note: 'Analysis restored. You must still re-open the library folder for '
+      note: 'Analysis restored. You must still scan the music folder again for '
           + 'playback — file handles cannot be serialised.'
     };
   },

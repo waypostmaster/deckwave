@@ -1485,17 +1485,44 @@ function buildTransport(dash) {
      left an unhandled rejection and a log line unchanged from whatever came
      before — a button that looks broken because it says nothing. `scan` and
      `+ tracks` already had the catch; this one never got it. */
-  const libBtn = btn('library', async () => {
+  /* ── re-link music folder: CONTEXTUAL since 2026-10-09 (UI review Part 5 §7)
+     This was `library`, a permanent button beside scan that opened the same
+     folder picker and, for nearly every user, did nothing new: ingest already
+     maps every scanned file (LIB.add), so after a scan the only job left for
+     this picker is re-linking a LOADED or SHARED set whose files are not in
+     the map. The keeper's call: it leaves the bar and appears only when that
+     job exists. `paintRelink` counts the tracks of the current file set that
+     LIB.find cannot resolve — a FRESH count every tick, never the one from
+     the last pick — and shows the button only when (a) a folder has been
+     opened at all (LIB.files is null before any scan, when every track would
+     count as missing and this would compete with scan as the first action)
+     and (b) that count is non-zero. The picker itself is unchanged: LIB.pick
+     REPLACES the file map, so re-linking one folder un-resolves files from
+     any other folder and every libre track. The title says so. */
+  const libBtn = btn('re-link music folder…', async () => {
     try {
       const n = await window.DW.openLibrary();
       const target = dash.fileSet, miss = target.filter(t => !window.DW.LIB.find(t)).length;
       log(n + ' files · ' + (target.length - miss) + '/' + target.length + ' resolvable'
         + (miss ? ' · ' + miss + ' missing' : ''));
+      paintRelink();
     } catch (e) {
       const m = String((e && e.message) || e);
-      log(/abort|nothing picked/i.test(m) ? 'library unchanged — nothing picked' : 'cannot open library: ' + m);
-    } });
-  libBtn.dataset.ph = 'cfg';          /* phone: behind ⚙ display */
+      log(/abort|nothing picked/i.test(m) ? 'music folder unchanged — nothing picked' : 'cannot open the folder: ' + m);
+    } }, false, GRP.files);
+  libBtn.hidden = true;
+  let paintedMissing = -1;
+  function paintRelink() {
+    const lib = window.DW.LIB, target = dash.fileSet || [];
+    const miss = (lib && lib.files && target.length) ? target.filter(t => !lib.find(t)).length : 0;
+    if (miss === paintedMissing) return;
+    paintedMissing = miss;
+    libBtn.hidden = miss === 0;
+    libBtn.textContent = miss ? '⚠ ' + miss + ' missing — re-link music folder…' : 're-link music folder…';
+    libBtn.title = miss + ' track' + (miss === 1 ? '' : 's') + ' of this set cannot be found in the opened folder. '
+      + 'Pick the folder again to re-link them. This REPLACES the file map: files from any other folder, and every libre track, stop resolving.';
+  }
+  setInterval(paintRelink, 2000);
 
   /* ── "songs with brackets in the title won't load" ────────────────────
      A track that will not decode is spliced out of the order by chain() with
@@ -1512,7 +1539,7 @@ function buildTransport(dash) {
   const auditBtn = btn('◎ audit set', async () => {
     const target = dash.fileSet;
     if (!target.length) { log('build a set first'); return; }
-    if (!window.DW.LIB.files) { log('open the library first'); return; }
+    if (!window.DW.LIB.files) { log('open your music folder first — scan'); return; }
     log('auditing…');
     const r = await window.DW.audit(target,
       (i, n, nm) => log('audit ' + i + '/' + n + ' · ' + String(nm).slice(-34)));
@@ -1586,7 +1613,7 @@ function buildTransport(dash) {
       return;
     }
     if (!dash.set.length) { log('build a set first'); return; }
-    if (!window.DW.LIB.files) { log('open the library first'); return; }
+    if (!window.DW.LIB.files) { log('open your music folder first — scan'); return; }
     try { log(await window.DW.play(dash.set, 0)); }
     catch (e) { dash.reportIssue(e, 'play'); log('cannot play: ' + String((e && e.message) || e) + ' — deck stopped'); } }, true, GRP.play);
   btn('pause', () => log(window.DW.pause()), false, GRP.play);

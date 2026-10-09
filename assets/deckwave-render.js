@@ -122,7 +122,7 @@ async function render(set, opts) {
   opts = opts || {};
   if (!set || !set.length) throw new Error('nothing to render — build a set first');
   if (!window.DW || !window.DW.LIB || !window.DW.LIB.files)
-    throw new Error('library not open — press library and pick the folder again');
+    throw new Error('music folder not open — press scan and pick the folder again');
 
   const p = plan(set, opts);
   const from = opts.from != null ? opts.from : 0;

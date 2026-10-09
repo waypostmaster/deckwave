@@ -592,6 +592,30 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
   ok('…and the save item still carries data-set-action, which renderPrepared retargets between set and prepared',
      /saveBtn\.dataset\.setAction = 'save'/.test(dashSrc),
      'without it the label stops following the target and "save set" silently saves the prepared set');
+  /* THE LIBRARY BUTTON IS CONTEXTUAL. Keeper's Part 5 decision 7 (finding 6):
+     the permanent `library` button opened the same picker as scan and, used
+     as "add another library", REPLACED the file map. It now appears only
+     when a fresh count of the file set's unresolvable tracks is non-zero and
+     a folder has been opened at all. Pinned: no bar button called library;
+     the re-link button starts hidden; its painter requires lib.files and
+     hides on zero; and no asset text still sends a person to a button named
+     "library" — with 'build a set first' as the control that must hit. */
+  const relink = (dashSrc.split("btn('re-link music folder…'")[1] || '').split('setInterval(paintRelink')[0];
+  ok('the library button is gone from the bar and the re-link button starts hidden',
+     !/btn\('library'/.test(dashSrc) && relink.length > 0 && /libBtn\.hidden = true;/.test(relink),
+     'a permanent re-pick button beside scan is the thing finding 6 removed');
+  ok('…and its painter counts missing files FRESH, needs an opened folder, and hides on zero',
+     /function paintRelink\(\)/.test(relink) && /lib\.files && target\.length/.test(relink)
+     && /target\.filter\(t => !lib\.find\(t\)\)\.length/.test(relink) && /libBtn\.hidden = miss === 0;/.test(relink),
+     'on a fresh page LIB.files is null and every track would count as missing — the prompt would compete with scan as the first action');
+  {
+    const texts = ['assets/deckwave-render.js', 'assets/deckwave-cache.js', 'assets/deckwave-messages.js']
+      .map(f => fs.readFileSync(f, 'utf8')).join('\n') + dashSrc;
+    const stale = (texts.match(/press library|open the library first|re-open the library/g) || []);
+    ok('no asset text sends a person to a button named "library" any more (control: "build a set first" still hits)',
+       stale.length === 0 && /build a set first/.test(texts),
+       'stale wording found: ' + JSON.stringify(stale));
+  }
   ok('…and the document click handler closes .sel menus, which the set menu is one of',
      /querySelectorAll\('\.sel,\.pmenu,\.hcard'\)\.forEach\(o => o\.classList\.remove\('open'\)\)/.test(dashSrc),
      'an open menu that nothing closes covers the bar until reload');
