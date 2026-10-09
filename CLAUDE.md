@@ -225,10 +225,12 @@ a tree Mike left uncommitted on 2026-09-08, reviewed in Act 47 (ledgers
 137–141). It changes the beatmatch itself (138); its one confirmed
 regression (137, route stones on untrusted grids) is fixed in `579da82` with
 a real-corpus falsifier. **HEARD 2026-10-05: the keeper ran the A/B and
-said the new engine "sounds fine" (ledger 138, CONFIRMED).** It is not yet
-merged or pushed; `git branch -vv` says where the two branches stand, not
-this sentence. The old engine stays reachable at `v0.8.2`; there is no
-switch between the two and there should not be.
+said the new engine "sounds fine" (ledger 138, CONFIRMED).** **MERGED
+AND LIVE 2026-10-07 (ledger 145):** `public` was fast-forwarded to
+`a3a21f9` and the keeper pushed it; `deckwave.fm` booted on it. The side
+branch and `public` now move together; `git branch -vv` says where they
+stand, not this sentence. The old engine stays reachable at `v0.8.2`; there
+is no switch between the two and there should not be.
 
 **GitHub traffic is captured weekly** (Act 48, ledger 142): a Windows
 scheduled task runs `tools/gh-traffic.py` every Saturday into
@@ -262,7 +264,7 @@ that must hit** (ledger 121: a zero without a control is decoration).
 
 ### Harnesses — sixteen of them, 1079 checks, all `node tools/check-*.js`
 
-`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); `public` at `338bdd7` still has fourteen and 998. Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 202 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T01:09Z at `1ffb197`: all sixteen green, 1079.** Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -338,7 +340,18 @@ hours, or drift.** Those need the ear or a browser.
    **Output device (ledger 146) — built 2026-10-07, UNHEARD.** `output`
    in ⚙; one "name my outputs…" (a single mic prompt), pick Sonar -
    Media, watch Sonar's Media meter.
-8. **Held, not scheduled:** loudness levelling across tracks, D10's grid
+8. **The UI review (ledger 147, `docs/UI-REVIEW-2026-10-07.md`) — the
+   keeper's first decisions are in its Part 5, and two of them ARE build
+   tasks.** Decided: build default stays "all tracks" (no change); save/load
+   set leave the bar for a menu that must itself live in the bar, not on the
+   Prepared card (Part 3 §4: the card is hidden when empty, so Open Set
+   would vanish exactly when needed); header keeps `♥ like` and `★ source`
+   (the two counting links, Act 48) and drops `▶ sets` and `records` —
+   `check-panels` pins all four hrefs at `tools/check-panels.js:642-650` and
+   must change in the same commit. OPEN: where `kill` (reset audio engine)
+   goes, pending how often it is used. The other sixteen decisions in Part 2
+   §8 are not yet asked. Parts 3–4 win over Part 2 where they disagree.
+9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
    have; on this corpus it changes nothing).
@@ -385,7 +398,13 @@ by its absence before it had a name for it).
 - **Mike's commit `8bf6f82` has been reviewed** (Act 47, ledgers 137–141:
   three Opus 5.5 read-only reviewers, every finding re-checked against the
   code path by this desk). Do not re-review it from scratch. What is owed on
-  it is the keeper's: the A/B in ledger 138 and the two calls in 137.
+  it is the keeper's: the A/B in ledger 138 (HEARD, CONFIRMED) and the two
+  calls in 137.
+- **The UI review is done and its findings are verified** (ledger 147: 38
+  findings, every citation checked against the code path; this desk
+  re-checked the ones behind Part 5 on 2026-10-09). Do not re-run the read
+  or re-synthesise the redesign. What is owed is Part 5's two build tasks
+  (open item 8 above) and the keeper's remaining decisions in Part 2 §8.
 - **DNS is correct and needs no work.** MEASURED 2026-09-06: `deckwave.fm`
   ALIASes to `waypostmaster.github.io`, resolves to all four Pages A records,
   serves 200 with the tracked `CNAME` file matching. The other 29 `deckwave.*`
@@ -394,8 +413,13 @@ by its absence before it had a name for it).
 - **`.helm.json` and `memory-map.json` being absent from a fresh clone is the
   design, not a gap.** Both are gitignored per-machine coordination.
 
-**What IS owed is everything under the two "Open items" headings above**, and
-those are keeper's-ear items, not build tasks. **No build task is outstanding.**
+**What IS owed is everything under the two "Open items" headings above.**
+All of them are keeper's-ear items except BASE item 8: **two build tasks
+are outstanding as of 2026-10-09** (the set menu and the two-link header,
+decided in `docs/UI-REVIEW-2026-10-07.md` Part 5), and one decision is
+open (`kill`). Build them as the review's §7 says: small, reversible, one
+commit each, harness changed in the same commit, nothing heard-path
+rewritten (§9).
 
 **Do not read a push state from this file. Run the command:**
 
