@@ -246,6 +246,10 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .sel .menu i:last-child{border-bottom:none}
 .sel .menu i:hover{background:rgba(127,127,127,.14);color:var(--ac)}
 .sel .menu i.on{color:var(--ac2);border-left:2px solid var(--ac2)}
+.sel .menu button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;
+  padding:8px 11px;font-size:9.5px;letter-spacing:.12em;white-space:nowrap}
+.sel .menu button:last-child{border-bottom:none}
+.sel .menu button:hover{background:rgba(127,127,127,.14);color:var(--ac)}
 .sw{display:inline-flex;gap:2px;margin-left:8px}
 .sw s{width:9px;height:9px;text-decoration:none;border:1px solid rgba(255,255,255,.25)}
 
@@ -1754,7 +1758,40 @@ function buildTransport(dash) {
   db.dataset.grp = GRP.cfg;
 
   sep(GRP.files);
-  const saveBtn = btn('▾ save set', () => {
+  /* ── the set menu, 2026-10-09 (UI review Part 5 §3) ──────────────────────
+     Keeper: save and load set are not daily ("i don't use them daily"), so
+     they leave the bar for one menu. The menu ANCHORS IN THE BAR, never on
+     the Prepared card: the card is hidden whenever nothing is prepared
+     (renderPrepared, `$('prepared').hidden = !candidate`), which is exactly
+     the state in which a person needs Open Set (Part 3 §4). Same shape as
+     the selects: a .sel wrapper, `open` toggled by its button, closed by the
+     document click handler above. The two handlers are the ones that were
+     on the bar; only their homes moved. save set loses its accent — it is
+     not the next step in any flow (finding 24). */
+  const setMenu = document.createElement('span');
+  setMenu.className = 'sel'; setMenu.dataset.grp = GRP.files;
+  const setMenuBtn = document.createElement('button');
+  setMenuBtn.textContent = 'set';
+  setMenuBtn.title = 'save this set to a file, or open a saved one';
+  setMenuBtn.setAttribute('aria-haspopup', 'menu');
+  setMenuBtn.onclick = e => { e.stopPropagation();
+    const was = setMenu.classList.contains('open');
+    sr.querySelectorAll('.sel,.pmenu,.hcard').forEach(o => o.classList.remove('open'));
+    if (!was) setMenu.classList.add('open');
+    setMenuBtn.setAttribute('aria-expanded', was ? 'false' : 'true'); };
+  const setMenuList = document.createElement('div'); setMenuList.className = 'menu';
+  setMenuList.setAttribute('role', 'menu');
+  setMenu.appendChild(setMenuBtn); setMenu.appendChild(setMenuList);
+  tp.insertBefore(setMenu, $('logLine'));
+  const menuItem = (txt, fn, title) => {
+    const b = document.createElement('button'); b.textContent = txt; b.setAttribute('role', 'menuitem');
+    if (title) b.title = title;
+    b.onclick = async e => { e.stopPropagation(); setMenu.classList.remove('open');
+      setMenuBtn.setAttribute('aria-expanded', 'false');
+      try { await fn(e); } catch (err) { dash.reportIssue(err, txt); log(err.message || err); } };
+    setMenuList.appendChild(b); return b;
+  };
+  const saveBtn = menuItem('▾ save set', () => {
     const target = dash.fileSet;
     if (!target.length) { log('build a set first'); return; }
     const sc = window.DWSCORE.score(target, { xfade: 16 });
@@ -1767,10 +1804,10 @@ function buildTransport(dash) {
     setTimeout(() => dl(window.DWSCORE.cue(sc, 'Deckwave'),
       'deckwave-set-' + stamp + '.cue', 'text/plain'), 350);
     log('downloaded · ' + sc.summary.tracks + ' tracks');
-  }, true, GRP.files);
+  }, 'a .json score and a .cue sheet — the set as a file, not audio (render flac is the audio, and it is not the live mix)');
   saveBtn.dataset.setAction = 'save';
 
-  const lsb = btn('▴ load set', () => {
+  const lsb = menuItem('▴ load set', () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
     /* iOS needs the input IN THE DOCUMENT for the picker to show — the same
        reason and the same comment as LIB.pick() in deckwave.js. Detached, all
@@ -1784,8 +1821,7 @@ function buildTransport(dash) {
         log('prepared ' + r.loaded + (r.missing.length ? ' · ' + r.missing.length + ' missing — open Issues' : ' · complete'));
       } catch (e) { dash.reportIssue(e, 'load'); log('load failed: ' + e.message); } finally { inp.remove(); } };
     inp.click();
-  });
-  lsb.dataset.grp = GRP.files;
+  }, 'open a saved .json set — it is PREPARED, not played; press ▶ when ready. Open your music first or every track reads as missing');
 
   /* ── ROADMAP D1: the corpus cache finally has a button ────────────────
      The analysis cache is the most expensive thing in the browser — 12

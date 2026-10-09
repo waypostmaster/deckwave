@@ -572,6 +572,30 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
      /killBtn\.title = '[^']*last resort[^']*'/.test(dashSrc),
      'the reset lost the wording that tells a person what it is for');
 }
+/* SAVE AND LOAD SET LIVE IN A MENU, AND THE MENU LIVES IN THE BAR. Keeper's
+   Part 5 decision 3 ("i don't use them daily") with Part 3 §4's correction:
+   the Prepared card is hidden whenever nothing is prepared, which is exactly
+   when Open Set is needed, so the menu must anchor in the transport, never on
+   the card. Pinned at the source three ways; all failing on the 2026-10-08
+   source, where both were top-level btn() calls. */
+{
+  ok('save set and load set are menu items, not bar buttons',
+     !/btn\('▾ save set'/.test(dashSrc) && !/btn\('▴ load set'/.test(dashSrc)
+     && /menuItem\('▾ save set'/.test(dashSrc) && /menuItem\('▴ load set'/.test(dashSrc),
+     'one of them is back on the bar as a top-level button');
+  const menuBlock = (dashSrc.split('const setMenu = document.createElement')[1] || '').split('const menuItem')[0];
+  ok('the set menu anchors in the transport bar (tp), in the files group, not on the Prepared card',
+     menuBlock.length > 0 && /tp\.insertBefore\(setMenu/.test(menuBlock)
+     && /setMenu\.dataset\.grp = GRP\.files/.test(menuBlock)
+     && !/prepared/i.test(menuBlock),
+     'a menu on the Prepared card disappears with it, and the card is hidden whenever nothing is prepared');
+  ok('…and the save item still carries data-set-action, which renderPrepared retargets between set and prepared',
+     /saveBtn\.dataset\.setAction = 'save'/.test(dashSrc),
+     'without it the label stops following the target and "save set" silently saves the prepared set');
+  ok('…and the document click handler closes .sel menus, which the set menu is one of',
+     /querySelectorAll\('\.sel,\.pmenu,\.hcard'\)\.forEach\(o => o\.classList\.remove\('open'\)\)/.test(dashSrc),
+     'an open menu that nothing closes covers the bar until reload');
+}
 ok('the card\'s attribution href is SCHEME-GATED, not merely escaped (F1 — the review\'s one real vulnerability)',
    /const safeHref = u =>/.test(npSrc2) && /p === 'http:' \|\| p === 'https:'/.test(npSrc2)
    && /t\.source && safeHref\(t\.source\.page\)/.test(npSrc2)
