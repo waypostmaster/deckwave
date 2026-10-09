@@ -616,6 +616,31 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
        stale.length === 0 && /build a set first/.test(texts),
        'stale wording found: ' + JSON.stringify(stale));
   }
+  /* THREE MORE FROM PART 2 §8, 2026-10-09, on the keeper's "continue":
+     §8.15 the steering row says "no beatmatched route", not "unreachable" —
+     every track IS reachable by a straight cut and the gate plays it so;
+     §8.12 a fresh wide page no longer opens on twelve panels nobody chose,
+     and the wall is named for what it is (twelve of the panels, not all);
+     §8.9 a phone never restores an open drawer. All failing on a9250f5. */
+  ok('the steering menu claims "no beatmatched route", never "unreachable"',
+     /b: '✕ no beatmatched route'/.test(dashSrc) && !/'✕ unreachable'/.test(dashSrc),
+     'a track the gate would play straight is being called unreachable');
+  ok('the wall is not called "all 12" (it is twelve of the registered panels)',
+     !/all 12/.test(dashSrc) && /twelve-panel wall/.test(dashSrc),
+     '"all" promises more than the twelve slots hold');
+  {
+    const mega = (dashSrc.split('DWDASH.mega = function')[1] || '').split('DWDASH.folds')[0];
+    ok('startup mega() keeps the panel set whether or not one is stored',
+       mega.length > 0 && /if \(keep\) \{/.test(mega) && !/keep && dash\.slots\.hasStored\(\)/.test(mega)
+       && mega.indexOf('if (keep) {') < mega.indexOf('reset(window.DWPANELS.ALL)'),
+       'a fresh wide page runs reset(ALL) and opens on twelve panels the person did not pick');
+  }
+  {
+    const cfg = (dashSrc.split('let cfgOpen = false;')[1] || '').split('const cfgBtn')[0];
+    ok('a phone (≤720px, the CSS breakpoint) never restores an open ⚙ drawer',
+       /matchMedia\('\(max-width:720px\)'\)\.matches/.test(cfg) && /!phone && localStorage\.getItem\('dw-cfg-open'\)/.test(cfg),
+       'an open drawer restored on a phone squashes the panel area to 0px');
+  }
   ok('…and the document click handler closes .sel menus, which the set menu is one of',
      /querySelectorAll\('\.sel,\.pmenu,\.hcard'\)\.forEach\(o => o\.classList\.remove\('open'\)\)/.test(dashSrc),
      'an open menu that nothing closes covers the bar until reload');

@@ -1117,7 +1117,13 @@ function mount(hostEl) {
              '. About ' + mins + ' min.',
           ladder: o.ladder, dest: t,
           act: () => applyRoute({ idx, mode: 'route', hops: o.hops, dwellSec: o.dwellSec }, 'fast blend') }; }
-        case 'unreachable': return { cls: 'dead', b: '✕ unreachable',
+        /* "no beatmatched route", not "unreachable" (UI review §8.15,
+           2026-10-09): since the no-discard build every track is reachable
+           by a straight cut, and the set gate PLAYS it straight. What DWNAV
+           is saying here is narrower — no beatmatched path exists from the
+           playing tempo — and the label now claims only that. The reason
+           text below is the engine's, untouched. */
+        case 'unreachable': return { cls: 'dead', b: '✕ no beatmatched route',
           i: o.reason + (o.wouldNeed ? ' · would need ' + pct(o.wouldNeed) : ''), act: null };
         case 'jump':  return { cls: '', b: '⇥ jump straight there',
           i: 'Ignores the tempo plan. Cuts, does not blend.', act: () => jump(idx) };
@@ -1885,7 +1891,7 @@ function buildTransport(dash) {
   const app = sr.querySelector('.app');
   const layoutSel = select('layout', [
     { k: 'auto', n: 'auto', hint: 'by aspect' },
-    { k: 'mega', n: '▪ MEGA · all 12', hint: 'widescreen' },
+    { k: 'mega', n: '▪ twelve-panel wall', hint: 'widescreen · twelve of the panels, not all of them' },
     { k: '6', n: '6 across' }, { k: '5', n: '5 across' }, { k: '4', n: '4 across' },
     { k: '3', n: '3 across' }, { k: '2', n: '2 × n', hint: 'square' },
     { k: '1', n: 'single column', hint: 'tall' }
@@ -2286,9 +2292,19 @@ function buildTransport(dash) {
 
   /* ── the collapse ──────────────────────────────────────────────────────
      One toggle for everything in the cfg group. Persisted, because a
-     performer who collapsed it does not want it back on every reload. */
+     performer who collapsed it does not want it back on every reload — and
+     the open state is persisted with it, on a DESKTOP. On a phone it is not
+     restored (UI review §8.9, 2026-10-09): at ≤720px, the breakpoint the
+     phone CSS keys on, an open drawer restored from storage folds the files
+     and capture groups out too and squashes the panel area to 0px, so the
+     page opens on a wall of settings. A phone starts closed every load; the
+     toggle still works and still writes the key, so a desktop sharing the
+     same origin keeps its own choice. */
   let cfgOpen = false;
-  try { cfgOpen = localStorage.getItem('dw-cfg-open') === '1'; } catch (e) {}
+  try {
+    const phone = typeof matchMedia === 'function' && matchMedia('(max-width:720px)').matches;
+    cfgOpen = !phone && localStorage.getItem('dw-cfg-open') === '1';
+  } catch (e) {}
   const cfgBtn = btn('⚙ display', () => {
     cfgOpen = !cfgOpen; applyCfg();
     try { localStorage.setItem('dw-cfg-open', cfgOpen ? '1' : '0'); } catch (e) {}
@@ -2577,12 +2593,19 @@ DWDASH.views = function (dash) {
    unbidden would be hostile; it was being done on every load regardless.
 
    Choosing "mega" from the layout menu still means all twelve. That is what
-   picking it is for. The difference is that a page load is not a choice. */
+   picking it is for. The difference is that a page load is not a choice.
+
+   AND A FIRST LOAD IS NOT A CHOICE EITHER (UI review §8.12, 2026-10-09).
+   Until then `keep` only protected a STORED arrangement; a fresh wide page
+   still ran reset(ALL) and opened on twelve panels nobody asked for. Now
+   startup widens the columns and leaves the panel set alone whether or not
+   anything is stored — the default six at six across. The wall is one pick
+   away in the layout menu, where it is named for what it is. */
 DWDASH.mega = function (dash, keep) {
-  if (keep && dash.slots.hasStored()) {
+  if (keep) {
     dash.shadow.querySelector('.app').setAttribute('data-cols', 'mega');
     setTimeout(() => { dash.applyFolds(); dash.fit(); }, 120);
-    return dash.slots.slots.length + ' panels · kept your arrangement';
+    return dash.slots.slots.length + ' panels · ' + (dash.slots.hasStored() ? 'kept your arrangement' : 'the default set, widened');
   }
   try { localStorage.removeItem('dw-folded-v1'); } catch (e) {}
   dash.slots.reset(window.DWPANELS.ALL);
