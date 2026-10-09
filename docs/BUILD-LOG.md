@@ -3951,3 +3951,7 @@ phone with the drawer previously open confirms it. The energy-window
 merge and the control-budget gate are NOT in this; both held. check-panels
 +4, all failing on `a9250f5`. Sixteen harnesses, **1093 green, MEASURED
 2026-10-09T03:14Z**.
+**149a · Pushed by the keeper 2026-10-09T03:2xZ** — `ls-remote` served
+`fdf3e45`; `deckwave.fm/assets/deckwave-dashboard.js` carried "no
+beatmatched route" (2), no "all 12" (0), control `DECKWAVE.FM` (1). Live.
+The phone-drawer branch is still INFERRED until a phone loads it.
