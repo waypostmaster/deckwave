@@ -639,10 +639,12 @@ console.log('\n── the two outbound links in the header ──');
   const lk = (dashSrc.split('<div class="lk">')[1] || '').split('</div>')[0];
   const anchors = lk.match(/<a\b[\s\S]*?<\/a>/g) || [];
   const href = a => (a.match(/href="([^"]+)"/) || [, ''])[1];
-  ok('the header carries the four outbound links',
-     anchors.length === 4
-     && anchors.some(a => /^https:\/\/www\.youtube\.com\/@deckwave-app$/.test(href(a)))
-     && anchors.some(a => /^https:\/\/bandcamp\.com\/deckwave$/.test(href(a)))
+  /* Four until 2026-10-09; the channel and Bandcamp links were removed on the
+     keeper's decision (UI review Part 5 §4). EXACTLY two now: the check pins
+     the count both ways, so a link creeping back in fails here too. */
+  ok('the header carries exactly the two counting links and nothing else',
+     anchors.length === 2
+     && !anchors.some(a => /@deckwave-app|bandcamp\.com/.test(href(a)))
      && anchors.some(a => /^https:\/\/www\.youtube\.com\/watch\?v=qoulzN1mLyw$/.test(href(a)))
      && anchors.some(a => /^https:\/\/github\.com\/waypostmaster\/deckwave$/.test(href(a))),
      'the .lk block holds ' + anchors.length + ' anchor(s): ' + anchors.map(href).join(' | '));

@@ -542,10 +542,11 @@ function mount(hostEl) {
         ['bass hits','kHit'],['register','kReg']]
         .map(([l,i]) => `<div class="kv"><u>${l}</u><b id="${i}">-</b></div>`).join('')}
      <div class="lk">
-       <a href="https://www.youtube.com/@deckwave-app" target="_blank" rel="noopener"
-          title="Deckwave sets on YouTube — the deck running, unnarrated, every panel drawing the audio as it plays">&#9654; sets</a>
-       <a href="https://bandcamp.com/deckwave" target="_blank" rel="noopener"
-          title="The LukHash records this was built for. Buy them.">records</a>
+       <!-- Two links, not four, since 2026-10-09 (UI review, Part 5 decision 4).
+            The channel and Bandcamp links went: promotional, and the review
+            found them sharing the ▶ glyph with play. These two stay because
+            they are the project's ONLY traffic instrument (Act 48) — this page
+            counts nobody, and a like or a landing on GitHub is counted there. -->
        <a href="https://www.youtube.com/watch?v=qoulzN1mLyw" target="_blank" rel="noopener"
           title="Enjoying it? Like the launch video. This page counts nothing and never will — a like on YouTube is the only way we can tell anyone is listening.">&#9829; like</a>
        <a href="https://github.com/waypostmaster/deckwave" target="_blank" rel="noopener"
