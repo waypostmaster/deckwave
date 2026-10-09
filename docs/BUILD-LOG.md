@@ -3930,3 +3930,24 @@ or a missing file never showing it — neither seen in the three draws.
 `a9250f5`; `deckwave.fm/assets/deckwave-dashboard.js` carried "re-link
 music folder" (3) and no `bandcamp.com/deckwave` (0), control `DECKWAVE.FM`
 (1). Live. **SEEN by the keeper 2026-10-09: "All seems fine" [CONFIRMED].**
+
+**Ledger 149 · Three more of Part 2 §8, on the keeper's "continue".
+[MEASURED in the harness; the wall's startup branch seen in Chrome; the
+phone branch INFERRED from source]** 2026-10-09. §8.15 the steering menu's
+dead row says "✕ no beatmatched route", not "unreachable" — since the
+no-discard build every track is reachable by a straight cut and the gate
+plays it so; the engine's reason text is unchanged. §8.12 the layout entry
+"▪ MEGA · all 12" is now "▪ twelve-panel wall · twelve of the panels, not
+all of them" (finding 22: twelve slots, 24 registered), and the startup
+`DWDASH.mega(dash, true)` keeps the panel set whether or not one is stored
+— a fresh wide page opens on the default six at six across; picking the
+wall still resets to all twelve. Drawn in Chrome with nothing stored:
+startup call → 6 panels, data-cols mega, "the default set, widened"; the
+explicit pick → 12. §8.9 at ≤720px the ⚙ drawer is never restored open;
+the key is still written so a desktop on the same origin keeps its choice.
+**Unseen on a phone: the MCP window would not go below 800px (outerWidth
+0), so that branch rests on the source check alone** — one load of the
+phone with the drawer previously open confirms it. The energy-window
+merge and the control-budget gate are NOT in this; both held. check-panels
++4, all failing on `a9250f5`. Sixteen harnesses, **1093 green, MEASURED
+2026-10-09T03:14Z**.

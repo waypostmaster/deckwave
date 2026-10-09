@@ -262,9 +262,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — sixteen of them, 1089 checks, all `node tools/check-*.js`
+### Harnesses — sixteen of them, 1093 checks, all `node tools/check-*.js`
 
-`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 212 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T02:53Z at `a1bc3da`: all sixteen green, 1089 (ledger 148 added ten to check-panels).** Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 216 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -353,8 +353,10 @@ hours, or drift.** Those need the ear or a browser.
    track 1"; the library button leaves the bar and appears only when files
    are missing (picker still REPLACES); the folder handle is NOT persisted.
    **ALL FIVE BUILT, PUSHED AND SEEN BY THE KEEPER 2026-10-09 (ledger
-   148/148a, "All seems fine", CONFIRMED).** The
-   other twelve decisions in Part 2 §8 are not yet asked; the desk's reads
+   148/148a, "All seems fine", CONFIRMED).** Ledger 149 then built three
+   of the remaining twelve on "continue" (§8.9 phone drawer — INFERRED,
+   unseen on a phone; §8.12 wall renamed and never auto-opened; §8.15 "no
+   beatmatched route"). Nine of Part 2 §8 remain unasked; the desk's reads
    are in the review's Part 5. Parts 3–4 win over Part 2 where they
    disagree.
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
@@ -396,7 +398,7 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is 1089 on this branch**, MEASURED 2026-10-09T02:53Z
+- **The harness total is 1093 on this branch**, MEASURED 2026-10-09T03:14Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the
@@ -423,7 +425,7 @@ by its absence before it had a name for it).
 All of them are keeper's-ear (or eye) items. **No build task is
 outstanding as of 2026-10-09T02:53Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
-148a). The next build task appears only when the keeper answers
+148a); ledger 149's three are built and unpushed. The next build task appears only when the keeper answers
 another of Part 2 §8's twelve open questions; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).
