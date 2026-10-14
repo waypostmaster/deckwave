@@ -320,11 +320,12 @@ hours, or drift.** Those need the ear or a browser.
    real corpus differ. The A/B: build, switch, build again, same seed.
 1. **The popping (ledgers 65/69).** One glance at the now-playing card on
    any playthrough: clean, `⚠ plain worklet`, or `⚠ N gaps`. LISTENING §7.
-2. **Phrase match — HEARD "tight" 2026-10-09, and phrase-next is now the
-   default next on every build (ledger 150c, built 2026-10-14, UNPUSHED).**
-   What is still owed: one press of `next ▶` mid-track on an all-tracks
-   set. Is the wait (up to eight bars) tight or stuck? `DW.nextPhrase =
-   false` is the old next.
+2. **Phrase match — CLOSED on the desktop.** Planned transitions HEARD
+   "tight" 2026-10-09; phrase-next on an all-tracks set HEARD 2026-10-14
+   in Edge ("next · blending in 5.3s over 19s ¶", "It's good", ledger
+   150j). Pushed 2026-10-14T18:54Z at `25cd17b` (150k). Still unheard:
+   ▶▶ with the phrase wait on a locked phone (walk C3), and LISTENING
+   §12's strong/weak pairs. `DW.nextPhrase = false` is the old next.
 3. **Libre by ear** — §13: Ogg vs FLAC; Commons through the gate (Ogg/Opus
    will not decode on the iPhone — count the failures as data).
 4. **Phone singles:** §8 handover-title half, §9 lock art, §11 lock-screen
@@ -362,21 +363,19 @@ hours, or drift.** Those need the ear or a browser.
    beatmatched route"). Nine of Part 2 §8 remain unasked; the desk's reads
    are in the review's Part 5. Parts 3–4 win over Part 2 where they
    disagree. **The walk (`docs/UI-WALK-2026-10-09.md`) asked them on the
-   desktop; ledger 150 (2026-10-14) built four of its decisions, UNPUSHED
-   and UNSEEN in a browser:** the settle mark beside Build, the control
-   budget (23, a ceiling in check-panels), phrase-next, and the five
-   energy windows as one panel with a window selector (no id migration:
-   the ids did not move). Compact under Settings › Look waits for Settings
-   to have sections. **WALK PART TWO IS PAUSED at the keeper's word
-   (2026-10-14): `docs/UI-WALK-2026-10-14.md` is the procedure; pick it up
-   there.** Step 0 is answered and all four answers are **the phone, on
-   deckwave.fm** (ledger 150i, after 150g/150h got the surface wrong):
-   lock-screen title + ▶▶ blend CONFIRMED in `controls` mode; **the phone
-   sometimes stops the music** (cause unknown, no instance captured; Step
-   S asked, NOT answered); "drawer usually open" contradicts ledger 149
-   and C2 decides it. Not started: Part A (desktop look at
-   ledger 150 + timing the next-button wait), Part B (push; the keeper
-   types it), Part C (the phone, after the push).
+   desktop; ledger 150 (2026-10-14) built four of its decisions:** the
+   settle mark beside Build, the control budget (23, a ceiling in
+   check-panels), phrase-next, and the five energy windows as one panel
+   with a window selector (no id migration: the ids did not move). **All
+   four SEEN/HEARD by the keeper in Edge (150j) and pushed at `25cd17b`
+   (150k).** Compact under Settings › Look waits for Settings to have
+   sections. **WALK PART TWO (`docs/UI-WALK-2026-10-14.md`): Step 0, Part
+   A and Part B are DONE; Part C (the phone) and Step S are OWED.** Step 0
+   answers are the phone on deckwave.fm (150i): lock-screen title + ▶▶
+   blend CONFIRMED in `controls` mode; **the phone sometimes stops the
+   music** (cause unknown, no instance captured; Step S asked, NOT
+   answered); "drawer usually open" contradicts ledger 149 and C2 decides
+   it.
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
@@ -440,23 +439,25 @@ by its absence before it had a name for it).
   point; one is already pointed.
 - **`.helm.json` and `memory-map.json` being absent from a fresh clone is the
   design, not a gap.** Both are gitignored per-machine coordination.
-- **The four ledger-150 builds are done and swept** (2026-10-14: all
-  sixteen harnesses green at 1118; the private sweep of
-  `origin/main..HEAD` is clean against a control). Do not rebuild them or
-  re-derive the walk. Re-run the sweep at the push only because later
-  commits are not covered by it.
+- **The four ledger-150 builds are done, seen, heard and pushed** (150j,
+  150k: all sixteen harnesses green at 1118 on a clean worktree, the
+  private sweep clean against a control, `25cd17b` verified byte-identical
+  on deckwave.fm). Do not rebuild, re-verify or re-push them. Walk Part A
+  is done; do not walk it again.
 - **The unexplained stops are NOT a code task yet.** Do not open
   `deckwave-phone.js` to guess at them. The walk's Step S asks the keeper
   first, and a screenshot of the next stop comes before any diagnosis.
 
 **What IS owed is everything under the two "Open items" headings above.**
 All of them are keeper's-ear (or eye) items. **No build task is
-outstanding as of 2026-10-14T16:54Z**: the five decided in
+outstanding as of 2026-10-14T18:56Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
-148a); ledger 149's three are pushed (149a); the walk's four are built and
-NOT pushed (ledger 150; compact waits on Settings sections). **First action
-next session: open `docs/UI-WALK-2026-10-14.md` and ask the keeper where
-to resume: Step S answers, or Part A at the desktop.** The next build
+148a); ledger 149's three are pushed (149a); the walk's four were pushed at
+`25cd17b` (150k; compact waits on Settings sections). **First action
+next session: open `docs/UI-WALK-2026-10-14.md` at Part C (the phone,
+deckwave.fm, C1 version check first) and ask for Step S's answers.** Also
+the keeper's call, raised in 150k: `docs/research/README.md` names the
+private sibling repo on the public tree. The next build
 task appears only when the keeper decides something new; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).

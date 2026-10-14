@@ -717,6 +717,9 @@ it is yours to choose.
 > takes the phrase path on EVERY build (ledger 150c, `DW.nextPhrase`).
 > Still unheard from this section: the strong and weak pairs below, and
 > the WAIT after pressing next on an all-tracks set — tight or stuck.
+> **The desktop wait: HEARD 2026-10-14 in Edge** — "next · blending in
+> 5.3s over 19s ¶", "It's good" (ledger 150j). Still unheard: the wait
+> on ▶▶ from a locked phone, and the two pairs below.
 
 Desktop first, then the phone. Press **`build · phrase match`**, then ▶.
 The log line per transition ends `¶3.1→2.4 16s`: the OUTGOING track's
