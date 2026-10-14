@@ -57,12 +57,27 @@ const WIKI = {
 const DEFAULTS = ['waterfall','chroma','camelot','gonio','transition','position'];
 
 return {
+  /* FAMILIES (UI walk decision 8, 2026-10-09): panels that are one drawing
+     over different settings register with the same `family` and their own
+     `variant` label. The swap menu lists a family ONCE (its first member);
+     the cell offers the variants itself. Every member keeps its own id, so
+     a saved view, the slot store and an exported views file that name one
+     of them still resolve — the merge is in what is offered, not in what
+     is stored, and there is no id migration to get wrong. */
   register(id, label, draw, opts) {
-    reg.set(id, { id, label, draw, note: (opts && opts.note) || '' }); return id;
+    reg.set(id, { id, label, draw, note: (opts && opts.note) || '',
+      family: (opts && opts.family) || id, variant: (opts && opts.variant) || null }); return id;
   },
   get: id => reg.get(id),
   has: id => reg.has(id),
-  list: () => [...reg.values()].map(p => ({ k: p.id, n: p.label, hint: p.note })),
+  list: () => [...reg.values()].filter((p, i, a) => a.findIndex(q => q.family === p.family) === i)
+    .map(p => ({ k: p.id, n: p.label, hint: p.note })),
+  /* every registered id, families unfolded — for audits, not for menus */
+  all: () => [...reg.keys()],
+  family: id => (reg.get(id) || {}).family || null,
+  /* the members of id's family as {k, n}; length 1 for a panel with none */
+  variants: id => { const f = (reg.get(id) || {}).family;
+    return f ? [...reg.values()].filter(p => p.family === f).map(p => ({ k: p.id, n: p.variant || p.label })) : []; },
   wiki: id => WIKI[id] || null,
   get defaults() { return DEFAULTS.slice(); },
   get size() { return reg.size; }
@@ -1279,10 +1294,14 @@ window.DWPANELS.register('loudtime', 'loudness · over time', function (c, w, h,
               A measurement, relative, drawn as a dim area behind.
 
    ONE ring buffer sampled on a clock every 2 s and kept for 90 minutes; the
-   five registered panels are the same drawing over five windows, which is
-   how a panel gets "options" without new UI — the swap menu lists them.
-   Sampled whether or not any of the five is on screen, so swapping one in
-   after an hour shows the hour. Nothing here is a threshold. */
+   five registered panels are the same drawing over five windows. Until
+   2026-10-09 the swap menu listed all five; the keeper counted them at the
+   walk and said "combine them" (decision 8), so they are now one FAMILY —
+   one "energy history" entry in the menu and a window selector on the
+   cell (see register() in the registry). The five ids stay, so nothing
+   stored had to move. Sampled whether or not any of the five is on screen,
+   so switching the window after an hour shows the hour. Nothing here is a
+   threshold. */
 const DWP_EW = { every: 2000, keepMin: 90, t: [], e: [], l: [], name: [], last: 0, acc: 0, n: 0 };
 function dwpEnergyFeed(D) {
   const now = performance.now();
@@ -1373,5 +1392,5 @@ function dwpEnergyWindow(minutes) {
   };
 }
 [15, 30, 45, 60, 90].forEach(m =>
-  window.DWPANELS.register('energy' + m, 'energy · last ' + m + ' min', dwpEnergyWindow(m),
-    { note: 'track energy + level, ' + m + ' min' }));
+  window.DWPANELS.register('energy' + m, 'energy history', dwpEnergyWindow(m),
+    { note: 'track energy + level · window 15–90 min on the panel', family: 'energy', variant: m + ' min' }));

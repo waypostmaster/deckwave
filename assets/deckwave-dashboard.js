@@ -198,6 +198,12 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .hbtn{font-size:9px;width:14px;height:14px;padding:0;letter-spacing:0;line-height:12px;text-align:center;border-radius:50%;cursor:help}
 .strip:hover .swap,.strip:hover .hbtn,.strip:focus-within .swap,.strip:focus-within .hbtn{opacity:1}
 .swap:hover,.hbtn:hover{color:var(--ac);border-color:var(--ac)}
+/* a family panel's window (the energy history), revealed like swap */
+.pvar{opacity:0;transition:opacity .15s;flex:none;margin-left:auto;background:var(--surf);border:1px solid var(--line);
+  color:var(--dim);font:inherit;font-size:8px;letter-spacing:.1em;padding:0 3px;border-radius:var(--rad);cursor:pointer}
+.pvar[hidden]{display:none}
+.strip:hover .pvar,.strip:focus-within .pvar{opacity:1}
+.pvar:hover{color:var(--ac);border-color:var(--ac)}
 /* FIXED, not absolute, and placed by placeMenu(). As an absolute box inside
    the cell it was clipped by .tri's overflow:hidden — on the bottom row the
    menu ran 189px past the grid and those entries were simply unreachable,
@@ -2413,10 +2419,22 @@ DWDASH.slots = function (dash) {
        old topic. Third time this class of bug has landed (ledger 20); the
        first two fixes each covered the rebuild path and missed the swap. */
     if (dash.glossary && dash.glossary.tag) setTimeout(dash.glossary.tag, 0);
-    slot.menu.innerHTML = window.DWPANELS.list().map(x =>
-      `<button type="button" data-k="${x.k}" class="${x.k === slot.panel ? 'on' : ''}">${x.n}${x.hint ? '<b>' + x.hint + '</b>' : ''}</button>`).join('');
+    /* A family (UI walk decision 8: the five energy windows) is ONE menu
+       entry; the cell's own window selector picks the member. The entry is
+       marked on for any member, and choosing it again keeps the window the
+       cell already had rather than snapping it back to the first. */
+    const P = window.DWPANELS, fam = P.family ? P.family(slot.panel) : slot.panel;
+    const same = k => (P.family ? P.family(k) : k) === fam;
+    slot.menu.innerHTML = P.list().map(x =>
+      `<button type="button" data-k="${x.k}" class="${same(x.k) ? 'on' : ''}">${x.n}${x.hint ? '<b>' + x.hint + '</b>' : ''}</button>`).join('');
+    const vars = P.variants ? P.variants(slot.panel) : [];
+    slot.pvar.hidden = vars.length < 2;
+    if (vars.length > 1) {
+      slot.pvar.innerHTML = vars.map(v => `<option value="${v.k}">${v.n}</option>`).join('');
+      slot.pvar.value = slot.panel;
+    }
     slot.menu.querySelectorAll('button').forEach(el => el.onclick = ev => {
-      ev.stopPropagation(); slot.panel = el.dataset.k;
+      ev.stopPropagation(); if (!same(el.dataset.k)) slot.panel = el.dataset.k;
       slot.menu.classList.remove('open'); paint(slot); save();
       slot.el.querySelector('.swap').focus();
       setTimeout(dash.fit, 40);
@@ -2470,12 +2488,16 @@ DWDASH.slots = function (dash) {
       if (!window.DWPANELS.has(pid)) pid = defaults[i] || 'spectrum';
       const cid = 'slot' + i;
       const d = document.createElement('div'); d.className = 'strip';
-      d.innerHTML = `<u><span class="lbl"></span><button type="button" class="hbtn" aria-label="Panel help">?</button><button type="button" class="swap" aria-label="Swap panel">swap &#9662;</button></u>`
+      d.innerHTML = `<u><span class="lbl"></span><select class="pvar" aria-label="Panel window" hidden></select><button type="button" class="hbtn" aria-label="Panel help">?</button><button type="button" class="swap" aria-label="Swap panel">swap &#9662;</button></u>`
                   + `<div class="cw"><canvas id="${cid}"></canvas></div>`
                   + `<span class="pmenu"></span><div class="hcard"></div>`;
       tri.appendChild(d);
       const slot = { i, el: d, cid, panel: pid, canvas: d.querySelector('canvas'),
-        lbl: d.querySelector('.lbl'), menu: d.querySelector('.pmenu'), help: d.querySelector('.hcard') };
+        lbl: d.querySelector('.lbl'), menu: d.querySelector('.pmenu'), help: d.querySelector('.hcard'),
+        pvar: d.querySelector('.pvar') };
+      /* the window selector of a family panel: the member IS the window */
+      slot.pvar.onchange = () => { if (window.DWPANELS.has(slot.pvar.value)) {
+        slot.panel = slot.pvar.value; paint(slot); save(); setTimeout(dash.fit, 40); } };
       slot.ctx = slot.canvas.getContext('2d');
       dash.C[cid] = slot.canvas; dash.X[cid] = slot.ctx;
       slots.push(slot); paint(slot);
@@ -2746,7 +2768,10 @@ DWDASH.glossaryBind = function (dash) {
      not a reason to stop the deck. DWDASH.glossaryAudit() returns the same
      report for the console. */
   function audit() {
-    const reg = (window.DWPANELS && window.DWPANELS.list) ? window.DWPANELS.list().map(x => x.k) : [];
+    /* all(), not list(): list() folds a family to one entry, and the other
+       four energy windows would then read as map entries with no panel */
+    const reg = !window.DWPANELS ? [] : window.DWPANELS.all ? window.DWPANELS.all()
+      : window.DWPANELS.list ? window.DWPANELS.list().map(x => x.k) : [];
     const term = k => window.DWMSG && window.DWMSG.term(k);
     const out = {
       panelsWithoutTerm: reg.filter(id => !PANEL[id]),

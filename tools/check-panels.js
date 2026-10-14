@@ -98,7 +98,9 @@ const P = global.DWPANELS;
    throws" check passed without drawing a single panel — the exact vacuous
    pass this project keeps a table about. Resolve every id to a draw function
    up front and refuse to run if any does not. */
-const ids = P.list().map(x => x.k);
+/* all(), not list(): since decision 8 list() folds a FAMILY to one entry,
+   and drawing only the menu entries would skip four energy windows */
+const ids = P.all ? P.all() : P.list().map(x => x.k);
 const unresolved = ids.filter(id => !P.get(id) || typeof P.get(id).draw !== 'function');
 if (!ids.length || unresolved.length) {
   console.log('FATAL: panel ids did not resolve to draw functions: ' + JSON.stringify(unresolved));
@@ -1015,7 +1017,52 @@ console.log('\n── the energy window, across a hidden-page hole ────�
   ok('a gap wider than two sample intervals LIFTS THE PEN instead of bridging it',
      broken === 2,
      'fills ' + broken + ' — a straight line is drawn across a hidden-page gap, and it looks exactly like measured data');
+
+  /* UI WALK DECISION 8, 2026-10-09 (§8.12b): the five energy windows are
+     ONE panel with a window selector. The ids stay, so the stored world
+     (dw-slots-v1, saved views, exported views files) needs no migration —
+     these checks pin that, and that the merge kept the honesty caption
+     word for word in every window (review Part 2 §9). The first three
+     fail on 3028ca0, where the swap menu lists all five. */
+  const EIDS = ['energy15', 'energy30', 'energy45', 'energy60', 'energy90'];
+  const menuE = P.list().filter(x => /^energy\d+$/.test(x.k));
+  ok('the swap menu lists the energy windows ONCE (got ' + menuE.length + ')',
+     menuE.length === 1 && menuE[0].n === 'energy history', JSON.stringify(menuE));
+  ok('…every old id still resolves, so a stored view or slot naming one loads (no migration)',
+     EIDS.every(id => P.has(id) && typeof P.get(id).draw === 'function') && P.all && EIDS.every(id => P.all().includes(id)),
+     'a saved view naming energy60 would load a blank cell — the review\'s risk (1)');
+  const vs = P.variants ? P.variants('energy60') : [];
+  ok('…and the cell offers all five windows, in order, from any member',
+     vs.map(v => v.k).join() === EIDS.join() && vs.map(v => v.n).join() === '15 min,30 min,45 min,60 min,90 min'
+     && P.variants('energy15').length === 5,
+     JSON.stringify(vs));
+  ok('control: a panel with no family offers no window choice (variants of spectrum = 1)',
+     P.variants && P.variants('spectrum').length === 1 && P.list().some(x => x.k === 'spectrum'),
+     'the selector would appear on every cell');
+  const capOf = id => { texts.length = 0; P.get(id).draw(ctx(), 320, 200, Tk, EW); return texts.slice(); };
+  const capBad = EIDS.filter(id => { const t = capOf(id);
+    return !t.includes('energy = constructed index · level = relative') || !t.includes('−' + id.slice(6) + ' min'); });
+  ok('every window still prints the honesty caption VERBATIM and its own span',
+     capBad.length === 0 && capOf('energy15').length > 0, 'missing in: ' + capBad.join(', '));
   global.performance.now = realNow;
+}
+{
+  /* the dashboard half: the selector is the cell's, the menu marks the
+     family, and the glossary audit reads every id (list() would report
+     four energy entries as naming no panel). Source checks — the slot is
+     DOM and this sandbox does not mount it; the keeper's glance is the
+     rest. */
+  const paintSrc = (dashSrc.split('function paint(slot) {')[1] || '').split('function help(slot)')[0];
+  ok('a slot paints its window selector from DWPANELS.variants and hides it for a single panel',
+     /P\.variants\(slot\.panel\)/.test(paintSrc) && /slot\.pvar\.hidden = vars\.length < 2/.test(paintSrc)
+     && /class="pvar"/.test(dashSrc) && /slot\.pvar\.onchange/.test(dashSrc),
+     'no selector — the merged panel would be stuck on its first window');
+  ok('…the swap menu marks the family on, and re-picking it keeps the cell\'s window',
+     /class="\$\{same\(x\.k\) \? 'on' : ''\}"/.test(paintSrc) && /if \(!same\(el\.dataset\.k\)\) slot\.panel = el\.dataset\.k/.test(paintSrc),
+     'choosing "energy history" on a 60-min cell would snap it to 15');
+  const aud = (dashSrc.split('function audit() {')[1] || '').split('DWDASH.glossaryAudit')[0];
+  ok('…and the glossary audit counts every id, not the folded menu',
+     /window\.DWPANELS\.all\(\)/.test(aud), 'the console would warn that energy30–90 name no panel');
 }
 
 console.log('\n── the glossary, the links, and the boot gate ──────────────');
