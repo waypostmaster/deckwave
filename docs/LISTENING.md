@@ -712,6 +712,12 @@ it is yours to choose.
 
 ## 12 · `build · phrase match` — does the transition land on the phrase?
 
+> **HEARD 2026-10-09: "tight"** on the first three transitions of a
+> phrase-match set (UI walk step 4, CONFIRMED). On that word `next ▶` now
+> takes the phrase path on EVERY build (ledger 150c, `DW.nextPhrase`).
+> Still unheard from this section: the strong and weak pairs below, and
+> the WAIT after pressing next on an all-tracks set — tight or stuck.
+
 Desktop first, then the phone. Press **`build · phrase match`**, then ▶.
 The log line per transition ends `¶3.1→2.4 16s`: the OUTGOING track's
 phrase contrast → the INCOMING's, then the fade. `·` in either place means

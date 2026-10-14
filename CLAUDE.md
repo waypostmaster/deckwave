@@ -262,9 +262,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — sixteen of them, 1093 checks, all `node tools/check-*.js`
+### Harnesses — sixteen of them, 1118 checks, all `node tools/check-*.js`
 
-`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 216 · `check-phone` 76 · `check-phrase` 48 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 230 · `check-phone` 76 · `check-phrase` 59 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59 (per-file figures above are current). Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -320,8 +320,11 @@ hours, or drift.** Those need the ear or a browser.
    real corpus differ. The A/B: build, switch, build again, same seed.
 1. **The popping (ledgers 65/69).** One glance at the now-playing card on
    any playthrough: clean, `⚠ plain worklet`, or `⚠ N gaps`. LISTENING §7.
-2. **Phrase match by ear** — LISTENING §12. If phrase-next is "tight" it
-   becomes the default next.
+2. **Phrase match — HEARD "tight" 2026-10-09, and phrase-next is now the
+   default next on every build (ledger 150c, built 2026-10-14, UNPUSHED).**
+   What is still owed: one press of `next ▶` mid-track on an all-tracks
+   set. Is the wait (up to eight bars) tight or stuck? `DW.nextPhrase =
+   false` is the old next.
 3. **Libre by ear** — §13: Ogg vs FLAC; Commons through the gate (Ogg/Opus
    will not decode on the iPhone — count the failures as data).
 4. **Phone singles:** §8 handover-title half, §9 lock art, §11 lock-screen
@@ -358,7 +361,14 @@ hours, or drift.** Those need the ear or a browser.
    unseen on a phone; §8.12 wall renamed and never auto-opened; §8.15 "no
    beatmatched route"). Nine of Part 2 §8 remain unasked; the desk's reads
    are in the review's Part 5. Parts 3–4 win over Part 2 where they
-   disagree.
+   disagree. **The walk (`docs/UI-WALK-2026-10-09.md`) asked them on the
+   desktop; ledger 150 (2026-10-14) built four of its decisions, UNPUSHED
+   and UNSEEN in a browser:** the settle mark beside Build, the control
+   budget (23, a ceiling in check-panels), phrase-next, and the five
+   energy windows as one panel with a window selector (no id migration:
+   the ids did not move). Compact under Settings › Look waits for Settings
+   to have sections. **Walk step 9, the iPhone, is still owed.** It covers
+   the drawer on a fresh load, background + lock-screen ▶▶, and lock art.
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
@@ -398,7 +408,7 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is 1093 on this branch**, MEASURED 2026-10-09T03:14Z
+- **The harness total is 1118 on this branch**, MEASURED 2026-10-14T16:54Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the
@@ -411,8 +421,10 @@ by its absence before it had a name for it).
 - **The UI review is done and its findings are verified** (ledger 147: 38
   findings, every citation checked against the code path; this desk
   re-checked the ones behind Part 5 on 2026-10-09). Do not re-run the read
-  or re-synthesise the redesign. What is owed is Part 5's two build tasks
-  (open item 8 above) and the keeper's remaining decisions in Part 2 §8.
+  or re-synthesise the redesign. Part 5's build tasks are built (ledger
+  148), and so are four of the walk's (ledger 150). What is owed is the
+  keeper's glance at ledger 150, the walk's phone step, and compact once
+  Settings has sections.
 - **DNS is correct and needs no work.** MEASURED 2026-09-06: `deckwave.fm`
   ALIASes to `waypostmaster.github.io`, resolves to all four Pages A records,
   serves 200 with the tracked `CNAME` file matching. The other 29 `deckwave.*`
@@ -423,10 +435,11 @@ by its absence before it had a name for it).
 
 **What IS owed is everything under the two "Open items" headings above.**
 All of them are keeper's-ear (or eye) items. **No build task is
-outstanding as of 2026-10-09T02:53Z**: the five decided in
+outstanding as of 2026-10-14T16:54Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
-148a); ledger 149's three are built and unpushed. The next build task appears only when the keeper answers
-another of Part 2 §8's twelve open questions; build it as the review's §7
+148a); ledger 149's three are pushed (149a); the walk's four are built and
+NOT pushed (ledger 150; compact waits on Settings sections). The next build
+task appears only when the keeper decides something new; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).
 

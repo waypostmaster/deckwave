@@ -3955,3 +3955,58 @@ merge and the control-budget gate are NOT in this; both held. check-panels
 `fdf3e45`; `deckwave.fm/assets/deckwave-dashboard.js` carried "no
 beatmatched route" (2), no "all 12" (0), control `DECKWAVE.FM` (1). Live.
 The phone-drawer branch is still INFERRED until a phone loads it.
+
+**Ledger 150 · The UI walk's decisions, built (2026-10-14). [MEASURED in
+the harness; UNSEEN in a browser: the Chrome extension was not connected
+this sitting; the phrase-next WAIT is UNHEARD]** The walk
+(`docs/UI-WALK-2026-10-09.md`, answers in the review's Part 5) produced
+five build tasks; four are built, one commit each, harness in the same
+commit, each new check run against the commit before it and seen failing.
+- **150a · decision 1, settle mark** (`adccea4`). A `settle on · 45s`
+  label beside Build while `DW.settle.on`, painted from the engine object
+  on the toggle and on a 1 s tick, so a console switch shows too. A span,
+  not a button. check-panels +2, failing on `58ca2d6`. Confirms by one
+  glance: switch settle on under ⚙, close ⚙, the mark is beside Build.
+- **150b · decision 5, the control budget** (`3028ca0`). A source count in
+  check-panels: btn() and select() sites plus hand-built non-cfg bar
+  elements, outside the cfg group. **23, MEASURED by the counter on
+  `adccea4`**, and that is the ceiling. Its controls: it must find all 27
+  literal `btn('` and 11 `select('` sites and classify seven known ones.
+  Falsified in a scratch copy three ways (a play-group button → fails; a
+  hand-built deck-group select → fails; a cfg button → passes). It counts
+  SOURCE: the phone's `☰ set` and the contextual re-link both count and
+  are hidden on a desktop. The walk's step-0.4 live line was never pasted,
+  so there is no DOM figure beside it. Raising the ceiling is the keeper's.
+- **150c · decision 4, phrase-next is the default next** (`e787d72`).
+  `skip()` (next, the lock screen's ▶▶) takes the phrase path on every
+  build: next phrase start past the lead, incoming at its first phrase
+  start, one-phrase fade; downbeat and xfade when either side has no
+  usable phrase. NOT changed: builds' planned transitions, blend-now on a
+  clicked track, ⚡ blend fast — the decision named next. `DW.nextPhrase =
+  false` is the old next. Also fixed in passing: the reply's ¶ came from
+  the BUILD flag and printed over a downbeat exit on a phrase build with
+  no usable phrase; it now comes from the exit taken (`A.atPhrase`).
+  check-phrase +11, six failing on `3028ca0`. **[INFERRED] the wait reads
+  as tight** — "tight" was said of planned transitions on 2026-10-09; the
+  up-to-eight-bar wait after pressing next on an all-tracks set has not
+  been listened to. One press of next mid-track on a plain build confirms
+  it or sends it to a 4-bar unit (a chosen number, the keeper's). On a
+  plain build the phrase is computed at the press (one pass over the
+  track's audio on the main thread, ~190 ms desktop, unmeasured on a phone).
+- **150d · decision 8, the energy windows merged** (`562593f`). The
+  registry gained families: the swap menu and the popout list "energy
+  history" once; a window selector on the cell offers 15–90 min. **The
+  five ids are unchanged, so `dw-slots-v1`, saved views and exported views
+  files needed no migration** — the risk that made the desk recommend a
+  hold is gone because nothing stored moved. Caption pinned verbatim in all
+  five windows. Glossary audit now reads `all()`, not the folded menu.
+  check-panels +8, seven failing on `e787d72`. Known and left: fold state
+  is keyed by id, so a folded energy cell changing window comes back open.
+- **150e · decision 2, compact under Settings › Look — NOT built, and
+  nothing to build yet.** Compact is already in the cfg group (behind ⚙);
+  Settings has no sections. It moves when the Look section exists.
+- Decisions 3, 6, 7 change nothing (scanline stays; no early play; no
+  libre auto-search).
+Sixteen harnesses, **1118 green, MEASURED 2026-10-14T16:54Z** (check-panels
+230, check-phrase 59). Four commits on `codex/mike-reliability-ui`,
+UNPUSHED: `public` has not moved, so `deckwave.fm` serves none of this.
