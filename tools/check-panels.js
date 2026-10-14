@@ -1111,5 +1111,98 @@ console.log('\n── the lows the review listed for the dashboard ────�
 }
 
 
+console.log('\n── the control budget (UI walk decision 5) ─────────────────');
+/* UI WALK DECISION 5, 2026-10-09 (§8.17): today's count of bar controls
+   outside the ⚙ drawer becomes a CEILING — a commit that adds one to the bar
+   without removing one fails here. The review (Part 4) found a DOM count
+   cannot run in this sandbox, so this counts SOURCE SITES in the dashboard:
+     · every btn(...) call — group = its 4th argument, else GRP.deck (btn's
+       default), overridden by a later `<name>.dataset.grp = GRP.x`;
+     · every select(...) call — group = its 5th argument, else GRP.cfg;
+     · every hand-built element given a non-cfg bar group with
+       `.dataset.grp = GRP.x` that is not one of the above (the set menu,
+       the level slider) — minus NOT_CONTROLS, labels that take no input.
+   A control is outside the drawer when its group is not GRP.cfg. The number
+   is a ceiling on SOURCE, not a measure of what a desktop shows: the phone's
+   ☰ set and the contextual re-link both count, and are hidden on a desktop.
+   What it cannot see: a control appended to the bar by a route that sets no
+   group, or one created in another file. Lower the ceiling freely; raising
+   it is the keeper's call, which is the whole point of the gate. */
+{
+  const CEILING = 23;   /* MEASURED 2026-10-14 by this counter on adccea4 */
+  const NOT_CONTROLS = ['smark'];
+  const src = dashSrc;
+  /* the index just past the paren matching the one at `open`, skipping
+     strings, templates, comments and regex literals */
+  const closeOf = open => {
+    let d = 0, i = open, prev = '';
+    while (i < src.length) {
+      const c = src[i];
+      if (c === '/' && src[i + 1] === '/') { i = src.indexOf('\n', i); continue; }
+      if (c === '/' && src[i + 1] === '*') { i = src.indexOf('*/', i) + 2; continue; }
+      if (c === "'" || c === '"' || c === '`') {
+        i++; while (i < src.length && src[i] !== c) { if (src[i] === '\\') i++; i++; } i++; prev = c; continue;
+      }
+      if (c === '/' && /[(,=:[!&|?{};]/.test(prev)) {
+        i++; while (i < src.length && src[i] !== '/') { if (src[i] === '\\') i++;
+          else if (src[i] === '[') { while (src[i] !== ']') { if (src[i] === '\\') i++; i++; } } i++; }
+        i++; prev = '/'; continue;
+      }
+      if (c === '(' || c === '[' || c === '{') d++;
+      else if (c === ')' || c === ']' || c === '}') { d--; if (d === 0) return i + 1; }
+      if (!/\s/.test(c)) prev = c;
+      i++;
+    }
+    return -1;
+  };
+  const sites = [];
+  for (const kind of ['btn', 'select']) {
+    const re = new RegExp('(?:const|let)?\\s*(\\w+\\s*=\\s*)?(?<![\\w.$])' + kind + '\\(', 'g');
+    let m;
+    while ((m = re.exec(src))) {
+      const open = m.index + m[0].length - 1;
+      if (/function\s+select\s*$/.test(src.slice(Math.max(0, open - 20), open))) continue;   /* the definition */
+      const end = closeOf(open);
+      const call = src.slice(open, end);
+      const label = (call.match(/^\(\s*'([^']*)'/) || [])[1] || (call.match(/^\(\s*([^,]{0,40})/) || [])[1];
+      const tail = call.match(/,\s*GRP\.(\w+)\s*\)$/);
+      let grp = tail ? tail[1] : (kind === 'btn' ? 'deck' : 'cfg');
+      const name = m[1] ? m[1].replace(/\s*=\s*$/, '') : null;
+      if (name) { const re2 = new RegExp('\\b' + name + '\\.dataset\\.grp = GRP\\.(\\w+)'); const r2 = src.slice(end).match(re2); if (r2) grp = r2[1]; }
+      sites.push({ kind, label, name, grp, end });
+    }
+  }
+  const named = new Set(sites.map(s => s.name).filter(Boolean));
+  const hand = [...src.matchAll(/\b(\w+)\.dataset\.grp = GRP\.(\w+)/g)]
+    .filter(m => !named.has(m[1]) && m[1] !== 's' && m[2] !== 'cfg')
+    .map(m => ({ kind: 'hand', label: m[1], name: m[1], grp: m[2] }));
+  const all = sites.concat(hand);
+  const find = l => all.find(s => s.label === l || s.name === l);
+  const btnText = (src.match(/(?<![\w.$])btn\('/g) || []).length;
+  const selText = (src.match(/(?<![\w.$])select\('/g) || []).length;
+  /* CONTROLS — the counter is only worth its number if it classifies the
+     sites it can be checked against: every literal btn(' and select(' it
+     can see in the text, and seven whose group is known by reading the line. */
+  ok('the counter finds every btn(\'…\') and select(\'…\') call the text holds (' + btnText + ' + ' + selText + ')',
+     btnText > 0 && sites.filter(s => s.kind === 'btn').length === btnText
+     && selText > 0 && sites.filter(s => s.kind === 'select').length === selText,
+     'found ' + sites.filter(s => s.kind === 'btn').length + ' btn + ' + sites.filter(s => s.kind === 'select').length
+     + ' select sites — the paren matcher lost its place');
+  const known = { 'scan': 'deck', 'pause': 'play', 'reset audio engine': 'cfg', 'register colour: off': 'cfg',
+                  '▾ save cache': 'files', 'layout': 'cfg', 'setMenu': 'files' };
+  const wrong = Object.keys(known).filter(l => !find(l) || find(l).grp !== known[l]);
+  ok('…and classifies seven known sites correctly (default group, 4th arg, reassignment, select default, hand-built)',
+     wrong.length === 0, 'misclassified: ' + wrong.map(l => l + '=' + (find(l) ? find(l).grp : 'MISSING')).join(', '));
+  ok('every NOT_CONTROLS entry names a hand-built element that exists (a guard naming nothing present is untested)',
+     NOT_CONTROLS.every(n => new RegExp('\\b' + n + '\\.dataset\\.grp = GRP\\.').test(src)),
+     'an exemption for an element the source no longer builds');
+  const bar = all.filter(s => s.grp !== 'cfg' && !NOT_CONTROLS.includes(s.name));
+  console.log('        bar controls outside the drawer: ' + bar.length + ' — '
+    + bar.map(s => s.label || s.name).join(' · '));
+  ok('bar controls outside the ⚙ drawer: ' + bar.length + ' ≤ ceiling ' + CEILING,
+     bar.length <= CEILING,
+     'a control was added to the bar without one leaving it — the keeper set this ceiling at the walk (decision 5)');
+}
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);
