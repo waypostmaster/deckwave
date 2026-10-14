@@ -188,6 +188,64 @@ async function part2() {
   ok('no channel data → no throw, downbeat exit (228 s)', !threw && Math.abs(D.A.outAt - D.A.startedAt - 228) < 1e-6,
      threw ? String(threw) : 'exit ' + (D.A.outAt - D.A.startedAt));
   ok('…and the fade is the set\'s xfade', Math.abs(D.A.fade - 12) < 1e-6, 'fade ' + D.A.fade);
+
+  /* PHRASE-NEXT (UI walk decision 4, 2026-10-09): next ▶ takes the phrase
+     path on a PLAIN set too. A fresh ▶ puts `since` at 0; with the lead at
+     1.2 s the next phrase start of w1 (offset 2 bars) is 4 s and the next
+     downbeat is 2 s, so the two paths cannot be confused. Each case gets a
+     fresh play() so no earlier phrase stamp is doing the work. All of the
+     first group fail on 3028ca0, where skip() on a plain set is the downbeat. */
+  const plainRun = async (names) => {
+    Player.stop(); started.length = 0; pending.clear();
+    const s = names.map((n, i) => track(n, [2, 5, 0][i]));          /* no .phrase */
+    const pp = Player.play(s, 0); await tick(); await settle(names[0]); await pp; await tick(); await settle(names[1]); await tick();
+    return s;
+  };
+  ok('phrase-next is ON by default', Player.nextPhrase === true, 'nextPhrase ' + Player.nextPhrase);
+  let ws = await plainRun(['w1', 'w2', 'w3']);
+  let skp = Player.skip({ lead: 1.2 }); await tick(); await settle('w2'); let skpr = await skp; await tick();
+  let wRel = D.A.outAt - D.A.startedAt;
+  ok('next ▶ on a PLAIN set leaves at the next phrase start (4 s, got ' + wRel.toFixed(2) + ')', Math.abs(wRel - 4) < 1e-6,
+     'left at ' + wRel + ' — 2 s is the downbeat path, which is what next did before decision 4');
+  ok('…the build flag is untouched (Player.phrase stays false)', Player.phrase === false && !ws.phrase, 'phrase ' + Player.phrase);
+  ok('…fade is one phrase (16 s, not the 12 s xfade)', Math.abs(D.A.fade - 16) < 1e-6, 'fade ' + D.A.fade);
+  ok('…the incoming enters at ITS first phrase start (10 s)', Math.abs(D.B.entry - 10) < 1e-6, 'entry ' + D.B.entry);
+  ok('…and the reply carries ¶: ' + skpr, /¶/.test(skpr), skpr);
+
+  /* the switch: DW.nextPhrase = false is the old next, exactly */
+  Player.nextPhrase = false;
+  ws = await plainRun(['x1', 'x2', 'x3']);
+  skp = Player.skip({ lead: 1.2 }); await tick(); await settle('x2'); skpr = await skp; await tick();
+  wRel = D.A.outAt - D.A.startedAt;
+  ok('nextPhrase = false: next is the next downbeat again (2 s, got ' + wRel.toFixed(2) + ')', Math.abs(wRel - 2) < 1e-6, 'left at ' + wRel);
+  ok('…with the xfade (12 s), entry at the first beat, and no ¶',
+     Math.abs(D.A.fade - 12) < 1e-6 && D.B.entry === 0 && !/¶/.test(skpr), 'fade ' + D.A.fade + ' entry ' + D.B.entry + ' · ' + skpr);
+  Player.nextPhrase = true;
+
+  /* scope: the decision named next. Blend-now on a clicked track keeps the
+     downbeat on a plain set — if this goes to 4 s, phrase-next leaked. */
+  ws = await plainRun(['y1', 'y2', 'y3']);
+  const bn = Player.blendNow(ws[2]); await tick(); await settle('y3'); await bn; await tick();
+  wRel = D.A.outAt - D.A.startedAt;
+  ok('blend-now on a plain set is still the next downbeat (2 s, got ' + wRel.toFixed(2) + ')', Math.abs(wRel - 2) < 1e-6,
+     'left at ' + wRel + ' — phrase-next reached blendNow, which the decision did not name');
+
+  /* the honest ¶: next on a plain set whose playing track has NO usable
+     phrase (bare buffer) takes the downbeat and must not print ¶ */
+  Player.stop(); started.length = 0; pending.clear();
+  const z = [track('z1', 2, { bare: true }), track('z2', 5, { bare: true })];
+  p = Player.play(z, 0); await tick(); await settle('z1'); await p; await tick(); await settle('z2'); await tick();
+  skp = Player.skip({ lead: 1.2 }); await tick(); await settle('z2'); skpr = await skp; await tick();
+  wRel = D.A.outAt - D.A.startedAt;
+  ok('next with no usable phrase falls back to the downbeat (2 s) and its reply carries no ¶',
+     Math.abs(wRel - 2) < 1e-6 && !/¶/.test(skpr), 'left at ' + wRel + ' · ' + skpr);
+  /* …and on a PHRASE build too, where the reply used to print ¶ off the
+     build flag alone (fails on 3028ca0: `phrase ? ' ¶'`) */
+  Player.stop(); started.length = 0; pending.clear();
+  const zp = [track('q1', 2, { bare: true }), track('q2', 5, { bare: true })]; zp.phrase = true;
+  p = Player.play(zp, 0); await tick(); await settle('q1'); await p; await tick(); await settle('q2'); await tick();
+  skp = Player.skip({ lead: 1.2 }); await tick(); await settle('q2'); skpr = await skp; await tick();
+  ok('…a phrase build whose track has no usable phrase: no ¶ in the reply either', !/¶/.test(skpr), skpr);
   Player.stop();
 }
 

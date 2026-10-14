@@ -1657,7 +1657,12 @@ function buildTransport(dash) {
   const nextBtn = btn('next ▶', async () => {
     try { log(await window.DW.skip()); }
     catch (e) { log('cannot play next: ' + String((e && e.message) || e) + ' — deck stopped'); } }, false, GRP.play);
-  nextBtn.title = 'blend into the next track at the next downbeat (a cut only when nothing is playing)';
+  /* phrase-next (UI walk decision 4, 2026-10-09): next waits for the next
+     8-bar phrase start on every build, not only phrase match — see the
+     phrase-next block in deckwave.js. The title says the wait out loud so a
+     press that takes fifteen seconds does not read as a press that failed. */
+  nextBtn.title = 'blend into the next track at the next 8-bar phrase start — up to ~15 s at 128 bpm — '
+    + 'or the next downbeat when the track has no usable phrase (a cut only when nothing is playing)';
   /* ■ stop and the engine reset are created AFTER the level slider, at the
      end of the play group and in the cfg group respectively — see there. */
 

@@ -893,6 +893,27 @@ const Player = (() => {
      entry). Nothing here moves a threshold: the phrase length is the
      grid's own, and the lead is the same 1.2 s the downbeat path uses. */
   let phrase = false;
+  /* ── phrase-next: `next ▶` lands on a phrase on EVERY build ────────────
+     LISTENING §12 asked whether phrase mode's transitions are tight; the
+     keeper heard the first three of a phrase-match set on 2026-10-09 and
+     said "tight" (UI walk decision 4, CONFIRMED). The decision: phrase-next
+     becomes the default next. So skip() — `next ▶` and the lock screen's
+     ▶▶ — takes the phrase path on an all-tracks or best-matches set too:
+     leave at the next 8-bar phrase start at least `lead` out (up to eight
+     bars, ~15 s at 128 bpm), enter the incoming at ITS first phrase start,
+     fade one phrase. Everything the phrase block above says about falling
+     back holds — no usable phrase on either side is the downbeat path and
+     the set's xfade, exactly as before.
+     NOT changed: a build's own planned transitions (phrase only on a phrase
+     build), and blend-now on a clicked track and ⚡ blend fast, which keep
+     the downbeat on the other builds — the decision named next, not those.
+     What is UNHEARD: the wait. "Tight" was said of planned transitions; the
+     up-to-eight-bar wait after pressing next on a plain build has not been
+     listened to. And on a plain build a track's phrase is computed at the
+     press (one pass over its audio on the main thread, ~190 ms for 150 s
+     on desktop Chromium, unmeasured on a phone), once, then it is cached.
+     Live switch: DW.nextPhrase = false puts next back on the downbeat. */
+  let nextPhrase = true;
   const PHR = () => (typeof window !== 'undefined' && window.DWPHRASE) || null;
   /* The shortest a track is allowed to hold the deck. It was written inline
      in chain() as a bare 45, and patch 10's DWELL.min is 40 — so the fast
@@ -1499,13 +1520,14 @@ const Player = (() => {
   }
   /* The next EXIT at least `lead` seconds away: the next phrase start in
      phrase mode when the playing track has one, else the next downbeat.
-     blendNow, reorder({now}) and skip() all go through here. */
-  function nextExitAfter(lead) {
+     blendNow, reorder({now}) and skip() all go through here; `onPhrase`
+     is skip()'s phrase-next, which asks for the phrase path on any build. */
+  function nextExitAfter(lead, onPhrase) {
     /* A second requested transition must not retarget the incoming deck
        while its predecessor is still fading at the shared tempo. */
     if (handed) lead = Math.max(lead, handed.at + handed.xfade - ctx.currentTime);
     const P = PHR();
-    if (phrase && P && A) {
+    if ((phrase || onPhrase) && P && A) {
       const ph = phraseOf(A.track);
       if (ph) {
         const s = P.firstStartAfter(wallBeats(A), ph, ctx.currentTime - A.startedAt + lead);
@@ -1515,8 +1537,11 @@ const Player = (() => {
     return nextDownbeatAfter(lead);
   }
 
-  async function chain(forceOut, preBuf) {
+  async function chain(forceOut, preBuf, onPhrase) {
     if (!A) return;
+    /* phrase path for this transition: a phrase build, or a forced exit
+       that asked for it (skip()'s phrase-next — see the block at the top) */
+    const usePhrase = phrase || (forceOut != null && !!onPhrase);
     const my = gen;                          /* the plan this call belongs to */
     const m = A.track.meta;
     const beats = (m.beats || []).map(b => A.when(b - A.entry));
@@ -1566,7 +1591,7 @@ const Player = (() => {
        usable phrase — or phrase mode is off — the downbeat path below is
        exactly what it always was, with the set's xfade. */
     const P = PHR();
-    const phA = (phrase && P) ? phraseOf(A.track) : null;
+    const phA = (usePhrase && P) ? phraseOf(A.track) : null;
     let fade = xfade, exit = null, atPhrase = false;
     if (phA) {
       if (forceOut != null) {
@@ -1611,7 +1636,7 @@ const Player = (() => {
         /* idx remains the PLAYING track. Remove only the failed successor,
            preserve a requested exit, then try the next one. */
         order.splice(ni, 1);
-        return chain(forceOut);
+        return chain(forceOut, undefined, onPhrase);
       }
     }
     if (my !== gen || !A) return;
@@ -1647,7 +1672,7 @@ const Player = (() => {
       }
     }
     const writeExit = () => {
-      A.outAt = out; A.fade = fade;
+      A.outAt = out; A.fade = fade; A.atPhrase = atPhrase;
       A.g.gain.setValueAtTime(1, out);
       A.g.gain.linearRampToValueAtTime(0, out + fade);
       /* bass swap — only one kick and one bassline sounds at a time */
@@ -1676,7 +1701,7 @@ const Player = (() => {
        (it is locked, or it would be unlocked above) and the offset is at
        most seven bars into the track. */
     let inPhrase = false, phN = null;
-    if (phrase && !unlocked) {
+    if (usePhrase && !unlocked) {
       phN = phraseOf(nd.track);
       if (phN && nm.beats && nm.beats[phN.beat] != null) { nd.entry = nm.beats[phN.beat]; inPhrase = true; }
     }
@@ -2056,7 +2081,11 @@ const Player = (() => {
        transition, and a second number for next would be one more chosen
        constant. { cut: true } is the old behaviour, kept for the console and
        for when nothing is on the air (the first ▶ after a stop is a cut by
-       definition). The lock screen's ▶▶ lands here too. */
+       definition). The lock screen's ▶▶ lands here too.
+       SINCE 2026-10-09 (UI walk decision 4) the point is the next PHRASE
+       start on every build and the fade is one phrase — phrase-next, the
+       block at the top of the Player — with the downbeat and the xfade as
+       the fallback when either track has no usable phrase. */
     async skip(opts) {
       opts = opts || {};
       if (idx + 1 >= order.length) return 'end';
@@ -2072,10 +2101,13 @@ const Player = (() => {
       if (A.track.meta === nm) return 'already on ' + nm.name.slice(-30);
       if (order[idx + 1] !== nm) return 'order changed while loading — press again';
       cancelPending();
-      const out = nextExitAfter(opts.lead != null ? opts.lead : 1.2);
-      await chain(out, buf);
+      /* phrase-next (block at the top): on every build unless switched off */
+      const out = nextExitAfter(opts.lead != null ? opts.lead : 1.2, nextPhrase);
+      await chain(out, buf, nextPhrase);
+      /* ¶ only when the exit really is a phrase start — on a track with no
+         usable phrase the downbeat path ran, and ¶ would claim otherwise */
       return 'next · blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's over ' +
-             Math.round((A && A.fade) || xfade) + 's' + (phrase ? ' ¶' : '') + ' · ' + nm.name.slice(-30);
+             Math.round((A && A.fade) || xfade) + 's' + (A && A.atPhrase ? ' ¶' : '') + ' · ' + nm.name.slice(-30);
     },
     async back() { return this.play(order, Math.max(0, idx - 1)); },
     setXfade(s) { xfade = Math.max(2, Math.min(60, s)); return xfade; },
@@ -2089,6 +2121,9 @@ const Player = (() => {
       return phrase ? 'phrase mode on' : 'phrase mode off';
     },
     get phrase() { return phrase; },
+    /* phrase-next: skip() on the phrase path on every build (block at the top) */
+    get nextPhrase() { return nextPhrase; },
+    set nextPhrase(on) { nextPhrase = !!on; },
     /* the phrase offset of a meta, if the deck has computed one */
     phraseOf(meta) { return meta && meta.phrase && meta.phrase.ok ? meta.phrase : null; },
     /* `tempo` is ROUNDED — it is a readout, and a header saying 128.4 bpm
@@ -2540,6 +2575,10 @@ return {
   /* phrase mode: on for a `build · phrase match` set, switchable live */
   async setPhrase(on) { return Player.setPhrase(on); },
   get phrase() { return Player.phrase; },
+  /* phrase-next: `next ▶` waits for the next 8-bar phrase start on every
+     build (UI walk decision 4); false puts it back on the next downbeat */
+  get nextPhrase() { return Player.nextPhrase; },
+  set nextPhrase(on) { Player.nextPhrase = on; },
   /* which worklet the decks run on — 'deckwave-stretch' (held block) or the
      plain vendored one — and why; see the Player's `stretch` block */
   get worklet() { return Player.worklet; },
