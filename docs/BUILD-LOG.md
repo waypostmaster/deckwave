@@ -4010,3 +4010,17 @@ commit, each new check run against the commit before it and seen failing.
 Sixteen harnesses, **1118 green, MEASURED 2026-10-14T16:54Z** (check-panels
 230, check-phrase 59). Four commits on `codex/mike-reliability-ui`,
 UNPUSHED: `public` has not moved, so `deckwave.fm` serves none of this.
+**150f · The keeper's phone report, from weeks of use (2026-10-14, walk
+step 0).** Mode in use: `phone: background + lock controls` — the option
+whose hint still says *untested*. (1) **The lock-screen title changes at
+each handover, and ▶▶ BLENDS [CONFIRMED, keeper's report from use]** —
+LISTENING §8's title half and §11's ▶▶ blend, in `controls` mode, on the
+code before ledger 150 (▶▶ on the downbeat). (2) **"sometimes the music
+does stop unexpectedly" [REPORTED; cause UNKNOWN]** — no instance captured;
+when, where, and what the screen said are unasked. The `controls` hint
+and decision 10 (default phone mode) wait on it. Not diagnosed by
+reasoning. (3) **The ⚙ drawer is "usually open i think" on a fresh load —
+this CONTRADICTS ledger 149's phone branch** (never restored at ≤720px),
+which was INFERRED from source. Not flipped: "i think", and a tab Safari
+restores from its page cache is not a fresh load, and a phone in
+landscape can be wider than 720px. Walk step C2 decides it.
