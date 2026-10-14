@@ -369,11 +369,13 @@ hours, or drift.** Those need the ear or a browser.
    the ids did not move). Compact under Settings › Look waits for Settings
    to have sections. **WALK PART TWO IS PAUSED at the keeper's word
    (2026-10-14): `docs/UI-WALK-2026-10-14.md` is the procedure; pick it up
-   there.** Step 0 is answered (ledger 150f). Lock controls title + ▶▶
-   blend are CONFIRMED from weeks of use. The keeper reports **the music
-   sometimes stops unexpectedly** (cause unknown, no instance captured;
-   Step S questions asked, NOT answered). The keeper's "drawer usually
-   open" CONTRADICTS ledger 149. Not started: Part A (desktop look at
+   there.** Step 0 is answered (ledger 150f) but **its SURFACE is
+   unassigned** (150g/150h): the keeper uses BOTH Edge on localhost and the
+   website (deckwave.fm) on a phone, and has not said which answer came from
+   which. Until they do, it confirms nothing and contradicts nothing. The
+   keeper reports **the music sometimes stops unexpectedly** (surface
+   unknown, cause unknown, no instance captured; Step S asked, NOT
+   answered). Not started: Part A (desktop look at
    ledger 150 + timing the next-button wait), Part B (push; the keeper
    types it), Part C (the phone, after the push).
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid

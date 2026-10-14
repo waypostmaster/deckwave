@@ -4045,3 +4045,13 @@ persisted there by design (ledger 149 only skips restoring it at ≤720px).
 still INFERRED, still unseen on a phone.
 The desk's own error, recorded as one: a report was tagged with a
 surface the keeper never named. Ask which surface before tagging.
+**150h · And both surfaces (2026-10-14, minutes after 150g).** The keeper
+added: "I've also used the phone app." So 150f's answers come from Edge on
+localhost AND a phone, and **which answer belongs to which surface is
+UNKNOWN**. 150g's re-reading is held, not applied: every 150f item is
+CARRIED with its surface unassigned, and nothing in it confirms or
+contradicts anything until the keeper says which surface each answer
+came from. The phone opens the website (keeper: "that one would have
+been the website"), i.e. deckwave.fm, which serves `public`, so phone
+answers are about the code before ledger 150. Edge on localhost runs
+this working tree as of its last reload.
