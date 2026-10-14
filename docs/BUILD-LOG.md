@@ -4024,3 +4024,24 @@ this CONTRADICTS ledger 149's phone branch** (never restored at ≤720px),
 which was INFERRED from source. Not flipped: "i think", and a tab Safari
 restores from its page cache is not a fresh load, and a phone in
 landscape can be wider than 720px. Walk step C2 decides it.
+**150g · CORRECTION to 150f: the surface was wrong (2026-10-14T18:42Z).**
+The keeper: "I was mistaken. I have been using the localhost, via
+Microsoft Edge." 150f's report is from DESKTOP Edge on
+`http://localhost:8777`, not from a phone, and the desk wrote it up as a
+phone report because the question was framed that way and the keeper's
+first words were "the website on the phone". Re-read under the right
+surface:
+(1) Title changes and ▶▶ blends in `background + lock controls`: this is
+the Media Session path (`deckwave-phone.js` feeds
+`navigator.mediaSession`) as Windows/Edge show it, **CONFIRMED for Edge on
+Windows** and **NOT** for an iPhone lock screen. LISTENING §8 and §11 stay
+UNHEARD; 150f's CONFIRMED on them is withdrawn. Localhost serves the
+working tree, so this was the code before ledger 150 (▶▶ on the downbeat).
+(2) "the music sometimes stops" is **a desktop Edge report**, cause
+unknown, no instance captured. Still not diagnosed by reasoning.
+(3) "drawer usually open" is **EXPECTED on a desktop**: the open state is
+persisted there by design (ledger 149 only skips restoring it at ≤720px).
+**The contradiction with ledger 149 is withdrawn**; 149's phone branch is
+still INFERRED, still unseen on a phone.
+The desk's own error, recorded as one: a report was tagged with a
+surface the keeper never named. Ask which surface before tagging.
