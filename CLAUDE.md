@@ -373,9 +373,15 @@ hours, or drift.** Those need the ear or a browser.
    A and Part B are DONE; Part C (the phone) and Step S are OWED.** Step 0
    answers are the phone on deckwave.fm (150i): lock-screen title + ▶▶
    blend CONFIRMED in `controls` mode; **the phone sometimes stops the
-   music** (cause unknown, no instance captured; Step S asked, NOT
-   answered); "drawer usually open" contradicts ledger 149 and C2 decides
-   it.
+   music** (cause unknown, no instance captured); "drawer usually open"
+   contradicts ledger 149 and C2 decides it. **One stop REPORTED
+   (150l–n):** iPhone, plain Bluetooth to the car, a call rejected
+   mid-set, then the car went silent while the deck seemed to run on, and
+   it was not recovered (the keeper was driving). This is the output
+   route, not §14's pause/resume, and the guess about it is marked
+   [INFERRED]. The test is the keeper's to choose, with a parked car or a
+   speaker, never while driving: reject a call, look at the deck before
+   touching it, then press ▶ once.
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
@@ -447,6 +453,10 @@ by its absence before it had a name for it).
 - **The unexplained stops are NOT a code task yet.** Do not open
   `deckwave-phone.js` to guess at them. The walk's Step S asks the keeper
   first, and a screenshot of the next stop comes before any diagnosis.
+  This still holds after 150n: one stop was reported from the road, but
+  nothing was captured.
+- **`docs/research/README.md` stays as it is.** The keeper chose (a),
+  "not worried about it", 2026-10-14 (150l). Do not raise it again.
 
 **What IS owed is everything under the two "Open items" headings above.**
 All of them are keeper's-ear (or eye) items. **No build task is
@@ -455,9 +465,9 @@ outstanding as of 2026-10-14T18:56Z**: the five decided in
 148a); ledger 149's three are pushed (149a); the walk's four were pushed at
 `25cd17b` (150k; compact waits on Settings sections). **First action
 next session: open `docs/UI-WALK-2026-10-14.md` at Part C (the phone,
-deckwave.fm, C1 version check first) and ask for Step S's answers.** Also
-the keeper's call, raised in 150k: `docs/research/README.md` names the
-private sibling repo on the public tree. The next build
+deckwave.fm, C1 version check first). Ask for the rest of Step S
+(Q2–Q4 in general, beyond the one car event) and whether the keeper ran
+the parked Bluetooth test (150n).** The next build
 task appears only when the keeper decides something new; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).
