@@ -641,6 +641,25 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
        /matchMedia\('\(max-width:720px\)'\)\.matches/.test(cfg) && /!phone && localStorage\.getItem\('dw-cfg-open'\)/.test(cfg),
        'an open drawer restored on a phone squashes the panel area to 0px');
   }
+  /* UI WALK DECISION 1, 2026-10-09 (§8.6): settle's ON state shows beside
+     Build with the drawer closed. What this can fail on: no mark; a mark in
+     the cfg group (hidden with the drawer — the very thing decided against);
+     a mark that is a button (it would count against the bar budget); a mark
+     painted only from the toggle (the console's DW.settle.on = true would
+     leave it dark). What it cannot see: whether it renders where the eye
+     lands — that is the keeper's glance. Fails on 58ca2d6. */
+  {
+    const mk = (dashSrc.split("btn('build · phrase match'")[1] || '').split('const paintSettle')[0];
+    const ps = (dashSrc.split('const paintSettle = () => {')[1] || '').split('};')[0];
+    ok('a settle mark sits beside Build in the DECK group, starts hidden, and is not a button',
+       /createElement\('span'\)/.test(mk) && /smark\.dataset\.grp = GRP\.deck/.test(mk) && /smark\.hidden = true/.test(mk),
+       'with the drawer closed nothing on screen says settle is on (walk step 1)');
+    ok('…and it paints from DW.settle itself, on a tick and on the toggle',
+       /window\.DW\.settle/.test(ps) && /smark\.hidden = !on/.test(ps)
+       && /setInterval\(paintSettle, \d+\)/.test(dashSrc)
+       && /'settle off — trusted decks[^\n]*\n\s*paintSettle\(\);/.test(dashSrc),
+       'a mark painted only by the button disagrees with the engine after DW.settle.on is set from the console');
+  }
   ok('…and the document click handler closes .sel menus, which the set menu is one of',
      /querySelectorAll\('\.sel,\.pmenu,\.hcard'\)\.forEach\(o => o\.classList\.remove\('open'\)\)/.test(dashSrc),
      'an open menu that nothing closes covers the bar until reload');

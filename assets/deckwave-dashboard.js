@@ -151,6 +151,10 @@ button{background:none;border:1px solid var(--line);color:var(--dim);font:inheri
 button:hover{border-color:var(--ac);color:var(--ac)}
 button.hot{border-color:var(--ac2);color:var(--ac2)}
 .sep{width:1px;height:20px;background:var(--line);margin:0 3px}
+/* the settle mark beside the build buttons: a label, not a control */
+.smark{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ac2);
+  border:1px dashed var(--ac2);padding:5px 8px;border-radius:var(--rad);white-space:nowrap;cursor:help}
+.smark[hidden]{display:none}
 
 /* master level. Sized to sit on the same baseline as the buttons rather than
    growing the transport's height — the row already wraps and a taller control
@@ -1486,6 +1490,29 @@ function buildTransport(dash) {
   btn('build · best matches', () => build('best'));
   btn('build · phrase match', () => build('phrase'));
 
+  /* ── the settle mark: UI walk decision 1, 2026-10-09 (review §8.6) ─────
+     Settle lives behind ⚙ and changes the whole tempo plan downstream, so
+     with the drawer closed nothing on screen said it was on — only a log
+     line that the next action overwrites. The keeper's call: a mark beside
+     Build while it is on. It is a label, not a button, so it adds nothing
+     to the bar's control count. It paints from DW.settle itself, on the
+     toggle and on a slow tick, so DW.settle.on = true typed in the console
+     shows too — painting only from the button would let the mark and the
+     engine disagree, which is the paintCapture lesson. */
+  const smark = document.createElement('span');
+  smark.className = 'smark'; smark.dataset.grp = GRP.deck; smark.hidden = true;
+  tp.insertBefore(smark, $('logLine'));
+  const paintSettle = () => {
+    const S = window.DW && window.DW.settle, on = !!(S && S.on);
+    smark.hidden = !on;
+    if (on) {
+      smark.textContent = 'settle on · ' + S.seconds + 's';
+      smark.title = 'settle is ON — a deck stretched past the gate rides back to its own speed, '
+        + 'which changes the tempo plan for every transition after it. UNTESTED BY EAR. Switch it off under ⚙.';
+    }
+  };
+  setInterval(paintSettle, 1000);
+
   /* Cancelling the picker REJECTS (`LIB.pick` throws 'nothing picked', and
      showDirectoryPicker throws AbortError), so without this catch the button
      left an unhandled rejection and a log line unchanged from whatever came
@@ -1665,6 +1692,7 @@ function buildTransport(dash) {
         + S.seconds + 's. UNTESTED BY EAR. It also hands over at the track’s own BPM '
         + 'instead of the 35% drift target, so the whole tempo plan downstream changes.'
       : 'settle off — trusted decks share the rolling tempo change over each crossfade');
+    paintSettle();
   });
   sb.dataset.grp = GRP.cfg;
 
