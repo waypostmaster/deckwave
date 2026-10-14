@@ -367,8 +367,15 @@ hours, or drift.** Those need the ear or a browser.
    budget (23, a ceiling in check-panels), phrase-next, and the five
    energy windows as one panel with a window selector (no id migration:
    the ids did not move). Compact under Settings › Look waits for Settings
-   to have sections. **Walk step 9, the iPhone, is still owed.** It covers
-   the drawer on a fresh load, background + lock-screen ▶▶, and lock art.
+   to have sections. **WALK PART TWO IS PAUSED at the keeper's word
+   (2026-10-14): `docs/UI-WALK-2026-10-14.md` is the procedure; pick it up
+   there.** Step 0 is answered (ledger 150f). Lock controls title + ▶▶
+   blend are CONFIRMED from weeks of use. The keeper reports **the music
+   sometimes stops unexpectedly** (cause unknown, no instance captured;
+   Step S questions asked, NOT answered). The keeper's "drawer usually
+   open" CONTRADICTS ledger 149. Not started: Part A (desktop look at
+   ledger 150 + timing the next-button wait), Part B (push; the keeper
+   types it), Part C (the phone, after the push).
 9. **Held, not scheduled:** loudness levelling across tracks, D10's grid
    runs (a detector change), Apple Watch controls (ledger 79), the
    opener tie-break (ledger 126 — a preference the code does not actually
@@ -432,13 +439,23 @@ by its absence before it had a name for it).
   point; one is already pointed.
 - **`.helm.json` and `memory-map.json` being absent from a fresh clone is the
   design, not a gap.** Both are gitignored per-machine coordination.
+- **The four ledger-150 builds are done and swept** (2026-10-14: all
+  sixteen harnesses green at 1118; the private sweep of
+  `origin/main..HEAD` is clean against a control). Do not rebuild them or
+  re-derive the walk. Re-run the sweep at the push only because later
+  commits are not covered by it.
+- **The unexplained stops are NOT a code task yet.** Do not open
+  `deckwave-phone.js` to guess at them. The walk's Step S asks the keeper
+  first, and a screenshot of the next stop comes before any diagnosis.
 
 **What IS owed is everything under the two "Open items" headings above.**
 All of them are keeper's-ear (or eye) items. **No build task is
 outstanding as of 2026-10-14T16:54Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
 148a); ledger 149's three are pushed (149a); the walk's four are built and
-NOT pushed (ledger 150; compact waits on Settings sections). The next build
+NOT pushed (ledger 150; compact waits on Settings sections). **First action
+next session: open `docs/UI-WALK-2026-10-14.md` and ask the keeper where
+to resume: Step S answers, or Part A at the desktop.** The next build
 task appears only when the keeper decides something new; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).
