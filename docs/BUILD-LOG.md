@@ -4055,3 +4055,21 @@ came from. The phone opens the website (keeper: "that one would have
 been the website"), i.e. deckwave.fm, which serves `public`, so phone
 answers are about the code before ledger 150. Edge on localhost runs
 this working tree as of its last reload.
+**150i · Surfaces assigned by the keeper (2026-10-14T18:5xZ): all four
+150f answers are THE PHONE, on the website (deckwave.fm, `public`, the
+code before ledger 150).** Edge on localhost was used too, "for changing
+songs". 150g's desktop re-reading is withdrawn and 150f's phone reading
+stands, with these tags:
+(1) Mode in use on the phone: `background + lock controls`.
+(4) **On the phone's lock screen the title changes at each handover and
+▶▶ blends [CONFIRMED, keeper's report from use]** — LISTENING §8's title
+half and §11, in `controls` mode, ▶▶ on the downbeat (pre-150). Phone
+model not stated in this report (Step S.1 asks).
+(2) **"the phone sometimes throws out random stoppages, i don't know if it
+was just on lock or other weird stuff" [REPORTED; cause UNKNOWN]**, no
+instance captured. Decision 10 stays held.
+(3) **"drawer usually open" on the phone [CONTRADICTS ledger 149,
+UNRESOLVED].** One reading the desk cannot rule out: "usually" spans weeks,
+and 149 has only been live since 2026-10-09, so most of those opens
+predate the fix. Walk step C2 (a fresh load, upright, tab swiped away)
+decides it on today's code.
