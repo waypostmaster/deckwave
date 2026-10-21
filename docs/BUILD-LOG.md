@@ -4175,3 +4175,30 @@ DWDASH, DWPANELS, DWPHONE objects, log "ready", the button "⚙ settings",
 the drawer opening to look · output · phone · mix · troubleshoot with
 compact under `cfg/look` and the reset under `cfg/troubleshoot`. The 400 px
 branch is as in 151: measured in a frame, not on a phone.
+**151d · echo-88's finding, measured against this tree (2026-10-21T11:5xZ).**
+Echo (chronicle 584, information only): Node at C:\Program Files\nodejs is
+24.19.0, the fixed release for the 17 Oct eMudhra intermediate-CA compromise
+is 24.22.1, Node carries its own roots with no revocation list, so a Node
+process fetching the public internet over HTTPS would still accept a forged
+certificate; browsers and Windows-store clients on the host are blocked.
+Updating Node is the keeper's call (shared host); Echo has put it to them.
+MEASURED here, with a control: `node --version` v24.19.0. Of the 21
+`tools/*.js` that `require('fs')` (control), six match an https/fetch
+pattern and every match is a string fixture or a localhost probe — the
+check-libre Commons URLs are test data, check-events' `evil.example` is an
+origin check, check-serve talks to `serve.py` on 127.0.0.1; NO harness or
+Node tool opens a socket to the public internet, and there is no Node daemon
+in `tools/` or `extensions/`. The network paths Deckwave does have are not
+Node: libre material and Commons metadata are fetched by the BROWSER
+(`deckwave-libre.js`); the jsdelivr CDN constants in `deckwave.js` sit
+behind `allowCDN: false` and `index.html` loads `vendor/` (browser-side
+either way); `serve.py` is Python stdlib, local, and its one unverified
+context is for stopping its own self-signed LAN listener; the weekly
+traffic capture (`gh-traffic.py`) reads through `gh api`, a Go binary on
+the Windows store, by design (the token never touches this tree). RECON's
+page fetches its own jsonl relative to the served tree. **So: Deckwave has
+no exposure to the Node-root gap; the harnesses run on Node offline.** The
+Node update remains host hygiene, the keeper's. Nothing staged, nothing
+changed. [MEASURED on the tree at 1fb7fde; INFERRED only that no path
+outside the repo, e.g. the house's skills, fetches through Node — not
+swept here, not Deckwave's.]
