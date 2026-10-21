@@ -4149,3 +4149,29 @@ the drawer button "⚙ display" — i.e. the live site is the pre-151 code, as
 expected: `codex/mike-reliability-ui` is five docs-only commits plus this
 ledger's work ahead of `public`, and `public` equals what `ls-remote` serves
 (`25cd17b`). Read the push state with the commands in CLAUDE.md, not here.
+**151c · Pushed by the keeper 2026-10-21T11:35Z** (`! git push origin`,
+25cd17b..09417d5 public -> main, eight commits: five docs-only from
+2026-10-14, the helm fix, the sections, after a dry run naming only that
+ref). The keeper said "push"; whether they had looked at the drawer first
+was not said, so the glance stays owed. Before: `public` fast-forwarded to
+the branch; all sixteen green on `09417d5` — fourteen on a clean `git
+archive` export with the denylist copied in, and check-citywalk 58 plus
+check-serve 67 on a clean WORKTREE of the same commit, because an export
+has no `.git`: check-citywalk's control (git must call a tracked file
+tracked) FAILS there by design, and check-serve skips its two `.git` 8.3
+alias probes (65 of 65 pass there, 67 with them). 1125 in all, MEASURED
+11:22Z. That is the method note: a `git archive` export proves the
+TRACKED TREE runs; the two git-reading harnesses need a worktree, as
+150k used. The controlled private sweep of `25cd17b..HEAD`: one content
+hit, CLAUDE.md's existing sentence that the runbook is gitignored (names
+no id, already live); two file-name hits, the wayposts panel files tracked
+since 0.8.0; control (the product name) 20 in the diff and 59 in tracked
+names. After, MEASURED: `ls-remote` served 09417d5; the Pages build
+reported built for it at 11:35:54Z; `deckwave.fm/assets/deckwave-dashboard.js`
+with cache-busting was byte-identical to the commit (175559 bytes; "⚙
+settings" 5, `cfg/look` 1, control `window.DW` 120); the index returned
+200; **and the live page BOOTED in Chrome** (the check 150k lacked): DW,
+DWDASH, DWPANELS, DWPHONE objects, log "ready", the button "⚙ settings",
+the drawer opening to look · output · phone · mix · troubleshoot with
+compact under `cfg/look` and the reset under `cfg/troubleshoot`. The 400 px
+branch is as in 151: measured in a frame, not on a phone.

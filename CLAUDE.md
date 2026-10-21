@@ -371,7 +371,9 @@ hours, or drift.** Those need the ear or a browser.
    (150k).** **Compact under Settings › Look is BUILT (ledger 151,
    2026-10-21): the ⚙ drawer, now `⚙ settings`, has five inline sections
    (look · output · phone · mix · troubleshoot); MEASURED in Chrome on
-   localhost, UNSEEN by the keeper, UNPUSHED. One glance decides it.**
+   localhost; PUSHED by the keeper 2026-10-21T11:35Z at `09417d5` and
+   booted live (151c). The keeper said "push" and did not say they had
+   looked, so the glance is still owed. One glance decides it.**
    **WALK PART TWO (`docs/UI-WALK-2026-10-14.md`): Step 0, Part
    A and Part B are DONE; Part C (the phone) and Step S are OWED.** Step 0
    answers are the phone on deckwave.fm (150i): lock-screen title + ▶▶
@@ -426,8 +428,9 @@ by its absence before it had a name for it).
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
 - **The drawer sections are built (ledger 151, 2026-10-21).** Do not build
   Part 2 step 8's sheet, phone bottom sheet, persistence changes or an
-  "experiments" section on top of them; those are undecided. What is owed
-  is the keeper's glance at the open drawer and the push.
+  "experiments" section on top of them; those are undecided. Pushed and
+  live at `09417d5` (151c). What is owed is the keeper's glance at the
+  open drawer.
 - **The harness total is 1125 on this branch**, MEASURED 2026-10-21T01:33:37Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
@@ -470,9 +473,10 @@ All of them are keeper's-ear (or eye) items. **No build task is
 outstanding as of 2026-10-21T01:40Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
 148a); ledger 149's three are pushed (149a); the walk's four were pushed at
-`25cd17b` (150k); the drawer sections with compact under Look are built
-and UNPUSHED (ledger 151). **First action next session: ask the keeper
-for one glance at the open `⚙ settings` drawer on localhost (ledger 151),
+`25cd17b` (150k); the drawer sections with compact under Look are built,
+pushed and live at `09417d5` (ledger 151, 151c). **First action next
+session: ask the keeper for one glance at the open `⚙ settings` drawer
+on deckwave.fm or localhost (ledger 151),
 then open `docs/UI-WALK-2026-10-14.md` at Part C (the phone, deckwave.fm,
 C1 version check first). Ask for the rest of Step S (Q2–Q4 in general,
 beyond the one car event) and whether the keeper ran the parked Bluetooth
