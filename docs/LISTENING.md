@@ -606,7 +606,7 @@ the first chained track (stretched). Also: the play log line now says e.g.
 ## 8 · The locked phone — does `background audio` hold?
 
 iPhone, iOS 26.6, any set. `phone: background audio` in the transport
-(⚙ display group). The log line should say `navigator.audioSession.type =
+(⚙ settings, the phone section). The log line should say `navigator.audioSession.type =
 playback`; if it says the type did not take or there is no Audio Session
 API, stop — nothing will change and there is nothing to hear.
 
@@ -650,7 +650,7 @@ running in the background on its own, and has no `audioSession`).
 
 Keeper: *"Can we project a visualization to the locked screen?"* A web page
 gets one pixel surface on a locked iPhone: the Now Playing card's ARTWORK.
-`lock art:` in the transport (⚙ display group), with `phone:` on `background
+`lock art:` in the transport (⚙ settings, the phone section), with `phone:` on `background
 audio` or `keep screen on` so the card exists at all.
 
 - **`poster · journey`** — one image per track: the set-journey panel plus a

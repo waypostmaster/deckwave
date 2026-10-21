@@ -4087,3 +4087,65 @@ A3e: **the ¶ glance, answered.** The keeper pasted the reply to a press of next
 **150m · The rest of 150l's sentence, 2026-10-14T20:51Z:** "the music just disappeared out of the link to the car audio and it was having trouble geting it back". So the phone was playing through **car audio** (Bluetooth or CarPlay/Android Auto; NOT yet said which). After the rejected call, the audio route to the car dropped and was hard to restore. **This is a different failure from LISTENING §14's outcomes**, which are all about whether the deck pauses and resumes. This one is about the **output route** after the call, and a deck that is "playing" into a lost route would look healthy on screen. [INFERRED, a reading of the keeper's words, not observed]: it may also be what some of Step 0.2's unexplained stops were, if those happened in the car. Confirming it needs which phone, which car link, whether the deck page showed playing while the car was silent, and what eventually brought the sound back. No code opened; per the stops rule, there is no captured instance yet.
 
 **150n · Answers to 150m, 2026-10-14T20:52Z:** **iPhone, plain Bluetooth** to the car. "car was silent deck seemed to continue". Not recovered: "i was driving so i couldn't really get it back online i just left it", so ▶ was never tried and there is no screenshot. What that pins down: (i) LISTENING §14's Android audio-focus path does not apply. On iOS, WebKit interrupts the AudioContext itself for a call, and §14 records the keeper hearing a call stop and resume the set correctly on iOS, but **not over Bluetooth**. (ii) The deck's own clock kept running ("seemed to continue") while no sound reached the car. That fits a route or context that never came back after the call while the page carried on [INFERRED, from a glance at the screen while driving, not a capture]. Step S Q1 is answered as iPhone for THIS event only. **Not owed, and not to be asked:** testing it while driving. A parked or at-home reproduction is the keeper's to choose: Bluetooth speaker or a parked car, a set playing, a call rejected, then one look at the deck before pressing anything. No code opened.
+
+## Act 50 — The drawer gets its sections, on "sprint on what's available" (2026-10-21)
+
+**Ledger 151 · Settings sections, and compact under Look (2026-10-21).
+[MEASURED in the harness and in Chrome on localhost, at 1401 px and in a
+400 px frame; UNSEEN by the keeper; UNPUSHED]** Two of the keeper's
+decisions named sections the drawer did not have: the engine reset went to
+"Settings › Troubleshoot" (Part 5 §5, built as a bare drawer button, ledger
+148) and compact to "Settings › Look" (walk decision 2; ledger 150e said
+"nothing to build yet"). On the keeper's "sprint on what's available" the
+desk built the sections — the smallest version, NOT Part 2 step 8. What
+changed: a section is a group named `cfg/<section>` (`GRP.look`, `out`,
+`phone`, `mix`, `trouble`); `regroup()` lays them out after the four bar
+groups, each headed by a `.sech` span (a label, not a control: no input, not
+counted); `applyCfg` folds by the prefix; every drawer control names its
+section — look: register colour, layout, theme, view, list, sprite,
+density, compact · output: popout, output device · phone: phone, lock art,
+call pauses · mix: settle, keep duplicates, tune · troubleshoot: reset audio
+engine. A sectionless control lands last under "other" with a console
+warning at runtime and is REFUSED by check-panels at the source. The button
+reads `⚙ settings` (finding 9, verified: it holds tune, settle, output and
+phone, and "display" was the wrong word; LISTENING §8/§9 now say "⚙
+settings, the phone section"). NOT built, because the keeper has not
+decided them: a sheet, a phone bottom sheet, settle/keepDupes persistence,
+honesty headers per section, an "experiments" section (all Part 2 step 8).
+No handler changed; no honesty text moved; no default moved; nothing on the
+heard path.
+Harness: check-panels +7 (237), with a `DECKWAVE_DASH_SRC` seam added so
+the text checks can be aimed at `git show e78349b:assets/deckwave-dashboard.js`:
+**9 FAILED of 237 there** (the seven new, plus the two pins that moved —
+the engine-reset pin now demands `GRP.trouble`, the seven-known-sites probe
+now expects look/trouble), all passed of 237 on the tree. The control
+budget counter reads the GRP literal and treats any `cfg/` value as inside
+the drawer; bar count 23 ≤ 23, unchanged. **All sixteen: 1125, MEASURED
+2026-10-21T01:33:37Z**, library and python present (1118 before, same
+sitting, before the edit).
+Browser (Chrome, the MCP profile, no library, localhost:8777 = this tree):
+drawer open at 1401 px — five headings look · output · phone · mix ·
+troubleshoot in that order, every drawer control under one of them, zero
+stray, the bar 158 px over five rows (screenshot taken, not kept). At 400 px,
+inside an iframe because the extension's resize did not take (innerWidth
+stayed 1401, outerWidth read 160): phone CSS active; the drawer started
+CLOSED although the top-level page had just written `dw-cfg-open=1` to the
+same origin — **ledger 149's phone branch, MEASURED at 400 px in desktop
+Chrome, still unseen on a phone**; opened, the bar is 882 px and the panel
+area 0 px (finding 10, pre-existing, not changed by this), five headings in
+flow below the fold with the rest. [INFERRED]: that inline headings read as
+sections to an eye at the bar. That is the keeper's glance: open ⚙, read
+the five small words, say whether compact belongs where it now sits.
+**151a · helm.py crashed on its own task string.** `take` with a ⚙ in the
+task wrote the record and then died in `print` (cp1252 console,
+UnicodeEncodeError), exit 1 — and every `status` after it did the same,
+naming the holder and never the task, which is the one line that matters.
+Fixed by `reconfigure(errors="replace")` on stdout/stderr; the glyph prints
+as `?`. Measured on this desk before and after, same con record.
+**151b · deckwave.fm booted in a browser — the check 150k could not do.**
+Chrome, 2026-10-21T01:30Z: `DW`, `DWDASH`, `DWPANELS`, `DWPHONE` all
+objects, log line "ready", 26 scripts loaded, no console errors captured,
+the drawer button "⚙ display" — i.e. the live site is the pre-151 code, as
+expected: `codex/mike-reliability-ui` is five docs-only commits plus this
+ledger's work ahead of `public`, and `public` equals what `ls-remote` serves
+(`25cd17b`). Read the push state with the commands in CLAUDE.md, not here.

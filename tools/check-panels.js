@@ -381,7 +381,12 @@ ok('panels were actually drawn (' + drawn + ' draws across ' + ids.length + ' pa
 console.log('\n── the face, after the 2026-08-29 ultra review ──────────────');
 /* Five findings against the dashboard and the now-playing card. Each check
    below failed against the pre-fix source. */
-const dashSrc = fs.readFileSync('assets/deckwave-dashboard.js', 'utf8').replace(/\r\n/g, '\n');
+/* DECKWAVE_DASH_SRC: point the source-reading checks below at another copy
+   of the dashboard (git show <rev>:assets/deckwave-dashboard.js > file) so a
+   new check can be SHOWN failing on the old source before it is trusted —
+   the same seam the other harnesses carry. The sandbox boot above still
+   loads the tree's own index.html; only these text checks follow the seam. */
+const dashSrc = fs.readFileSync(process.env.DECKWAVE_DASH_SRC || 'assets/deckwave-dashboard.js', 'utf8').replace(/\r\n/g, '\n');
 /* EVERY SHIPPED MODULE PARSES. Added 2026-08-30 after this harness reported
    all-green on a deckwave-dashboard.js whose ▶ handler had an unterminated
    comment — a closing delimiter landed early and left prose as bare code.
@@ -567,8 +572,8 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
      stopH.length > 0 && /\.title = '[^']*track 1[^']*'/.test(stopH),
      'stop clears both decks and the next ▶ plays track 1; a stop with no title is the lost-session trap with a different button');
   const killers = (dashSrc.match(/btn\('[^']*', \(\) => log\(window\.DW\.kill\(\)\), false, GRP\.\w+\)/g) || []);
-  ok('the engine reset is ONE button, in the cfg group, and it is not called kill',
-     killers.length === 1 && /GRP\.cfg\)$/.test(killers[0]) && !/btn\('kill'/.test(killers[0]),
+  ok('the engine reset is ONE button, in the drawer\'s troubleshoot section, and it is not called kill',
+     killers.length === 1 && /GRP\.trouble\)$/.test(killers[0]) && !/btn\('kill'/.test(killers[0]),
      'DW.kill() buttons found: ' + JSON.stringify(killers));
   ok('…and it has a title that calls itself a last resort',
      /killBtn\.title = '[^']*last resort[^']*'/.test(dashSrc),
@@ -1179,6 +1184,14 @@ console.log('\n── the control budget (UI walk decision 5) ──────
   const CEILING = 23;   /* MEASURED 2026-10-14 by this counter on adccea4 */
   const NOT_CONTROLS = ['smark'];
   const src = dashSrc;
+  /* the GRP literal, read from the source (comments stripped): since
+     2026-10-21 a group whose VALUE starts with `cfg/` is a SECTION of the
+     drawer, and bare `cfg` is the drawer with no section, which no site
+     may use any more (checked below). "In the drawer" means either. */
+  const grpLit = ((src.match(/const GRP = \{([\s\S]*?)\};/) || [])[1] || '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const GRPVAL = {};
+  for (const m of grpLit.matchAll(/(\w+):\s*'([^']*)'/g)) GRPVAL[m[1]] = m[2];
+  const drawerKey = k => k === 'cfg' || /^cfg\//.test(GRPVAL[k] || '');
   /* the index just past the paren matching the one at `open`, skipping
      strings, templates, comments and regex literals */
   const closeOf = open => {
@@ -1221,7 +1234,7 @@ console.log('\n── the control budget (UI walk decision 5) ──────
   }
   const named = new Set(sites.map(s => s.name).filter(Boolean));
   const hand = [...src.matchAll(/\b(\w+)\.dataset\.grp = GRP\.(\w+)/g)]
-    .filter(m => !named.has(m[1]) && m[1] !== 's' && m[2] !== 'cfg')
+    .filter(m => !named.has(m[1]) && m[1] !== 's' && !drawerKey(m[2]))
     .map(m => ({ kind: 'hand', label: m[1], name: m[1], grp: m[2] }));
   const all = sites.concat(hand);
   const find = l => all.find(s => s.label === l || s.name === l);
@@ -1235,20 +1248,61 @@ console.log('\n── the control budget (UI walk decision 5) ──────
      && selText > 0 && sites.filter(s => s.kind === 'select').length === selText,
      'found ' + sites.filter(s => s.kind === 'btn').length + ' btn + ' + sites.filter(s => s.kind === 'select').length
      + ' select sites — the paren matcher lost its place');
-  const known = { 'scan': 'deck', 'pause': 'play', 'reset audio engine': 'cfg', 'register colour: off': 'cfg',
-                  '▾ save cache': 'files', 'layout': 'cfg', 'setMenu': 'files' };
+  const known = { 'scan': 'deck', 'pause': 'play', 'reset audio engine': 'trouble', 'register colour: off': 'look',
+                  '▾ save cache': 'files', 'layout': 'look', 'setMenu': 'files' };
   const wrong = Object.keys(known).filter(l => !find(l) || find(l).grp !== known[l]);
-  ok('…and classifies seven known sites correctly (default group, 4th arg, reassignment, select default, hand-built)',
+  ok('…and classifies seven known sites correctly (default group, 4th arg, reassignment, select 5th arg, hand-built)',
      wrong.length === 0, 'misclassified: ' + wrong.map(l => l + '=' + (find(l) ? find(l).grp : 'MISSING')).join(', '));
   ok('every NOT_CONTROLS entry names a hand-built element that exists (a guard naming nothing present is untested)',
      NOT_CONTROLS.every(n => new RegExp('\\b' + n + '\\.dataset\\.grp = GRP\\.').test(src)),
      'an exemption for an element the source no longer builds');
-  const bar = all.filter(s => s.grp !== 'cfg' && !NOT_CONTROLS.includes(s.name));
+  const bar = all.filter(s => !drawerKey(s.grp) && !NOT_CONTROLS.includes(s.name));
   console.log('        bar controls outside the drawer: ' + bar.length + ' — '
     + bar.map(s => s.label || s.name).join(' · '));
   ok('bar controls outside the ⚙ drawer: ' + bar.length + ' ≤ ceiling ' + CEILING,
      bar.length <= CEILING,
      'a control was added to the bar without one leaving it — the keeper set this ceiling at the walk (decision 5)');
+
+  /* THE DRAWER HAS SECTIONS (2026-10-21). UI review Part 5 §5 sent the
+     engine reset to "Settings › Troubleshoot" and walk decision 2 sent
+     compact to "Settings › Look"; both named sections the drawer did not
+     have. What these can fail on: a GRP literal with no cfg/ sections; a
+     section regroup() never lays out (its controls would fold behind the
+     drawer with no heading and no place); a btn/select site left in bare
+     cfg (sectionless — at runtime it lands last under "other" with a
+     console warning, and this refuses the source); compact anywhere but
+     look, the reset anywhere but troubleshoot; applyCfg still matching
+     data-grp="cfg" exactly (a sectioned control would never hide); the
+     drawer button still reading "display" when it holds tune, settle,
+     output and phone (finding 9). All seven shown failing on e78349b
+     through DECKWAVE_DASH_SRC. What they cannot see: where a heading lands
+     on screen, or whether the open drawer still wraps sanely at 1550 px and
+     at 400 px — that is a browser look, written into the ledger. */
+  const sections = Object.keys(GRPVAL).filter(k => /^cfg\//.test(GRPVAL[k]));
+  ok('GRP declares the drawer\'s sections as cfg/-prefixed groups, look and troubleshoot among them',
+     sections.length >= 2 && GRPVAL.look === 'cfg/look' && GRPVAL.trouble === 'cfg/troubleshoot',
+     'sections found: ' + JSON.stringify(sections));
+  const orderSrc = ((src.split('function regroup() {')[1] || '').match(/const order = \[([\s\S]*?)\];/) || [])[1] || '';
+  const laidOut = [...orderSrc.matchAll(/GRP\.(\w+)/g)].map(m => m[1]);
+  ok('regroup() lays out every declared section, after the four bar groups',
+     sections.length > 0 && sections.every(k => laidOut.includes(k)) && laidOut.slice(0, 4).join() === 'deck,play,files,cap',
+     'order: ' + laidOut.join(',') + ' — a section missing here folds behind the drawer and is placed nowhere');
+  const bare = all.filter(s => s.grp === 'cfg');
+  ok('no btn/select site is left in the bare cfg group — every drawer control names its section',
+     sections.length > 0 && bare.length === 0, 'sectionless: ' + bare.map(s => s.label || s.name).join(' · '));
+  const cmp = find('– compact'), rst = find('reset audio engine');
+  ok('compact is under look (walk decision 2) and the engine reset under troubleshoot (Part 5 §5)',
+     !!cmp && cmp.grp === 'look' && !!rst && rst.grp === 'trouble',
+     'compact=' + (cmp || {}).grp + ' reset=' + (rst || {}).grp);
+  ok('applyCfg folds by the cfg/ prefix (inDrawer), not by an exact data-grp="cfg" match',
+     /function applyCfg\(\) \{[\s\S]*?inDrawer\(el\.dataset\.grp\)/.test(src) && !/\[data-grp="' \+ GRP\.cfg \+ '"\]/.test(src),
+     'a sectioned control would never fold behind ⚙');
+  ok('regroup() heads each section with a .sech label that is a span, and the CSS styles it',
+     /const h = document\.createElement\('span'\);\s*h\.className = 'sech'/.test(src) && /\n\.sech\{/.test(src),
+     'headings missing, not spans, or unstyled');
+  ok('the drawer button reads ⚙ settings and the word "display" has left its label',
+     /btn\('⚙ settings'/.test(src) && /'⚙ settings ▴'/.test(src) && !/⚙ display/.test(src),
+     'the drawer holds tune, settle, output and phone — "display" is the wrong word for it (finding 9)');
 }
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');

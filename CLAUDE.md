@@ -262,9 +262,9 @@ runbook (`docs/RUNBOOK.md`, registrar ids, account names) is gitignored.
 **Before any push, sweep the tracked tree for those with a control term
 that must hit** (ledger 121: a zero without a control is decoration).
 
-### Harnesses — sixteen of them, 1118 checks, all `node tools/check-*.js`
+### Harnesses — sixteen of them, 1125 checks, all `node tools/check-*.js`
 
-`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 230 · `check-phone` 76 · `check-phrase` 59 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59 (per-file figures above are current). Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 57 · `check-route` 21 · `check-player` 93 · `check-panels` 237 · `check-phone` 76 · `check-phrase` 59 · `check-libre` 109 · `check-flac` 13 (needs the library) · `check-popout` 27 · `check-events` 64 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 46 · `check-reliability` 47 · `check-prepared` 14 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59. **Re-run 2026-10-21T01:33:37Z: all sixteen green, 1125** — ledger 151 took `check-panels` to 237 (per-file figures above are current) and gave it a `DECKWAVE_DASH_SRC` seam. Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -368,8 +368,11 @@ hours, or drift.** Those need the ear or a browser.
    check-panels), phrase-next, and the five energy windows as one panel
    with a window selector (no id migration: the ids did not move). **All
    four SEEN/HEARD by the keeper in Edge (150j) and pushed at `25cd17b`
-   (150k).** Compact under Settings › Look waits for Settings to have
-   sections. **WALK PART TWO (`docs/UI-WALK-2026-10-14.md`): Step 0, Part
+   (150k).** **Compact under Settings › Look is BUILT (ledger 151,
+   2026-10-21): the ⚙ drawer, now `⚙ settings`, has five inline sections
+   (look · output · phone · mix · troubleshoot); MEASURED in Chrome on
+   localhost, UNSEEN by the keeper, UNPUSHED. One glance decides it.**
+   **WALK PART TWO (`docs/UI-WALK-2026-10-14.md`): Step 0, Part
    A and Part B are DONE; Part C (the phone) and Step S are OWED.** Step 0
    answers are the phone on deckwave.fm (150i): lock-screen title + ▶▶
    blend CONFIRMED in `controls` mode; **the phone sometimes stops the
@@ -421,7 +424,11 @@ by its absence before it had a name for it).
 - **The 660-line narrative was retired ON PURPOSE** to
   `docs/CLAUDE-STATE-2026-09-01.md`. Do not restore it here or re-summarise it;
   BUILD-LOG Acts 22–41 carry the same story with the reasoning.
-- **The harness total is 1118 on this branch**, MEASURED 2026-10-14T16:54Z
+- **The drawer sections are built (ledger 151, 2026-10-21).** Do not build
+  Part 2 step 8's sheet, phone bottom sheet, persistence changes or an
+  "experiments" section on top of them; those are undecided. What is owed
+  is the keeper's glance at the open drawer and the push.
+- **The harness total is 1125 on this branch**, MEASURED 2026-10-21T01:33:37Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the
@@ -460,14 +467,16 @@ by its absence before it had a name for it).
 
 **What IS owed is everything under the two "Open items" headings above.**
 All of them are keeper's-ear (or eye) items. **No build task is
-outstanding as of 2026-10-14T18:56Z**: the five decided in
+outstanding as of 2026-10-21T01:40Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
 148a); ledger 149's three are pushed (149a); the walk's four were pushed at
-`25cd17b` (150k; compact waits on Settings sections). **First action
-next session: open `docs/UI-WALK-2026-10-14.md` at Part C (the phone,
-deckwave.fm, C1 version check first). Ask for the rest of Step S
-(Q2–Q4 in general, beyond the one car event) and whether the keeper ran
-the parked Bluetooth test (150n).** The next build
+`25cd17b` (150k); the drawer sections with compact under Look are built
+and UNPUSHED (ledger 151). **First action next session: ask the keeper
+for one glance at the open `⚙ settings` drawer on localhost (ledger 151),
+then open `docs/UI-WALK-2026-10-14.md` at Part C (the phone, deckwave.fm,
+C1 version check first). Ask for the rest of Step S (Q2–Q4 in general,
+beyond the one car event) and whether the keeper ran the parked Bluetooth
+test (150n).** The next build
 task appears only when the keeper decides something new; build it as the review's §7
 says — small, reversible, one commit each, harness changed in the same
 commit, nothing heard-path rewritten (§9).

@@ -151,6 +151,12 @@ button{background:none;border:1px solid var(--line);color:var(--dim);font:inheri
 button:hover{border-color:var(--ac);color:var(--ac)}
 button.hot{border-color:var(--ac2);color:var(--ac2)}
 .sep{width:1px;height:20px;background:var(--line);margin:0 3px}
+/* a section heading inside the ⚙ drawer: a label, not a control. Inline,
+   so the drawer keeps wrapping as one row of flow; the left rule is the
+   seam between sections. */
+.sech{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+  border-left:1px solid var(--line);padding-left:7px;margin-left:4px;
+  white-space:nowrap;pointer-events:none;user-select:none}
 /* the settle mark beside the build buttons: a label, not a control */
 .smark{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ac2);
   border:1px dashed var(--ac2);padding:5px 8px;border-radius:var(--rad);white-space:nowrap;cursor:help}
@@ -400,7 +406,7 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
    Two screens instead of one cramped one: the PANELS, or the SET (track list
    + now-playing card), toggled by a phone-only button. The log line sits at
    the TOP of the transport, full width, in the accent colour. The files and
-   capture groups fold behind ⚙ display along with cfg. Tap targets grow.
+   capture groups fold behind ⚙ settings along with cfg. Tap targets grow.
    Nothing here changes what any panel draws. */
 button.phl{display:none}
 @media(max-width:720px){
@@ -1319,7 +1325,16 @@ function buildTransport(dash) {
      wrapping flexbox, so hiding a group just shortens the row. No change to
      the app grid, which is the part that would be easy to break and hard to
      notice. */
-  const GRP = { deck: 'deck', play: 'play', files: 'files', cap: 'capture', cfg: 'cfg' };
+  const GRP = { deck: 'deck', play: 'play', files: 'files', cap: 'capture', cfg: 'cfg',
+    /* ── the ⚙ drawer's SECTIONS (UI review Part 5: kill went to "Settings ›
+       Troubleshoot", walk decision 2 sent compact to "Settings › Look";
+       built 2026-10-21). A section IS a group whose name starts with `cfg/`,
+       so everything that hides, counts or folds "the drawer" keys on the
+       prefix (inDrawer) and the headings come free in regroup(). Nothing
+       may stay in bare `cfg`: check-panels refuses a drawer control with
+       no section. Order and headings: regroup(). */
+    look: 'cfg/look', out: 'cfg/output', phone: 'cfg/phone', mix: 'cfg/mix', trouble: 'cfg/troubleshoot' };
+  const inDrawer = g => typeof g === 'string' && g.split('/')[0] === GRP.cfg;
 
   const btn = (txt, fn, hot, grp) => {
     const b = document.createElement('button');
@@ -1597,7 +1612,7 @@ function buildTransport(dash) {
       console.table(r.durationMismatch);
     }
   });
-  auditBtn.dataset.ph = 'cfg';        /* phone: behind ⚙ display */
+  auditBtn.dataset.ph = 'cfg';        /* phone: behind ⚙ settings */
   auditBtn.dataset.setAction = 'audit';
 
   sep(GRP.play);
@@ -1680,7 +1695,7 @@ function buildTransport(dash) {
     if (!M.on) ['--dw-color-accent', '--dw-color-accent-2']
       .forEach(k => dash.host.style.removeProperty(k));
   });
-  rc.dataset.grp = GRP.cfg;
+  rc.dataset.grp = GRP.look;
 
   /* ── settle: ride a stretched deck back to its own speed ──────────────
      OFF by default and it must stay that way until it has been heard. See
@@ -1705,7 +1720,7 @@ function buildTransport(dash) {
       : 'settle off — trusted decks share the rolling tempo change over each crossfade');
     paintSettle();
   });
-  sb.dataset.grp = GRP.cfg;
+  sb.dataset.grp = GRP.mix;
 
   /* ── phone playback: what keeps a set alive when the screen goes dark ──
      OFF by default. `wake` holds a screen wake lock while a set plays —
@@ -1748,7 +1763,7 @@ function buildTransport(dash) {
           : 'mix routed through an <audio> element · output via ' + s.output + ' · element ' + s.audioElement
             + ' · UNTESTED on a locked phone: if the music stops a few seconds after locking, use "keep screen on"');
       } catch (e) { log('phone mode: ' + String((e && e.message) || e)); }
-    }, PH.mode, GRP.cfg);
+    }, PH.mode, GRP.phone);
     /* a saved mode is re-applied on load so a phone set up once stays set up */
     if (PH.mode !== 'off') setTimeout(() => PH.set(PH.mode).catch(() => {}), 0);
 
@@ -1775,7 +1790,7 @@ function buildTransport(dash) {
             : a === 'poster' ? 'lock-screen art: one poster per track (set journey + title strip) — needs phone: background audio or keep screen on to reach the lock screen'
             : 'lock-screen art: ' + panel + ' redrawn once a second and re-sent as artwork · EXPERIMENT: lock the phone — does the card\'s art keep changing after two minutes, or change once and freeze?');
         } catch (e) { log('lock art: ' + String((e && e.message) || e)); }
-      }, artKey(), GRP.cfg);
+      }, artKey(), GRP.phone);
     }
 
     /* ── an incoming call pauses the set. ON by default (keeper, first
@@ -1801,7 +1816,7 @@ function buildTransport(dash) {
       select('⇱ popout', popOpts, async k => {
         try { log('popout: ' + await PO.set(k)); }
         catch (e) { log('popout: ' + String((e && e.message) || e)); }
-      }, 'off', GRP.cfg);
+      }, 'off', GRP.out);
     }
 
     if (PH.setCalls) {
@@ -1811,7 +1826,7 @@ function buildTransport(dash) {
         cb.className = on ? 'hot' : '';
         log(on ? 'an incoming call pauses the set and it resumes at hang-up — iOS: the system does it; Android: a silent element holds audio focus for the page · UNTESTED with a real call: receive one mid-set and report'
                : 'calls no longer pause the set — on Android the music will play straight through a ringing phone');
-      }, PH.calls, GRP.cfg);
+      }, PH.calls, GRP.phone);
       cb.title = 'Android: the focus proxy starts with ▶; if music was started another way, one tap anywhere arms it';
     }
   }
@@ -1827,7 +1842,7 @@ function buildTransport(dash) {
       ? 'duplicates kept — album and single versions both enter the set. Rebuild to apply.'
       : 'duplicates merged — one copy of each recording, highest confidence wins. Rebuild to apply.');
   });
-  db.dataset.grp = GRP.cfg;
+  db.dataset.grp = GRP.mix;
 
   sep(GRP.files);
   /* ── the set menu, 2026-10-09 (UI review Part 5 §3) ──────────────────────
@@ -1947,7 +1962,7 @@ function buildTransport(dash) {
     }
     app.setAttribute('data-cols', k);
     log('layout: ' + k); setTimeout(dash.fit, 80);
-  }, 'auto');
+  }, 'auto', GRP.look);
 
   /* ── auto, actually automatic ──────────────────────────────────────────
      "auto" used to mean "remove the override and let a static grid decide",
@@ -2014,7 +2029,7 @@ function buildTransport(dash) {
     setTimeout(dash.fit, 60); };
   applyTheme(theme);
   const themeSel = select('theme', THEMES.map(t => ({ k: t, n: t,
-    sw: SWATCH[t] })), applyTheme, theme);
+    sw: SWATCH[t] })), applyTheme, theme, GRP.look);
   /* THE TUNE — keeper, 2026-08-29, on the ultra review's E1: "Is there any
      way to build whatever it thinks was the 'proper' version as a
      uncheck-this-'deckwave-tune' box? so we're not messing up my mix but
@@ -2035,7 +2050,7 @@ function buildTransport(dash) {
     log('tune: ' + (r.mode === 'standard' ? 'standard camelot' : 'deckwave tune')
       + ' · ' + r.restamped + ' of ' + r.corpus + ' keys restamped · the play order changes at the next build');
     renderList();
-  }, tune0);
+  }, tune0, GRP.mix);
   /* THE OUTPUT — keeper, 2026-10-07: SteelSeries Sonar puts all of Chrome
      on its Chat channel (Google Meet lives there too), and Sonar sorts by
      process, so no tab can be told apart. The deck now picks its own
@@ -2060,7 +2075,7 @@ function buildTransport(dash) {
       saved = { id: k, label: k ? ((it && it.label) || '') : '' };
       try { localStorage.setItem('dw-output', JSON.stringify(saved)); } catch (e) {}
       log(await window.DW.setOutput(k) + (k ? ' · ' + saved.label : ''));
-    }, saved.id);
+    }, saved.id, GRP.out);
     async function fillOutputs(name) {
       const r = await window.DW.outputs(name);
       outItems.length = 1;
@@ -2121,7 +2136,7 @@ function buildTransport(dash) {
     log(dash.views.load(k) ? 'view: ' + k : 'view "' + k + '" has no panel list — not loaded');
   };
   function rebuildViews() { if (viewSel) viewSel.el.remove();
-    viewSel = select('view', viewItems(), onView, dash.views.list()[0] || 'default'); }
+    viewSel = select('view', viewItems(), onView, dash.views.list()[0] || 'default', GRP.look); }
   if (!dash.views.list().length) dash.views.save('default');
   rebuildViews();
 
@@ -2156,7 +2171,7 @@ function buildTransport(dash) {
     }
     log('track list: ' + k + (k === 'hide' ? ' · now playing hidden with it' : ''));
     setTimeout(dash.fit, 80);
-  }, 'show');
+  }, 'show', GRP.look);
 
   /* Centre sprite for the camelot wheel. Recovered from the live build; the
      alternatives are original shapes. */
@@ -2176,7 +2191,7 @@ function buildTransport(dash) {
       .concat(live.filter(k => !OG.includes(k)));
     select('sprite', order.map(k => ({ k, n: k, hint: HINT[k] || themeOf(k) })),
       k => { window.DWPANELS.sprite = k; log('sprite: ' + k); },
-      (window.DWPANELS && window.DWPANELS.sprite) || 'jam');
+      (window.DWPANELS && window.DWPANELS.sprite) || 'jam', GRP.look);
   }
 
   select('density', [
@@ -2185,18 +2200,23 @@ function buildTransport(dash) {
   ], k => {
     k === '1' ? app.setAttribute('data-dense', '1') : app.removeAttribute('data-dense');
     log('density: ' + (k === '1' ? 'dense' : 'comfortable')); setTimeout(dash.fit, 80);
-  }, '0');
+  }, '0', GRP.look);
 
   /* Carried over from the transport mount() used to build inline. It is the
      one control the newer bar did not already have, and dropping it while
-     de-duplicating would have lost a working feature to a cleanup. */
+     de-duplicating would have lost a working feature to a cleanup.
+     Under Settings › Look since 2026-10-21 (UI walk decision 2, 2026-10-09:
+     on a maximised window compact left the main area black, so it is a
+     small-window view and not a daily control). Part 4 §C.3 argued it is a
+     view mode and should stay one tap away; the keeper's call went the
+     other way, and the drawer is one click. */
   const mb = btn('– compact', () => {
     const on = app.classList.toggle('mini');
     dash.host.classList.toggle('mini-host', on);
     const nl = $('nowline'); if (nl) nl.style.display = on ? 'block' : 'none';
     mb.textContent = on ? '+ expand' : '– compact';
     mb.className = on ? 'hot' : '';
-    setTimeout(dash.fit, 60); }, false, GRP.cfg);
+    setTimeout(dash.fit, 60); }, false, GRP.look);
 
   sep(GRP.cap);
   /* Both capture buttons paint from ONE fact — DWLISTEN.kind — rather than
@@ -2323,10 +2343,10 @@ function buildTransport(dash) {
      wedged engine (the popping question, ledgers 65/69, still unheard). The
      keeper has not needed it to clear popping, so it goes behind the ⚙
      drawer as the Troubleshoot entry; `DW.kill()` stays in the console. The
-     drawer is DOM only, so a wedged graph cannot stop it opening. Settings
-     has no sections yet; when it gets them this is the first Troubleshoot
-     item. */
-  const killBtn = btn('reset audio engine', () => log(window.DW.kill()), false, GRP.cfg);
+     drawer is DOM only, so a wedged graph cannot stop it opening. Since
+     2026-10-21 the drawer has sections and this is the troubleshoot one's
+     only item. */
+  const killBtn = btn('reset audio engine', () => log(window.DW.kill()), false, GRP.trouble);
   killBtn.title = 'troubleshoot — last resort if sound is stuck: stops everything and closes the audio engine; ▶ boots a fresh one from track 1. Always works, whatever state the graph is in.';
 
   /* ── the collapse ──────────────────────────────────────────────────────
@@ -2344,19 +2364,24 @@ function buildTransport(dash) {
     const phone = typeof matchMedia === 'function' && matchMedia('(max-width:720px)').matches;
     cfgOpen = !phone && localStorage.getItem('dw-cfg-open') === '1';
   } catch (e) {}
-  const cfgBtn = btn('⚙ display', () => {
+  /* '⚙ settings', no longer labelled "display" (finding 9, verified
+     correct: the drawer holds tune, settle, duplicates, output, phone —
+     things that change the mix and the device, not only the look — and the
+     keeper's own decisions call it "Settings › Look" and "Settings ›
+     Troubleshoot"). */
+  const cfgBtn = btn('⚙ settings', () => {
     cfgOpen = !cfgOpen; applyCfg();
     try { localStorage.setItem('dw-cfg-open', cfgOpen ? '1' : '0'); } catch (e) {}
     setTimeout(dash.fit, 80);
   }, false, GRP.deck);
 
   function applyCfg() {
-    tp.querySelectorAll('[data-grp="' + GRP.cfg + '"]')
+    [...tp.children].filter(el => el.dataset && inDrawer(el.dataset.grp))
       .forEach(el => { el.style.display = cfgOpen ? '' : 'none'; });
     /* on a phone the files and capture groups fold behind this toggle too;
        the class is what the phone CSS keys on, harmless on a desktop */
     tp.classList.toggle('cfg-open', cfgOpen);
-    cfgBtn.textContent = cfgOpen ? '⚙ display ▴' : '⚙ display';
+    cfgBtn.textContent = cfgOpen ? '⚙ settings ▴' : '⚙ settings';
     cfgBtn.className = cfgOpen ? 'hot' : '';
   }
 
@@ -2368,19 +2393,43 @@ function buildTransport(dash) {
      Separators are rebuilt from scratch so they always land between groups
      and never orphan at an end. */
   function regroup() {
-    const order = [GRP.deck, GRP.play, GRP.files, GRP.cap, GRP.cfg];
-    tp.querySelectorAll('.sep').forEach(s => s.remove());
+    /* the drawer's sections come after the four bar groups, in this order,
+       each headed by a label (.sech — a span, not a control: it takes no
+       input and the budget counter does not see it). A separator divides
+       bar groups and opens the drawer; inside the drawer the headings do
+       that job, so no separator sits between two sections. */
+    const order = [GRP.deck, GRP.play, GRP.files, GRP.cap,
+                   GRP.look, GRP.out, GRP.phone, GRP.mix, GRP.trouble];
+    tp.querySelectorAll('.sep,.sech').forEach(s => s.remove());
     const logLine = $('logLine');
     order.forEach((g, gi) => {
       const items = [...tp.children].filter(el => el.dataset && el.dataset.grp === g);
       if (!items.length) return;
-      if (gi > 0) {
+      if (gi > 0 && !(inDrawer(g) && inDrawer(order[gi - 1]))) {
         const s = document.createElement('span');
-        s.className = 'sep'; s.dataset.grp = g === GRP.cfg ? GRP.cfg : g;
+        s.className = 'sep'; s.dataset.grp = g;
         tp.insertBefore(s, logLine);
+      }
+      if (inDrawer(g)) {
+        const h = document.createElement('span');
+        h.className = 'sech'; h.dataset.grp = g; h.textContent = g.split('/')[1];
+        tp.insertBefore(h, logLine);
       }
       items.forEach(el => tp.insertBefore(el, logLine));
     });
+    /* A control left in bare `cfg` has no section: it would hide with the
+       drawer but land nowhere in this order, so it is placed last under its
+       own heading and said out loud rather than lost. check-panels refuses
+       the source that does this; this is the runtime half of the same gate. */
+    const stray = [...tp.children].filter(el => el.dataset && el.dataset.grp === GRP.cfg);
+    if (stray.length) {
+      console.warn('deckwave: ' + stray.length + ' drawer control(s) with no section — give each a GRP.<section>:',
+        stray.map(el => el.textContent || el.getAttribute('aria-label') || el.className));
+      const h = document.createElement('span');
+      h.className = 'sech'; h.dataset.grp = GRP.cfg; h.textContent = 'other';
+      tp.insertBefore(h, logLine);
+      stray.forEach(el => tp.insertBefore(el, logLine));
+    }
   }
   regroup();
   applyCfg();
