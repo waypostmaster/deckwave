@@ -43,6 +43,18 @@ coordination state, not product, and it must never reach the public tree.
 import json, os, socket, sys, time
 from datetime import datetime, timezone
 
+# A Windows console is cp1252 unless told otherwise, and a task string with
+# one non-ASCII glyph in it (a ⚙, a ▶) made `status` print "CON: HELD by …"
+# and then die with UnicodeEncodeError before naming the task -- exit 1, the
+# one line that mattered unprinted. Measured 2026-10-21. The record was
+# already written, so every later `status` crashed the same way until the
+# con was released. Replace what the console cannot draw; never crash.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CON = os.path.join(ROOT, ".helm.json")
 
