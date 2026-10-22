@@ -1965,8 +1965,8 @@ function buildTransport(dash) {
     inp.onchange = async () => { if (!inp.files[0]) { inp.remove(); return; }
       try {
         const r = await window.DWCACHE.restore(await inp.files[0].text(), 'merge');
-        log('cache restored · ' + r.imported + ' records merged · store now ' + r.after.tracks +
-            ' tracks · scan the folder again to use them');
+        log('cache restored · ' + r.imported + ' records added · ' + r.kept + ' already present, kept · store now ' +
+            r.after.tracks + ' tracks · scan the folder again to use them');
       } catch (e) { log('cache restore failed: ' + String((e && e.message) || e)); } finally { inp.remove(); } };
     inp.click();
   });

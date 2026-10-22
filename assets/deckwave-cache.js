@@ -200,6 +200,7 @@ return {
     if (bad !== -1) throw new Error('record ' + bad + ' has no id — nothing was written');
 
     const db = await open();
+    let written = 0, kept = 0;
     await new Promise((res, rej) => {
       const t = db.transaction(STORE, 'readwrite');
       const s = t.objectStore(STORE);
@@ -207,15 +208,29 @@ return {
       /* a commit-time abort (quota) fires neither of those; without this
          the await above never settles */
       t.onabort = () => rej(t.error || new Error('cache restore transaction aborted'));
+      /* Repair on the way in. Every cache file written before this fix carries
+         beats as {"0":n,...}; storing that shape verbatim is what breaks the
+         set at its first transition. */
+      const rows = d.records.map(normaliseRow);
+      /* the gate that does not rest on the id check above being complete:
+         anything put() throws for, discard the queued work too */
+      const write = (skip) => {
+        try {
+          rows.forEach(r => { if (skip && skip.has(r.id)) kept++; else { s.put(r); written++; } });
+        } catch (e) { t.abort(); rej(e); }
+      };
       try {
-        if (mode === 'replace') s.clear();
-        /* Repair on the way in. Every cache file written before this fix carries
-           beats as {"0":n,...}; storing that shape verbatim is what breaks the
-           set at its first transition. */
-        d.records.forEach(r => s.put(normaliseRow(r)));
+        if (mode === 'replace') { s.clear(); write(null); return; }
+        /* merge: put() REPLACES under an existing id, so until 2026-10-22 this
+           mode overwrote every row the file named — reverting the engine's
+           play-time write-backs (phrase, loud) and v2 grids to an older
+           export's values under a log line that said "merged". Read the keys
+           first, in the same transaction, and put only the ids not present.
+           The store keeps the row the engine is playing from; the file fills
+           the gaps. Pinned in check-loop §11. */
+        const k = s.getAllKeys();
+        k.onsuccess = () => write(new Set(k.result));
       } catch (e) {
-        /* the gate that does not rest on the check above being complete:
-           anything put() throws for, discard the queued work too */
         t.abort(); rej(e);
       }
     });
@@ -228,7 +243,9 @@ return {
 
     return {
       mode: mode || 'merge',
-      imported: d.records.length,
+      /* imported = rows actually written; kept = ids the store already had
+         (merge only — the live row won, the file's was not read) */
+      imported: written, kept,
       expected, after,
       matches: mode === 'replace' ? mismatches.length === 0 : null,
       mismatches: mode === 'replace' ? mismatches : ['(merge mode — totals will differ if the store was not empty)'],

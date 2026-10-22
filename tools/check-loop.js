@@ -414,11 +414,18 @@ function makeIDB(rows, opts) {
     objectStoreNames: { contains: n => n === 'f' },
     close() {},
     transaction() {
-      const ops = []; let aborted = false;
+      const ops = []; let aborted = false, pending = 0;
       const t = { oncomplete: null, onerror: null, onabort: null, error: null,
                   abort() { aborted = true; } };
       t.objectStore = () => ({
         clear() { ops.push(() => data.clear()); return req(); },
+        /* a read request keeps the transaction alive until it answers, and
+           requests queued from its onsuccess still belong to it — the spec's
+           "active while a request is pending" rule, which the merge path
+           below relies on. Answers with the keys as they stand NOW; the
+           module never queues a write before this read in merge mode. */
+        getAllKeys() { const r = req(); pending++;
+          setTimeout(() => { pending--; r.result = Array.from(data.keys()); r.onsuccess && r.onsuccess(); }, 0); return r; },
         put(v) {
           if (!v || typeof v !== 'object' || v.id === undefined || v.id === null) {
             const e = new Error('Data provided to an operation does not meet requirements.');
@@ -431,15 +438,17 @@ function makeIDB(rows, opts) {
         },
         getAll() { const r = req(); setTimeout(() => { r.result = Array.from(data.values()); r.onsuccess && r.onsuccess(); }, 0); return r; },
       });
-      setTimeout(() => {
+      const commit = () => {
         if (aborted) { t.onabort && t.onabort(); return; }
+        if (pending) { setTimeout(commit, 0); return; }
         if (opts.abortOnCommit && ops.length) {
           const e = new Error('quota'); e.name = 'QuotaExceededError'; t.error = e;
           t.onabort && t.onabort(); return;
         }
         ops.forEach(f => f());
         t.oncomplete && t.oncomplete();
-      }, 0);
+      };
+      setTimeout(commit, 0);
       return t;
     },
   };
@@ -514,6 +523,48 @@ const file = (records) => ({ format: 'deckwave-corpus-cache', records });
     ok('a transaction aborted at commit (quota shape) REJECTS the restore rather than leaving it unsettled',
        r3 && r3.settled === 'rejected',
        'no onabort handler — the caller awaits forever: ' + JSON.stringify(r3));
+
+    /* ── merge keeps what is already there ─────────────────────────────── */
+    /* The contract above restore() says merge "keeps existing records and
+       adds missing ones". Until 2026-10-22 it put() every file row, and
+       put() replaces under an existing id — so loading an older export over
+       a live store reverted the engine's play-time write-backs (phrase,
+       loud) and v2 grids to whatever the file carried, under a log line
+       that said "merged". The live row below carries both derived fields
+       and a bpm the file disagrees on; the file carries the same id without
+       them plus one new id. Watched failing against 6583d55: the store held
+       a,b,c,d but a.phrase was gone and a.bpm was the file's. */
+    const LIVE = [{ id: 'a', bpm: 120, beats: [0, .5], v: 2, phrase: { v: 1, off: 3 }, loud: { v: 1, curve: [1] } },
+                  { id: 'b', bpm: 124, beats: [0, .48] }, { id: 'c', bpm: 128, beats: [0, .47] }];
+    const OLDER = file([{ id: 'a', bpm: 99, beats: [0, .6], v: 1 }, { id: 'd', bpm: 130, beats: [0, .46] }]);
+    /* control: the SAME file in replace mode overwrites a — so "a kept its
+       phrase" below is the module's doing, not a fake whose put() never wrote */
+    const c5 = safe(() => makeCacheWorld(LIVE)).v;
+    const r5 = c5 ? await settle(c5.C.restore(OLDER, 'replace')) : null;
+    await flush();
+    const a5 = c5 && c5.data.get('a');
+    ok('CONTROL: replace with the older file overwrites a (no phrase, bpm 99) and drops b,c — store is a,d',
+       r5 && r5.settled === 'resolved' && ids(c5.data) === 'a,d' && a5 && a5.phrase === undefined && a5.bpm === 99,
+       'the fake\'s put() did not replace, so the merge check below could not fail: ' + JSON.stringify(r5) + ' a=' + JSON.stringify(a5) + ' store=' + (c5 ? ids(c5.data) : '-'));
+    const c6 = safe(() => makeCacheWorld(LIVE)).v;
+    const r6 = c6 ? await settle(c6.C.restore(OLDER, 'merge')) : null;
+    await flush();
+    const a6 = c6 && c6.data.get('a');
+    ok('merge with the older file KEEPS the live a (phrase, loud, bpm 120, v 2 intact) and adds only d — store is a,b,c,d',
+       r6 && r6.settled === 'resolved' && ids(c6.data) === 'a,b,c,d'
+         && a6 && a6.bpm === 120 && a6.v === 2 && a6.phrase && a6.phrase.off === 3 && a6.loud && a6.loud.v === 1,
+       'merge replaced an existing row with the file\'s older one: ' + JSON.stringify(r6) + ' a=' + JSON.stringify(a6) + ' store=' + (c6 ? ids(c6.data) : '-'));
+    ok('...and the result says so: imported 1 (d), kept 1 (a) — not "2 merged"',
+       r6 && r6.settled === 'resolved' && r6.v && r6.v.imported === 1 && r6.v.kept === 1,
+       'the caller\'s log line would still claim every file row was merged: ' + JSON.stringify(r6 && r6.v));
+    /* the abort gate must hold on the merge path too: a row put() throws for
+       AFTER the key read (DataCloneError) aborts rather than committing d */
+    const c7 = safe(() => makeCacheWorld(LIVE)).v;
+    const r7 = c7 ? await settle(c7.C.restore(file([{ id: 'd', bpm: 130, beats: [0] }, { id: 'e', bpm: 1, beats: [0], f() {} }]), 'merge')) : null;
+    await flush();
+    ok('merge: a DataCloneError row after the key read aborts the transaction — store still a,b,c',
+       r7 && r7.settled === 'rejected' && /clone/i.test(r7.err || '') && ids(c7.data) === 'a,b,c',
+       'the throw inside the key-read callback did not reach t.abort(): ' + JSON.stringify(r7) + ' store=' + (c7 ? ids(c7.data) : '-'));
   }
 
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
