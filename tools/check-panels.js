@@ -770,6 +770,19 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
   ok('the steering menu claims "no beatmatched route", never "unreachable"',
      /b: '✕ no beatmatched route'/.test(dashSrc) && !/'✕ unreachable'/.test(dashSrc),
      'a track the gate would play straight is being called unreachable');
+  /* ULTRACODE REVIEW 2026-10-22: the same row printed DWNAV's wouldNeed —
+     hopsNeeded()'s integer HOP COUNT — through pct(), so 109→172 read
+     "would need +13%" beside the 8% gate it seemed to contradict; and the
+     scenic row put a '+' on finalStretch, which is Math.abs in nav.js, so a
+     route that ends BELOW the destination's tempo read as a speed-up.
+     Neither figure may pass through pct(); pct(signed) on next/force is the
+     control that the formatter itself is still in use. Failing on 6583d55. */
+  ok('the steering menu prints wouldNeed as hops and finalStretch unsigned, never through pct() (control: pct(signed) still hits)',
+     !/pct\(o\.wouldNeed\)/.test(dashSrc) && !/pct\(o\.finalStretch\)/.test(dashSrc)
+     && /would need about ' \+ o\.wouldNeed \+ ' hops/.test(dashSrc)
+     && /ending within '\s*\+ o\.finalStretch \+ '% of/.test(dashSrc)
+     && /pct\(signed\)/.test(dashSrc),
+     'a hop count or an unsigned magnitude is printed as a signed stretch percentage');
   ok('the wall is not called "all 12" (it is twelve of the registered panels)',
      !/all 12/.test(dashSrc) && /twelve-panel wall/.test(dashSrc),
      '"all" promises more than the twelve slots hold');

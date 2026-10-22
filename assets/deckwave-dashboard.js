@@ -1124,10 +1124,13 @@ function mount(hostEl) {
         case 'later': return { cls: '', b: '⏭ queue as next',
           i: 'This track finishes as planned, then blends into that one.',
           act: () => later(idx) };
+        /* finalStretch is |stretch| (Math.abs in nav.js) — a magnitude with no
+           sign, so pct() would print '+' against a route that ends BELOW the
+           destination's tempo. Print the distance, not a direction. */
         case 'route': return { cls: 'good', b: '↝ scenic route · ' + o.hops.length + ' stepping stones',
           i: 'This track finishes first, then walks the tempo across instead of '
-             + 'yanking it. About ' + o.minutes + ' min of stepping stones, ending at '
-             + pct(o.finalStretch) + '.',
+             + 'yanking it. About ' + o.minutes + ' min of stepping stones, ending within '
+             + o.finalStretch + '% of its tempo.',
           ladder: o.ladder, dest: t, act: () => applyRoute({ idx, mode: 'route', hops: o.hops }, 'scenic route') };
         /* dwellSec is what the router ASKED for; chain() clamps it up to
            DW.dwellFloor. Printing the request rather than the clamp is how
@@ -1148,9 +1151,11 @@ function mount(hostEl) {
            by a straight cut, and the set gate PLAYS it straight. What DWNAV
            is saying here is narrower — no beatmatched path exists from the
            playing tempo — and the label now claims only that. The reason
-           text below is the engine's, untouched. */
+           text below is the engine's, untouched. wouldNeed is hopsNeeded()'s
+           rough HOP COUNT, not a stretch — this row printed it through pct()
+           as "would need +13%" beside the 8% gate until 2026-10-22. */
         case 'unreachable': return { cls: 'dead', b: '✕ no beatmatched route',
-          i: o.reason + (o.wouldNeed ? ' · would need ' + pct(o.wouldNeed) : ''), act: null };
+          i: o.reason + (o.wouldNeed ? ' · would need about ' + o.wouldNeed + ' hops' : ''), act: null };
         case 'jump':  return { cls: '', b: '⇥ jump straight there',
           i: 'Ignores the tempo plan. Cuts, does not blend.', act: () => jump(idx) };
         case 'back':  return { cls: '', b: '↩ back',
