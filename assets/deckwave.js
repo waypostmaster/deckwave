@@ -2004,10 +2004,17 @@ const Player = (() => {
          skipped at the handover. The NOW row opens the menu like any other. */
       if (meta === A.track.meta) return 'already playing';
       opts = opts || {};
+      /* The same token play() and chain() carry (see "which plan is
+         current"). Without it a click on set 1 whose decode landed after ▶
+         on set 2 passed both guards below — A and ctx are live, just not
+         the set it was clicked on — tore down set 2's planned next deck
+         and spliced itself into set 2's order. Review 2026-10-22. */
+      const my = gen;
       let buf;
       try { buf = await LIB.decode(meta, ctx); }
       catch (e) { return 'cannot load: ' + e.message; }
       if (!A || !ctx) return 'nothing playing';     /* stopped while decoding */
+      if (my !== gen) return 'superseded';          /* a replan replaced the set it was clicked on */
       if (meta === A.track.meta) return 'already playing';   /* handed over to it meanwhile */
       cancelPending();
       placeNext(meta);
@@ -2022,10 +2029,12 @@ const Player = (() => {
     async queueNext(meta) {
       if (!A || !ctx) return 'nothing playing';
       if (meta === A.track.meta) return 'already playing';   /* see blendNow */
+      const my = gen;                        /* see blendNow */
       let buf;
       try { buf = await LIB.decode(meta, ctx); }
       catch (e) { return 'cannot load: ' + e.message; }
       if (!A || !ctx) return 'nothing playing';     /* stopped while decoding */
+      if (my !== gen) return 'superseded';
       if (meta === A.track.meta) return 'already playing';
       cancelPending();
       placeNext(meta);
@@ -2091,14 +2100,17 @@ const Player = (() => {
          end and the set stopped dead. Now it falls back to chain(), which
          re-plans the exit, meets the same failure, splices the track out of
          the order and carries on, exactly as a failed decode mid-set does. */
+      const my = gen;                        /* after cancelPending(): see blendNow */
       let buf;
       try { buf = await LIB.decode(nm, ctx); }
       catch (e) {
+        if (my !== gen) return 'superseded';
         if (A && ctx) await chain();
         return 'reordered, but cannot load ' + nm.name.slice(-30) + ': ' + e.message +
                ' — skipped, this track finishes as planned';
       }
       if (!A || !ctx) return 'reordered · stopped while loading';
+      if (my !== gen) return 'superseded';   /* ▶ on another set while loading: its exit is its own */
       /* A handover during the decode moves idx; the buffer then belongs to a
          track that is no longer next. Let chain() decode its own in that case. */
       const out = nextExitAfter(opts.lead != null ? opts.lead : 1.2);

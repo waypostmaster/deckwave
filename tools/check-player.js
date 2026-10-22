@@ -676,6 +676,55 @@ const x = mk('x', 200);
      src.indexOf('if (rhythmErr) throw') > 0 && src.indexOf('if (rhythmErr) throw') < src.indexOf('await DB.put(rec)'),
      'a track whose rhythm extraction threw would be cached forever as bpm 0 and vanish from every set');
 
+  console.log('\n── blend / later / reorder-now clicked, then ▶ on another set ──');
+  /* ultracode review 2026-10-22 (engine-02). blendNow(), queueNext() and
+     reorder({now}) each await a decode and then re-check only `!A || !ctx`
+     and `meta === A.track.meta` — neither excludes a REPLACEMENT set. play()
+     captures `const my = gen` and stands down on `my !== gen`; these three
+     did not, so a blend clicked on set 1, landing after ▶ on set 2, tore
+     down set 2's planned next deck, spliced the old click into set 2's
+     order and blended into a track from the set that was stopped. The
+     first section above tests blendNow only against a stale chain(), which
+     this interleaving does not cover. Falsifiers per verb: the stale verb
+     returns anything but 'superseded'; the new set's array is longer than
+     it was built, or its next deck is no longer the one chain() planned. */
+  const setOld = [mk('o1', 240), mk('o2', 240), mk('o3', 240)];
+  const staleRun = async (verb) => {
+    Player.stop(); started.length = 0; pending.clear();
+    const setNew = [mk('n1', 240), mk('n2', 240), mk('n3', 240)];
+    const xx = mk('xx-' + verb, 200);
+    let p = Player.play(setOld, 0); await tick(); await settle('o1'); await p; await tick();
+    let v;
+    if (verb === 'blendNow') v = Player.blendNow(xx, { lead: 1 });
+    else if (verb === 'queueNext') v = Player.queueNext(xx);
+    else { await settle('o2'); await tick(); v = Player.reorder([setOld[0], xx, setOld[1], setOld[2]], { now: true }); }
+    await tick();
+    const was = pending.has(xx.name);           /* the click's decode is in flight */
+    p = Player.play(setNew, 0); await tick(); await settle('n1'); await p; await tick();
+    await settle('n2'); await tick();            /* set 2 is fully on the air: A=n1, B=n2 */
+    const nextDeck = D.B, nStarted = started.length;
+    /* raced, not awaited: a stale reorder({now}) chains set 2 and hangs on
+       a decode of n2 that nothing here resolves — the harness would end
+       without a tally, which the sweep scores as zero but says nothing */
+    await settle(xx.name); const r = await Promise.race([v, tick().then(() => '(still pending)')]); await tick();
+    return { was, r, nextDeck, nStarted, setNew, xx };
+  };
+  for (const verb of ['blendNow', 'queueNext', 'reorder({now})']) {
+    const s = await staleRun(verb.replace('({now})', ''));
+    ok(verb + ': the click\'s decode was in flight when ▶ on set 2 landed (control)',
+       s.was && D.A && D.A.track.meta.name === 'n1' && s.nextDeck && s.nextDeck.track.meta.name === 'n2',
+       'A=' + (D.A && D.A.track.meta.name) + ' B=' + (s.nextDeck && s.nextDeck.track.meta.name) + ' in-flight ' + s.was);
+    ok(verb + ' issued on set 1 stands down when it lands after ▶ on set 2',
+       s.r === 'superseded', verb + ' returned ' + JSON.stringify(s.r));
+    ok(verb + ': set 2\'s order is untouched — three tracks, n2 still next',
+       D.order === s.setNew && s.setNew.length === 3 && s.setNew[1].name === 'n2' && !s.setNew.includes(s.xx),
+       'order is ' + D.order.map(t => t.name).join(',') + (D.order === s.setNew ? ' (set 2, spliced)' : ' (not set 2)'));
+    ok(verb + ': set 2\'s planned next deck is still B and nothing else started',
+       D.B === s.nextDeck && started.length === s.nStarted && !pending.has('n2'),
+       'B=' + (D.B && D.B.track.meta.name) + ', ' + (started.length - s.nStarted) + ' more sources started, n2 re-decoding ' + pending.has('n2'));
+  }
+  Player.stop(); pending.clear();
+
   console.log('\n── the analysis cache when the browser refuses it ──────────');
   /* ultracode review 2026-10-22 (engine-00). analyse()'s FIRST await is
      DB.get(id), with no try; ingest() catches per file and counts failed++.
