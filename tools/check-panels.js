@@ -735,6 +735,24 @@ const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(
      /function paintRelink\(\)/.test(relink) && /lib\.files && target\.length/.test(relink)
      && /target\.filter\(t => !lib\.find\(t\)\)\.length/.test(relink) && /libBtn\.hidden = miss === 0;/.test(relink),
      'on a fresh page LIB.files is null and every track would count as missing — the prompt would compete with scan as the first action');
+  /* …AND THE ATTRIBUTE MUST SURVIVE THE PHONE CSS (ultracode review,
+     2026-10-22). `hidden` is a UA-origin rule, and inside the ≤720px block
+     `.tp.cfg-open [data-grp="files"]{display:inline-block}` is author-origin
+     — which wins the cascade whatever its specificity. So with ⚙ open on a
+     phone the re-link button rendered with nothing missing, the state
+     Part 5 §7 built it to stay hidden in. The two checks above pin the
+     `.hidden =` writes by text and cannot see that. Pinned here: the shadow
+     sheet carries `.tp [hidden]{display:none!important}`, with the phone
+     override still present as the control that must hit (without it the
+     check would be guarding nothing). What this cannot see: a computed
+     style — no CSS engine runs here; the 400px-iframe look is the eye's. */
+  {
+    const css = (dashSrc.split('const CSS = `')[1] || '').split('\n`;')[0];
+    ok('…and the hidden attribute survives the phone CSS: `.tp [hidden]{display:none!important}` is in the shadow sheet',
+       /\.tp\.cfg-open \[data-grp="files"\],\.tp\.cfg-open \[data-grp="capture"\]\{display:inline-block\}/.test(css)
+       && /\n\.tp \[hidden\]\{display:none!important\}/.test(css),
+       'the phone block\'s author display rule beats the UA [hidden] — ⚙ open on a phone shows "re-link music folder…" with nothing missing');
+  }
   {
     const texts = ['assets/deckwave-render.js', 'assets/deckwave-cache.js', 'assets/deckwave-messages.js']
       .map(f => fs.readFileSync(f, 'utf8')).join('\n') + dashSrc;

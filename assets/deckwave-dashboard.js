@@ -161,6 +161,12 @@ button.hot{border-color:var(--ac2);color:var(--ac2)}
 .smark{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ac2);
   border:1px dashed var(--ac2);padding:5px 8px;border-radius:var(--rad);white-space:nowrap;cursor:help}
 .smark[hidden]{display:none}
+/* the hidden attribute is a UA rule and loses to ANY author display rule:
+   the phone block's .tp.cfg-open [data-grp="files"] {display:inline-block}
+   was showing the re-link button with nothing missing. !important, so no
+   later display rule on a bar child can undo the attribute again. (No
+   backticks in this comment — it sits inside the CSS template literal.) */
+.tp [hidden]{display:none!important}
 
 /* master level. Sized to sit on the same baseline as the buttons rather than
    growing the transport's height — the row already wraps and a taller control
