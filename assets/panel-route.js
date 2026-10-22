@@ -157,6 +157,14 @@
            construction rather than by a good match (ledger 82). */
         c.fillStyle = T.dim;
         c.fillText('∿ first', w - 6, cy);
+      } else if (cur && !desync && deck && deck.origin === 'play') {
+        /* Nor the PLAN's figure for a jumped-to row. `Player.play(seq, from)`
+           builds the deck at rate 1 and leaves `_stretch` as sequence()
+           stamped it, so this row printed +5.2% in bold while the footer
+           below said ∿ jumped — the engine's own fact (ledger 125), read
+           here as the footer reads it. */
+        c.fillStyle = T.dim;
+        c.fillText('∿ jumped', w - 6, cy);
       } else if (t._stretch) {
         const p = (t._stretch - 1) * 100;
         c.fillStyle = Math.abs(p) > 8 ? T.bad : T.dim;

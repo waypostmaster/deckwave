@@ -92,7 +92,7 @@ global.DWMSG = { term: () => null };
    failing on the old source first — the seam the text checks below already
    have for the dashboard and the card. */
 for (const f of [process.env.DECKWAVE_PANELS_SRC || 'assets/deckwave-panels.js', 'assets/deckwave-sprites.js', 'assets/patch-01-spectrogram.js',
-                 'assets/panel-wayposts.js', 'assets/panel-centre.js', 'assets/panel-route.js']) {
+                 'assets/panel-wayposts.js', 'assets/panel-centre.js', process.env.DECKWAVE_ROUTE_SRC || 'assets/panel-route.js']) {
   try { eval(fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n')); }
   catch (e) { console.log('FATAL loading ' + f + ': ' + (e.stack || e)); process.exit(1); }
 }
@@ -371,6 +371,31 @@ drawAll('a JUMPED-TO deck at row 3 (origin play, rate 1, idx 2)', bundle({ trans
   ok('the route panel calls it JUMPED, not FIRST — the set does have a step before this one',
      texts.some(s => /jumped/.test(s)) && !texts.some(s => /∿ first/.test(s)),
      'texts: ' + JSON.stringify(texts.filter(s => /jumped|first|straight|%/.test(s)).slice(0, 6)));
+  /* …and the ROW, not only the footer (ultracode review 2026-10-22). The
+     check above passed while the bold current row printed the PLAN's
+     `(t._stretch - 1) * 100` beside a footer saying ∿ jumped: the row chain
+     guarded `_unlocked` and `i === 0` and never read `deck.origin`, and the
+     fixture above hides it — S[2] is TS, an unlocked grid, so the row said
+     ∿ grid for the stronger reason. Here the list row IS the jumped-to deck
+     (T2, locked, plan stretch 0.98): the row must say ∿ jumped and the
+     plan's -2.0% must not be drawn anywhere. Read through the loaded module,
+     so DECKWAVE_ROUTE_SRC shows this failing on the old file. CONTROL: the
+     same rows with the deck CHAINED in print -2.0% — the figure is right
+     when the engine is applying it, so the check can tell the two apart. */
+  const jumpedRows = { set: [T0, T1, T2, TS, TR], transLeft: 200 };
+  texts.length = 0;
+  try { P.get('route').draw(ctx(), 320, 200, Tk, bundle(jumpedRows)); } catch (e) {}
+  ok('the route panel\'s CURRENT row says ∿ jumped, not the plan\'s stretch, against a jumped-to deck',
+     texts.includes('∿ jumped') && !texts.some(s => /-2\.0%/.test(s)) && !texts.some(s => /LIST ≠ DECK/.test(s)),
+     'the row prints the plan figure for a deck running at rate 1: ' +
+     JSON.stringify(texts.filter(s => /jumped|first|grid|%|LIST/.test(s)).slice(0, 6)));
+  deck.origin = 'chain'; deck.matched = true; deck.rate = deck.startRate = 0.98; deck.playedBpm = 100; deck.stretchPct = -2;
+  texts.length = 0;
+  try { P.get('route').draw(ctx(), 320, 200, Tk, bundle(jumpedRows)); } catch (e) {}
+  ok('CONTROL: the same row prints -2.0% once the deck was CHAINED in at that stretch',
+     texts.some(s => /-2\.0%/.test(s)) && !texts.includes('∿ jumped'),
+     'texts: ' + JSON.stringify(texts.filter(s => /jumped|first|grid|%/.test(s)).slice(0, 6)));
+  deck.origin = 'play'; deck.matched = false; deck.rate = deck.startRate = 1; deck.playedBpm = 102; deck.stretchPct = 0;
 }
 /* the two DOM surfaces the canvas sweep cannot reach: pin that they read the
    engine's fact rather than the list index */
