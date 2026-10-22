@@ -240,8 +240,10 @@ tempo they do not have.
 | **PROXIMA** (BETTER THAN REALITY 06) | 90.01 | **178.21** |
 | **Galaxy** (single) | 80.87 | **162.09** |
 
-**How.** Jump to each and count. The transition monitor draws both grids, so
-this can be watched as well as heard.
+**How.** Jump to each and count. The transition monitor draws both grids at
+their played PERIOD, so the tick spacing can be watched as well as heard —
+but its ticks run on the wall clock, not the track's beat position, so where
+a tick or a wide bar falls says nothing about where the beat is.
 
 **What to listen for.** Is the pulse the engine is locked to the pulse you
 would tap?

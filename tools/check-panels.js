@@ -397,6 +397,29 @@ drawAll('a JUMPED-TO deck at row 3 (origin play, rate 1, idx 2)', bundle({ trans
      'texts: ' + JSON.stringify(texts.filter(s => /jumped|first|grid|%/.test(s)).slice(0, 6)));
   deck.origin = 'play'; deck.matched = false; deck.rate = deck.startRate = 1; deck.playedBpm = 102; deck.stretchPct = 0;
 }
+/* THE GRID IS PERIOD, NOT PHASE (ultracode review 2026-10-22). row() seats
+   its ticks at `(performance.now() % per) / per` — the wall clock, shared by
+   both rows, never the deck's position in meta.beats — so two decks at one
+   played tempo draw identical grids whatever their real beat offset, and the
+   wide "downbeat" bar is every fourth tick from an arbitrary origin. That is
+   a BUILD-LOG caveat (Act 13, "not a true phase measurement") that had not
+   reached the two surfaces the keeper reads: the glossary behind "?" and the
+   swap menu's hint. Pin both to say so. Read through the loaded module, so
+   DECKWAVE_PANELS_SRC shows this failing on the old file. Falsified either
+   way: a missing glossary entry fails (the entry must EXIST and name the
+   period), and the old wording ("downbeats as wide bars with bar numbers",
+   hint "beat phase") fails. */
+{
+  const wk = (P.wiki && P.wiki('transition')) || null, d = (wk && wk.d) || '';
+  ok('the transition glossary says its grids are period only, not the tracks\' beat phase',
+     d.length > 0 && /period/i.test(d) && /wall clock|not (the|either|a) (track|deck)/i.test(d)
+     && !/downbeats as wide bars with bar numbers/.test(d),
+     'glossary: ' + JSON.stringify(d));
+  const hint = ((P.list ? P.list() : []).find(p => p.k === 'transition') || {}).hint || '';
+  ok('the swap menu\'s hint for the transition monitor does not call it "beat phase"',
+     hint.length > 0 && !/beat phase/.test(hint) && /period/.test(hint),
+     'hint: ' + JSON.stringify(hint) + ' — the row() ticks come from performance.now(), not the beat clock');
+}
 /* the two DOM surfaces the canvas sweep cannot reach: pin that they read the
    engine's fact rather than the list index */
 {

@@ -35,7 +35,7 @@ const WIKI = {
   centre: { t:'Joint (mid/side) stereo coding', u:'https://en.wikipedia.org/wiki/Joint_encoding', verified:false,
     d:'Splits the signal into mid (L+R)/2 and side (L−R)/2. Centre-panned material — in most produced music the lead vocal, plus kick, snare and bass — lands almost entirely in mid; width lands in side. The dashed line is centre share, mid/(mid+side). RELATIVE: there is no reference level and this is NOT a vocal detector.' },
   transition: { t:'Beatmatching', u:'https://en.wikipedia.org/wiki/Beatmatching', verified:false,
-    d:'Both decks\u2019 beat grids at their played tempo, downbeats as wide bars with bar numbers. Matching periods stay locked; drifting periods separate. Also shows crossfade progress and the bass swap.' },
+    d:'Both decks\u2019 beat grids at their played tempo \u2014 PERIOD only. The ticks run on the wall clock, not on either track\u2019s beat position, so the wide bars and their numbers show the grid\u2019s spacing, not the downbeats you hear. Matching periods stay locked; drifting periods separate. Also shows crossfade progress and the bass swap.' },
   position: { t:'Cue (DJ)', u:'https://en.wikipedia.org/wiki/Special:Search?search=DJ+cue+point', verified:false,
     d:'Progress through the current track with beat ticks. The magenta marker is the exit downbeat where the next blend begins.' },
   loudness: { t:'LUFS', u:'https://en.wikipedia.org/wiki/Special:Search?search=LUFS+loudness+units+full+scale', verified:false,
@@ -869,7 +869,11 @@ window.DWPANELS.register('vu', 'vu meters', function (c, w, h, T, D) {
   c.fillText('VU', cx, h - 2);
 }, { note: '300ms ballistics' });
 
-/* Both decks' beat grids at played tempo, bar numbers under the downbeats.
+/* Both decks' beat grids at played tempo — PERIOD, not phase. The ticks are
+   seated at performance.now() modulo the played period (see row()), so they
+   are not the track's beats and the wide bars are not its downbeats; the
+   glossary, the swap-menu hint and LISTENING §6 say so (ultracode review
+   2026-10-22; BUILD-LOG Act 13's standing caveat, finally on the surfaces).
    Recovered from the v2 version: centred, per-deck stretch shown, deck gain
    as a fill behind each grid, crossfade progress with the bass-swap tick. */
 window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, T, D) {
@@ -971,6 +975,13 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
       c.fillStyle = colr; c.globalAlpha = .10;
       c.fillRect(pad, y - rowH / 2, inner * gain, rowH); c.globalAlpha = 1;
     }
+    /* WALL CLOCK, not the deck's beat clock: `t` is performance.now(), shared
+       by both rows, so the phase here is period-only — two decks at one
+       played tempo draw the same grid whatever their real beat offset, and
+       `down` (every fourth tick from k = 0) re-seats one beat to the right
+       each time this wraps. The surfaces say "period, not phase" for that
+       reason. A phase-true row needs D.elapsed × rate against meta.beats
+       (DWEVENTS.pulse() has it) — not done here, keeper's call. */
     const phase = (t % per) / per, n = Math.ceil(span / per) + 1;
     let barCount = 0;
     for (let k = 0; k < n; k++) {
@@ -1069,7 +1080,7 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
     c.textAlign = 'center'; c.fillStyle = T.dim;
     c.fillText('final track · no transition queued', w / 2, by);
   }
-}, { note: 'beat phase' });
+}, { note: 'periods, not phase' });
 
 /* ── shared history for the timeline panels ────────────────────────────
    One ring buffer, sampled on a clock rather than per frame, so the x axis
