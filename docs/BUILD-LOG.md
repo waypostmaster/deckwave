@@ -4223,3 +4223,33 @@ checked.] Carried from here: item 0 of CLAUDE.md's BASE list closes as a
 listening task and becomes a standing option; what remains is a preference
 the keeper may or may not ever state. Written at 02:4xZ the same night.
 
+**152a · "Why did the camelot tune bring in so many fewer songs?" (keeper,
+2026-10-22T02:5xZ) — MEASURED on the real corpus, both grid caches.**
+Read first: `sequence()` never EXCLUDES on key. `camScore` is a 0.30-weight
+term in the ranking; the only thing that ends a set is the stretch gate, and
+only in `best`/`phrase` (`all` places every track and plays the unreachable
+ones straight). So in `all` the tune cannot change the count, and it does
+not: 159 of 189 under both tunes, both caches. In `best`/`phrase` it can,
+because key changes WHICH neighbour wins, which changes where the tempo
+drifts, which changes when the 8% gate finds nothing left — the length is
+path-dependent, and the tune changes the path. Measured, length 500:
+
+| grids | deckwave `best` | standard `best` |
+|---|---|---|
+| v1 cache (120 s excerpts) | 92 | 87 |
+| v2 grids (full track) | 83 | 95 |
+
+Same locked pool each time (154 / 151 of 159). **The direction is not even
+stable** — standard is shorter on one cache and longer on the other — so a
+much shorter build is the gate ending earlier on a different route, not the
+standard wheel being stricter. Neither cache is the keeper's live state:
+v1 energies predate the 2026-08-18 re-normalise, and the live grids are v2
+with whatever the browser has analysed since, so these figures show the
+MECHANISM and not the keeper's number. [MEASURED: the mechanism, `all`
+unchanged, best-mode lengths above. INFERRED: that the keeper built
+`best matches` or `phrase` — a short `all` build would be a different
+fault and worth a screenshot.] Not a threshold, nothing to move;
+`DW.inspect()` names what a best build left out and why. Script:
+scratchpad `tune-length.js`, not kept — it is check-pool's extraction seam
+plus a tune switch and a v2 overlay.
+
