@@ -341,6 +341,18 @@ return {
     $('npEl').textContent = mmss(el);
     $('npRem').textContent = '-' + mmss(dur - el);
 
+    /* THE FADE OUTLIVES THE HANDOVER. chain()'s handover timer makes the
+       incoming deck `now` 100 ms into a 16 s crossfade, after which
+       transLeft is the NEXT exit, minutes away — so the blend line said
+       BLENDING NOW for a tenth of a second and then "blend in 272s" for the
+       whole audible fade (ledger 52's defect; the transition monitor was
+       fixed in August, this card on 2026-10-22). Same read as the monitor:
+       a crossfade is running when the deck's elapsed is inside one crossfade
+       and there is a track it took over from (D.prev — the loop's record,
+       the engine's DW.prevDeck while that is live). */
+    const xfLen = (B && B.xfade) || 16;
+    const fading = !!(D.prev && el < xfLen);
+
     /* the scheduled blend, straight off the schedule */
     const xf = $('npXf'), mk = $('npMk'), bar = $('npBar');
     if (B && nx) {
@@ -348,10 +360,10 @@ return {
       xf.style.display = 'block'; mk.style.display = 'block';
       xf.style.left = p + '%'; xf.style.width = wdt + '%';
       mk.style.left = p + '%';
-      bar.classList.toggle('now', B.in <= 0);
+      bar.classList.toggle('now', fading || B.in <= 0);
       mk.title = 'blend at ' + mmss(B.at) + ' · ' + Math.round(B.xfade) + 's crossfade';
     } else { xf.style.display = 'none'; mk.style.display = 'none';
-      bar.classList.remove('now'); }
+      bar.classList.toggle('now', fading); }
 
     $('gBpm').textContent = Math.round(t.bpm * rate);
     $('gKey').textContent = t.camelot;
@@ -394,7 +406,15 @@ return {
     drawBars(D);
 
     const b = $('npBlend');
-    if (transLeft != null && nx) {
+    if (fading) {
+      /* the monitor's own figure: progress through the crossfade, and the
+         bass-swap point it already prints (45%, a chosen number, unchanged) */
+      const prog = Math.min(1, el / xfLen);
+      b.className = 'blend soon';
+      b.innerHTML = '<b>◉ BLENDING</b> · ' + Math.round(prog * 100) + '% · from '
+        + esc(clean(D.prev.name).slice(0, 24)) + ' · bass '
+        + (prog > 0.45 ? 'swapped' : 'on outgoing');
+    } else if (transLeft != null && nx) {
       b.className = 'blend' + (transLeft < 20 ? ' soon' : '');
       /* the crossfade length comes off the schedule (Player.setXfade exists;
          it is not on the DW facade, so nothing in the UI can move it yet);

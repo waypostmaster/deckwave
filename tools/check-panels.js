@@ -658,6 +658,35 @@ const dashSrc = fs.readFileSync(process.env.DECKWAVE_DASH_SRC || 'assets/deckwav
   ok('a straight INCOMING track is still not called downbeat-aligned',
      !!NP && !/downbeat-aligned/.test(inU) && /no beat alignment/.test(inU),
      'the incoming case regressed: ' + JSON.stringify(inU));
+  /* LEDGER 52's DEFECT, ON THE CARD (ultracode review 2026-10-22). chain()'s
+     handover timer makes the incoming deck `now` 100 ms into a 16 s fade;
+     from then on transLeft is the NEXT exit, minutes away, so the card said
+     BLENDING NOW for a tenth of a second and then "blend in 272s" for the
+     whole audible crossfade. The transition monitor was fixed on D.prev +
+     D.elapsed in August; the card never was. Posed exactly as the loop
+     hands it over: deck = the incoming track, prev = the one it took over
+     from, elapsed = seconds into the fade, blend = the incoming deck's OWN
+     exit. The 30 s case is the control that the fading read ENDS — on the
+     old source it passes trivially, which is why the 4 s case is the one
+     that must fail there. */
+  const fade = el => {
+    nowMeta = T1; nextMeta = null; elapsed = el;
+    deck = { meta: T1, name: T1.name, bpm: T1.bpm, rate: 0.968, origin: 'chain', settling: false, settleLeft: 0 };
+    nextDeck = null;
+    blend = { in: 272 - el, at: 276, dur: 292, xfade: 16, frac: 276 / 292, fadeFrac: 16 / 292 };
+    DWstate = { idx: 1, of: 5, tempo: 120, now: T1.name, next: TS.name, live: 1, ctx: 'running' };
+    nodes.npBlend = mkEl();
+    try { NP.update(bundle({ transLeft: 272 - el, prev: T0, prevRate: 1 }), 272 - el); } catch (e) { return 'THREW: ' + e.message; }
+    return String(nodes.npBlend.innerHTML);
+  };
+  const mid = NP ? fade(4) : '';
+  ok('4 s into a 16 s crossfade, after the handover, the card says BLENDING — not "blend in" minutes',
+     !!NP && /BLENDING/.test(mid) && !/blend in/.test(mid),
+     'the card reports the running fade as a future one: ' + JSON.stringify(mid));
+  const after = NP ? fade(30) : '';
+  ok('CONTROL: 30 s in, the fade is over and the card counts down to the next blend again',
+     !!NP && /blend in/.test(after) && !/BLENDING/.test(after),
+     'the fading read never ends, or the countdown is gone: ' + JSON.stringify(after));
   [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate] = save;
 }
 const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(/\r\n/g, '\n');
