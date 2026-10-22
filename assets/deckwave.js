@@ -93,21 +93,35 @@ const norm = s => s.toLowerCase().replace(/\.(flac|mp3|wav|aiff|m4a|ogg|opus|oga
 /* ── cache ─────────────────────────────────────────────────────────────── */
 const DB = (() => {
   let db = null;
-  const open = () => new Promise((ok, no) => {
-    const r = indexedDB.open('deckwave', 1);
+  /* open() never rejects. A browser that refuses the database outright —
+     site data blocked for the origin, no indexedDB at all, an old private
+     window — leaves db null, and every call below then answers as a miss
+     (get null, all [], put false), so analyse() still runs and the record
+     is marked uncached, which is what the comment above DB.put promises.
+     Until 2026-10-22 only a refused TRANSACTION kept that promise: a
+     refused OPEN rejected out of analyse()'s first await, before any
+     decode, and a 200-track folder came back `added 0, failed 200`
+     (ultracode review, engine-00; pinned in check-player). */
+  const open = () => new Promise(ok => {
+    let r; try { r = indexedDB.open('deckwave', 1); } catch (e) { ok(null); return; }
     r.onupgradeneeded = e => { const d = e.target.result;
       if (!d.objectStoreNames.contains('f')) d.createObjectStore('f', { keyPath: 'id' }); };
     r.onsuccess = e => { db = e.target.result; ok(db); };
-    r.onerror = () => no(r.error);
+    r.onerror = () => ok(null);
   });
   return {
-    async get(id) { if (!db) await open(); return new Promise(ok => {
+    async get(id) { if (!db) await open(); if (!db) return null; return new Promise(ok => {
       const t = db.transaction('f', 'readonly').objectStore('f').get(id);
       t.onsuccess = () => ok(t.result || null); t.onerror = () => ok(null); }); },
-    async put(rec) { if (!db) await open(); return new Promise(ok => {
-      const t = db.transaction('f', 'readwrite').objectStore('f').put(rec);
-      t.onsuccess = () => ok(true); t.onerror = () => ok(false); }); },
-    async all() { if (!db) await open(); return new Promise(ok => {
+    /* put answers on the TRANSACTION, not the request. A put request fires
+       success once it is staged; the transaction can still abort at commit
+       (Chromium surfaces quota there), and resolving on the request
+       reported those records as cached, so `uncached` under-counted. */
+    async put(rec) { if (!db) await open(); if (!db) return false; return new Promise(ok => {
+      const tx = db.transaction('f', 'readwrite');
+      tx.objectStore('f').put(rec);
+      tx.oncomplete = () => ok(true); tx.onabort = tx.onerror = () => ok(false); }); },
+    async all() { if (!db) await open(); if (!db) return []; return new Promise(ok => {
       const t = db.transaction('f', 'readonly').objectStore('f').getAll();
       t.onsuccess = () => ok(t.result || []); t.onerror = () => ok([]); }); }
   };

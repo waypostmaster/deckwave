@@ -660,6 +660,56 @@ const x = mk('x', 200);
      src.indexOf('if (rhythmErr) throw') > 0 && src.indexOf('if (rhythmErr) throw') < src.indexOf('await DB.put(rec)'),
      'a track whose rhythm extraction threw would be cached forever as bpm 0 and vanish from every set');
 
+  console.log('\n── the analysis cache when the browser refuses it ──────────');
+  /* ultracode review 2026-10-22 (engine-00). analyse()'s FIRST await is
+     DB.get(id), with no try; ingest() catches per file and counts failed++.
+     So whatever DB.get does on a refused OPEN is what every track in the
+     folder does. Until this check, open() rejected there — site data
+     blocked, no indexedDB, an old private window — and a 200-track folder
+     came back `added 0, failed 200` with the DOMException as every
+     message, while the comment above DB.put promised an analysed-but-
+     uncached record. The DB IIFE is evaluated here against a fake
+     indexedDB; the control (a working fake) proves the fakes reach the
+     real code path, so the three failure fakes cannot pass by accident. */
+  const da = src.indexOf('\nconst DB = (() => {');
+  const dbEnd = src.indexOf('\n})();\n', da);
+  ok('the DB IIFE is where the extractor expects it', da > 0 && dbEnd > da, 'da ' + da + ' end ' + dbEnd);
+  const dbSrc = src.slice(da + 1, dbEnd + 6).replace(/^const DB = /, '');
+  /* mode: 'ok' works; 'refuse' fires open's onerror; 'abort' lets the put
+     REQUEST succeed and then aborts the TRANSACTION at commit (Chromium's
+     quota path); 'missing' is no indexedDB global at all. */
+  const fakeIDB = mode => { const data = new Map(); const later = f => setTimeout(f, 0);
+    const req = () => ({ onsuccess: null, onerror: null, onupgradeneeded: null, result: undefined, error: null });
+    const dbo = { objectStoreNames: { contains: () => true }, createObjectStore() {},
+      transaction(name, rw) { const tx = { oncomplete: null, onabort: null, onerror: null };
+        const done = () => { if (rw === 'readwrite' && mode === 'abort') { if (tx.onabort) tx.onabort(); }
+          else if (tx.oncomplete) tx.oncomplete(); };
+        tx.objectStore = () => ({
+          put(rec) { const r = req(); later(() => { data.set(rec.id, rec); if (r.onsuccess) r.onsuccess(); later(done); }); return r; },
+          get(id) { const r = req(); later(() => { r.result = data.get(id); if (r.onsuccess) r.onsuccess(); later(done); }); return r; },
+          getAll() { const r = req(); later(() => { r.result = [...data.values()]; if (r.onsuccess) r.onsuccess(); later(done); }); return r; } });
+        return tx; } };
+    return { open() { const r = req(); later(() => {
+      if (mode === 'refuse') { r.error = new Error('SecurityError (test)'); if (r.onerror) r.onerror(); return; }
+      const ev = { target: { result: dbo } }; if (r.onupgradeneeded) r.onupgradeneeded(ev); if (r.onsuccess) r.onsuccess(ev); }); return r; } }; };
+  const withIDB = async (mode, f) => { if (mode === 'missing') delete global.indexedDB; else global.indexedDB = fakeIDB(mode);
+    try { return await f(eval(dbSrc)); } finally { delete global.indexedDB; } };
+  const rec = { id: 'k', v: 2 };
+  const ctl = await withIDB('ok', async DB => [await tryP(() => DB.put(rec)), await tryP(() => DB.get('k')), await tryP(() => DB.all())]);
+  ok('control: a working store — put true, get returns the record, all lists it',
+     ctl[0] === true && ctl[1] && ctl[1].id === 'k' && Array.isArray(ctl[2]) && ctl[2].length === 1,
+     JSON.stringify(ctl));
+  const refd = await withIDB('refuse', async DB => [await tryP(() => DB.get('k')), await tryP(() => DB.put(rec)), await tryP(() => DB.all())]);
+  ok('open() refused (onerror): get resolves null, put false, all [] — nothing rejects',
+     refd[0] === null && refd[1] === false && Array.isArray(refd[2]) && refd[2].length === 0,
+     'analyse() would throw at its first await and ingest would count every track failed: ' + JSON.stringify(refd));
+  const mis = await withIDB('missing', async DB => [await tryP(() => DB.get('k')), await tryP(() => DB.put(rec))]);
+  ok('no indexedDB at all (open throws synchronously): get null, put false',
+     mis[0] === null && mis[1] === false, JSON.stringify(mis));
+  const abt = await withIDB('abort', async DB => await tryP(() => DB.put(rec)));
+  ok('put request succeeds but the transaction aborts at commit: put resolves false',
+     abt === false, 'the record would be reported cached and re-analysed next load with uncached 0: ' + JSON.stringify(abt));
+
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.log('FATAL: ' + (e.stack || e)); process.exit(1); });
