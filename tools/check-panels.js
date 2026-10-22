@@ -1352,6 +1352,37 @@ console.log('\n── the lows the review listed for the dashboard ────�
      'load() returns null and the caller logs `view: <name>` regardless, so the press produces no panels and no explanation');
 }
 
+console.log('\n── leaving compact is one painter (UI review §19, 2026-10-22) ──');
+/* The compact button wrote four things at once — the `mini` class, the
+   host's `mini-host`, an INLINE display on #nowline and its own label — and
+   dash.prepare() undid ONE of them by hand. Compact, then build: `mini` goes,
+   the inline display:block outlives the class, and a now-playing line that
+   head() no longer updates (its guard is the class) sits frozen in the full
+   grid's first column; the button still reads "+ expand" lit hot and its
+   next press re-enters compact. Same shape on the phone: prepare() adds
+   `ph-list` and ☰ set keeps painting from its own toggle's return value.
+   These read the SOURCE through DECKWAVE_DASH_SRC and were shown failing on
+   6583d55. What they cannot see: the layout itself — a browser look. */
+{
+  const prep = (dashSrc.split('prepare(v) {')[1] || '').split('playPrepared')[0];
+  ok('…control: the prepare() slice is the real one (sets.prepare and the ph-list add are in it)',
+     /sets\.prepare\(v\)/.test(prep) && /app\.classList\.add\('ph-list'\)/.test(prep),
+     'the split missed prepare(); every check below would read an empty string');
+  ok('prepare() leaves compact through dash.setMini(false), not by dropping the class by hand',
+     /dash\.setMini\(false\)/.test(prep) && !/classList\.remove\('mini'\)/.test(prep),
+     'removing `mini` alone leaves the inline display:block, the stale line and the "+ expand" label behind');
+  const sm = (dashSrc.split('const setMini = ')[1] || '').split('\n  };')[0];
+  ok('setMini(on) owns all four compact writes and the – compact button goes through it',
+     /classList\.toggle\('mini', on\)/.test(sm) && /mini-host/.test(sm) && /nowline/.test(sm)
+     && /'\+ expand'/.test(sm) && /mb\.className/.test(sm) && /btn\('– compact', \(\) => setMini\(/.test(dashSrc),
+     'a second writer of any of the four is a second place for them to drift apart');
+  const sp = (dashSrc.split('const syncPhl = ')[1] || '').split('\n  };')[0];
+  ok('☰ set paints from the ph-list class (syncPhl), and prepare() calls it after adding ph-list',
+     /app\.classList\.contains\('ph-list'\)/.test(sp) && /'▦ panels'/.test(sp)
+     && /dash\.syncPhl\(\)/.test(prep) && !/const on = app\.classList\.toggle\('ph-list'\)/.test(dashSrc),
+     'after a build on a phone the set screen shows while the button reads "☰ set", and its press goes back to the panels');
+}
+
 
 console.log('\n── the control budget (UI walk decision 5) ─────────────────');
 /* UI WALK DECISION 5, 2026-10-09 (§8.17): today's count of bar controls

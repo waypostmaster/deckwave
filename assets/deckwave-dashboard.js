@@ -1267,14 +1267,23 @@ function mount(hostEl) {
     get prepared() { return sets.prepared; },
     get fileSet() { return sets.prepared || sets.current; },
     prepare(v) {
-      sets.prepare(v); app.classList.remove('mini');
+      /* Leaving compact is ONE painter (UI review §19, 2026-10-22). This
+         used to drop `mini` by hand and leave the other three writes the
+         compact button made — the inline display:block on #nowline (which
+         outlives the class, so a line head() no longer updates sat frozen
+         in the full grid's first column), `mini-host`, and the "+ expand"
+         label whose next press re-entered compact. Same for ☰ set below:
+         the class is added here, so the button is repainted here. */
+      sets.prepare(v); dash.setMini(false);
       if (app.getAttribute('data-side') === 'hide') app.removeAttribute('data-side');
       if (innerWidth <= 720) app.classList.add('ph-list');
+      dash.syncPhl();
       renderPrepared(); announce('Prepared ' + v.length + (v.length === 1 ? ' track.' : ' tracks.') + ' Playback unchanged.');
     },
     playPrepared: () => sets.play(), reportIssue, announce,
     syncIssues() { if (window.DW.issues && window.DW.issues.length) reportIssue({ failures: window.DW.issues }); },
     renderList, header: head, slots: null, views: null, applyFolds: null,
+    setMini: null, syncPhl: null,   /* the two painters, assigned where their buttons are built */
     stereoSource, drawFixed: null, elapsed: 0, theme: 'cyberpunk'
   };
 
@@ -1633,13 +1642,20 @@ function buildTransport(dash) {
   sep(GRP.play);
   /* phone only (CSS hides it elsewhere): panels or the set, one screen at a
      time — the set screen is the track list AND the now-playing card */
-  const phl = btn('☰ set', () => {
-    const on = app.classList.toggle('ph-list');
+  /* painted from the CLASS, not from the toggle's return value: prepare()
+     adds ph-list too, and used to leave this reading "☰ set" over the set
+     screen, so the next tap went back to the panels (UI review §19) */
+  const syncPhl = () => {
+    const on = app.classList.contains('ph-list');
     phl.textContent = on ? '▦ panels' : '☰ set';
     phl.className = 'phl' + (on ? ' hot' : '');
+  };
+  const phl = btn('☰ set', () => {
+    app.classList.toggle('ph-list'); syncPhl();
     setTimeout(dash.fit, 60);
   }, false, GRP.play);
   phl.className = 'phl';
+  dash.syncPhl = syncPhl;
   btn('▶ play', async () => {
     /* PAUSED MEANS RESUME. Keeper, 2026-08-30: "the least surprising thing
        for the play button to do when a deck is paused would be to resume
@@ -2225,13 +2241,18 @@ function buildTransport(dash) {
      small-window view and not a daily control). Part 4 §C.3 argued it is a
      view mode and should stay one tap away; the keeper's call went the
      other way, and the drawer is one click. */
-  const mb = btn('– compact', () => {
-    const on = app.classList.toggle('mini');
+  /* ONE painter for the four writes compact makes; dash.prepare() leaves
+     compact through it too (UI review §19 — it used to drop `mini` alone) */
+  const setMini = on => {
+    app.classList.toggle('mini', on);
     dash.host.classList.toggle('mini-host', on);
     const nl = $('nowline'); if (nl) nl.style.display = on ? 'block' : 'none';
     mb.textContent = on ? '+ expand' : '– compact';
     mb.className = on ? 'hot' : '';
-    setTimeout(dash.fit, 60); }, false, GRP.look);
+    setTimeout(dash.fit, 60);
+  };
+  const mb = btn('– compact', () => setMini(!app.classList.contains('mini')), false, GRP.look);
+  dash.setMini = setMini;
 
   sep(GRP.cap);
   /* Both capture buttons paint from ONE fact — DWLISTEN.kind — rather than
