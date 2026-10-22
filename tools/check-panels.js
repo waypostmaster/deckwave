@@ -87,7 +87,11 @@ global.DWSTEREO = () => ({ rmsL: .3, rmsR: .3, width: .5, corr: .9 });
 global.DWLISTEN = { active: false, analyser: null, L: null, R: null };
 global.DWMSG = { term: () => null };
 
-for (const f of ['assets/deckwave-panels.js', 'assets/deckwave-sprites.js', 'assets/patch-01-spectrogram.js',
+/* DECKWAVE_PANELS_SRC: load another copy of the panels file (git show
+   <rev>:assets/deckwave-panels.js > file) so a drawn check can be SHOWN
+   failing on the old source first — the seam the text checks below already
+   have for the dashboard and the card. */
+for (const f of [process.env.DECKWAVE_PANELS_SRC || 'assets/deckwave-panels.js', 'assets/deckwave-sprites.js', 'assets/patch-01-spectrogram.js',
                  'assets/panel-wayposts.js', 'assets/panel-centre.js', 'assets/panel-route.js']) {
   try { eval(fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n')); }
   catch (e) { console.log('FATAL loading ' + f + ': ' + (e.stack || e)); process.exit(1); }
@@ -261,6 +265,47 @@ texts.length = 0;
 }
 drawAll('the set\'s first fade — outgoing deck was started, not mixed into',
         bundle({ transLeft: 220, prev: T0, prevRate: 1 }), true);
+
+/* 6c. THE RUNNING FADE IS NOT THE NEXT ONE (ultracode review 2026-10-22).
+   D.blend is the LIVE deck's own exit — the fade it will LEAVE under — while
+   the fade in progress is the one the outgoing deck handed over, which the
+   engine keeps as DW.prevDeck.xfade/prog and the panel read only for
+   `origin`. The two differ as a matter of course since phrase-next (ledger
+   150: ▶▶ fades over one phrase, the keeper heard 19 s, and the successor's
+   planned exit is the set's 16 s). Scaled to the wrong length, the monitor
+   at 17 s of a 19 s fade dropped the OUTGOING row, labelled the incoming
+   deck OUTGOING and printed `next blend in` with the old track still
+   audible. Posed as the engine poses it: prevDeck says 19 s and 17 s in,
+   blend still says 16. The 30 s case with no engine record is the control
+   that the fading read still ENDS. */
+prevDeck = { meta: T0, name: T0.name, bpm: 120, rate: 1, origin: 'chain', matched: true,
+             fadeElapsed: 17, xfade: 19, prog: 17 / 19 };
+elapsed = 17;
+texts.length = 0;
+{
+  const D = bundle({ transLeft: 220, prev: T0, prevRate: 1 });
+  let err = null;
+  try { for (let k = 0; k < 2; k++) P.get('transition').draw(ctx(), 320, 200, Tk, D); } catch (e) { err = e.message; }
+  const crossfade = texts.find(s => /crossfade \d+%/.test(s));
+  ok('17 s into a 19 s fade whose successor exits over 16 s, the monitor still draws the crossfade',
+     !err && !!crossfade && !texts.some(s => /next blend in/.test(s)),
+     'the running fade was timed with the NEXT exit\'s length: ' + (err || JSON.stringify(texts.filter(s => /crossfade|blend/.test(s)))));
+  ok('…scaled to the ENGINE\'s fade: 89%, not 100% or empty',
+     !!crossfade && /crossfade 89%/.test(crossfade), 'got ' + JSON.stringify(crossfade));
+  ok('…and OUTGOING is still the handed-over track, not the incoming deck',
+     texts.includes('OUTGOING') && texts.some(s => /\bone\b/.test(s)),
+     'texts: ' + JSON.stringify(texts.slice(0, 12)));
+}
+prevDeck = null; elapsed = 30;
+texts.length = 0;
+{
+  const D = bundle({ transLeft: 220, prev: T0, prevRate: 1 });
+  try { for (let k = 0; k < 2; k++) P.get('transition').draw(ctx(), 320, 200, Tk, D); } catch (e) {}
+  ok('CONTROL: with no engine record and 30 s elapsed the fade is over — no crossfade is drawn',
+     !texts.some(s => /crossfade \d+%/.test(s)) && texts.some(s => /next blend in/.test(s)),
+     'the fading read never ends: ' + JSON.stringify(texts.filter(s => /crossfade|blend/.test(s))));
+}
+elapsed = 4;
 prevDeck = null;   /* nothing is handing over in the scenarios below */
 
 /* 7. list ≠ deck: the deck plays a track the list no longer holds at idx */

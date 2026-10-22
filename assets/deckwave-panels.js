@@ -891,12 +891,21 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
      INCOMING is the scheduled next deck (D.nextDeck carries its real rate;
      the plan's _stretch is the fallback before it is scheduled). */
   const nowM = D.now || S[st.idx];
-  const xfLen = (D.blend && D.blend.xfade) || 16;
+  /* The RUNNING fade is the engine's record of the handover — DW.prevDeck
+     carries its length and progress, and is null once it is over. D.blend
+     is NOT it: that is the live deck's OWN exit, the fade it will leave
+     under, and since phrase-next the two differ as a matter of course (a
+     19 s phrase fade under a 16 s planned exit dropped the OUTGOING row
+     with 3 s still audible). D.prev + elapsed is the fallback for when the
+     engine has no record to give. */
+  const pdk = (window.DW && window.DW.prevDeck) || null;
+  const xfLen = (pdk && pdk.xfade) || (D.blend && D.blend.xfade) || 16;
   const el = typeof D.elapsed === 'number' ? D.elapsed : 0;
-  const fading = !!(nowM && D.prev && el < xfLen);
+  const fading = !!(nowM && D.prev && (pdk || el < xfLen));
   let cur, nxt, rateA, rateB, prog;
   if (fading) {
-    cur = D.prev; nxt = nowM; prog = Math.min(1, el / xfLen);
+    cur = D.prev; nxt = nowM;
+    prog = (pdk && typeof pdk.prog === 'number') ? pdk.prog : Math.min(1, el / xfLen);
     rateA = D.prevRate || 1; rateB = D.deck ? D.deck.rate : 1;
   } else {
     cur = nowM;
@@ -990,10 +999,9 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
      deck (idx is 7, rate is still 1) and the outgoing row of the very first
      fade (idx has already moved to 1 while the first deck is still audible).
 
-     While FADING, OUTGOING is the handed-over deck (DW.prevDeck carries its
-     own origin) and INCOMING is the live one; otherwise OUTGOING is the live
-     deck and INCOMING is the scheduled next, which chain() always builds. */
-  const pdk = (window.DW && window.DW.prevDeck) || null;
+     While FADING, OUTGOING is the handed-over deck (`pdk`, read above, carries
+     its own origin) and INCOMING is the live one; otherwise OUTGOING is the
+     live deck and INCOMING is the scheduled next, which chain() always builds. */
   const deckFirst = !!(D.deck && D.deck.origin === 'play');
   const firstA = fading ? !!(pdk && pdk.origin === 'play') : deckFirst;
   const firstB = fading ? deckFirst : false;
