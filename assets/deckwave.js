@@ -1018,8 +1018,9 @@ const Player = (() => {
   const STRETCH_WRAPPER = 'assets/deckwave-stretch.js';
   const STRETCH_MODULE = 'assets/deckwave-stretch.module.js';
   /* zero-filled blocks SINCE THE LAST ▶: decks that have handed over are
-     added at the handover (and folded in by stop()); the live decks are
-     read directly. One number for "did the pipe gap in this set". */
+     added at the handover, then topped up by their own port handler for
+     the fade-out that follows it (and folded in by stop()); the live decks
+     are read directly. One number for "did the pipe gap in this set". */
   let gapsHanded = 0;
   const log = [];
   /* EVERY scheduled source lands here. stop() iterates this, not the deck
@@ -1194,6 +1195,13 @@ const Player = (() => {
       live.delete(src); releaseDeck(d);
       d.track.buf = null;
       try { src.buffer = null; } catch (e) {}
+      /* a handed-over deck's fade is over: the gaps it added AFTER the
+         handover's ⚠ line (see the port handler below) get their own, so
+         the log and the tally agree */
+      if (d.handed && d.counted > d.gapsAtHandover) {
+        const n = d.counted - d.gapsAtHandover;
+        log.unshift('⚠ ' + d.track.meta.name.slice(-30) + ' · ' + n + ' worklet gap' + (n === 1 ? '' : 's') + ' in the fade (×' + d.rate.toFixed(3) + ')');
+      }
       /* A handed-over source ending must not clear the new deck. With no
          successor, this is actual completion: invalidate pending work too. */
       if (A === d && !B) {
@@ -1202,7 +1210,19 @@ const Player = (() => {
         clearTimeout(chainTimer);
       }
     };
-    if (st.port) st.port.onmessage = e => { if (e && e.data && e.data.type === 'metrics') d.metrics = e.data; };
+    if (st.port) st.port.onmessage = e => {
+      if (!(e && e.data && e.data.type === 'metrics')) return;
+      d.metrics = e.data;
+      /* A deck that has HANDED OVER is neither A nor B, so nothing reads
+         its gaps again — yet its fade-out runs for a whole `fade` after
+         handover() took its snapshot, and that is the window where two
+         stretched pipes run at once. So the gaps the worklet posts during
+         the fade are folded into the tally HERE, as they arrive, and the
+         handed record's figure (the card's prevDeck) moves with them.
+         Nothing is retained for it: releaseDeck drops this handler when
+         the source ends (ledger 124). */
+      if (d.handed) { const g = d.gaps || 0; if (g > d.counted) { gapsHanded += g - d.counted; d.counted = g; d.handed.gaps = g; } }
+    };
 
     /* ── the source-time ↔ wall-time map ────────────────────────────
        Beat positions live in SOURCE seconds; schedules live in WALL seconds.
@@ -1846,8 +1866,12 @@ const Player = (() => {
                     of ×1.000 — the rate is 1 because nothing preceded it */
                  origin: A.origin };
       gapsHanded += A.gaps || 0;
+      /* that is the count UP TO the handover; the fade-out's gaps arrive
+         after it and the deck's port handler (makeDeck) folds them in */
+      A.counted = A.gapsAtHandover = A.gaps || 0; A.handed = handed;
       /* the instrument for a popping report: the worklet's own count of
-         zero-filled blocks on the deck that just handed over. Printed
+         zero-filled blocks on the deck that just handed over, so far —
+         the fade's share, if any, is logged when its source ends. Printed
          only when it is not zero, so a clean set's log stays clean. */
       if (A.gaps > 0) log.unshift('⚠ ' + A.track.meta.name.slice(-30) + ' · ' + A.gaps + ' worklet gap' + (A.gaps === 1 ? '' : 's') + ' (×' + A.rate.toFixed(3) + ')');
       else if (!stretch.held && A.underruns > 60) log.unshift('⚠ ' + A.track.meta.name.slice(-30) + ' · ' + A.underruns + ' worklet underruns incl. warm-up (×' + A.rate.toFixed(3) + ')');

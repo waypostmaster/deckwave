@@ -422,10 +422,26 @@ const x = mk('x', 200);
   /* the session tally: gaps accumulate across handovers and survive them */
   D.A.st.port.onmessage({ data: { type: 'metrics', gaps: 2, underrunCount: 2 } });
   ok('state.gapsTotal counts the live deck', Player.state.gapsTotal === 2, JSON.stringify(Player.state.gapsTotal));
+  const outgoing = D.A;
   D.handover(1);
   ok('…and keeps a handed-over deck\'s gaps in the total', Player.state.gapsTotal === 2, 'total ' + Player.state.gapsTotal + ' after handover');
+  /* The fade-out runs for a whole `fade` AFTER handover() took that
+     snapshot, and the outgoing deck is then neither A nor B (ultracode
+     review 2026-10-22). Its worklet keeps posting; a gap in the fade must
+     reach the total, the card's prevDeck figure and, when the source
+     ends, a ⚠ line. Falsifier: the total stays at the snapshot (it did:
+     2, not 7, on 6583d55). The repeat is the double-count control. */
+  outgoing.st.port.onmessage({ data: { type: 'metrics', gaps: 7, underrunCount: 7 } });
+  ok('…and gaps the OUTGOING deck posts during its fade-out reach the total', Player.state.gapsTotal === 7,
+     'total ' + Player.state.gapsTotal + ' after 5 more gaps in the fade (handed deck is A? ' + (D.A === outgoing) + ' B? ' + (D.B === outgoing) + ')');
+  ok('…and prevDeck carries the moved figure', Player.prevDeck && Player.prevDeck.gaps === 7, JSON.stringify(Player.prevDeck && Player.prevDeck.gaps));
+  outgoing.st.port.onmessage({ data: { type: 'metrics', gaps: 7, underrunCount: 7 } });
+  ok('…and the same count posted again is not counted twice', Player.state.gapsTotal === 7, 'total ' + Player.state.gapsTotal);
+  outgoing.src.onended();
+  ok('…and the source ending logs the fade\'s share and keeps the total', /⚠ .*h1 · 5 worklet gaps in the fade/.test(Player.log[0]) && Player.state.gapsTotal === 7 && outgoing.st.port.onmessage === null,
+     JSON.stringify({ log: Player.log.slice(0, 2), total: Player.state.gapsTotal, handler: typeof outgoing.st.port.onmessage }));
   Player.stop();
-  ok('…and stop() folds the live decks in rather than losing them', Player.state.gapsTotal === 2, 'total ' + Player.state.gapsTotal + ' after stop');
+  ok('…and stop() folds the live decks in rather than losing them', Player.state.gapsTotal === 7, 'total ' + Player.state.gapsTotal + ' after stop');
   AC.moduleOk = false;
 
   console.log('\n── the handover timer against a suspended audio clock ──────');
