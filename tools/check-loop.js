@@ -360,7 +360,8 @@ console.log('\n── the five still without behavioural coverage ────�
   /* check-panels sweeps assets/ for parse errors already. This is narrower and
      louder: these five are NAMED, because naming them is the record that they
      have a parse check and nothing else. deckwave-loop.js left this list on
-     2026-09-03; the other five are still on it. */
+     2026-09-03; the other five are still on it — except that deckwave-cache.js
+     has had one behavioural section (11, restore()) since 2026-10-22. */
   const uncovered = {
     'deckwave-cache.js': 'DWCACHE',
     'deckwave-listen.js': 'DWLISTEN',
@@ -384,5 +385,137 @@ console.log('\n── the five still without behavioural coverage ────�
        + JSON.stringify(badGlobal));
 }
 
-console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
-process.exit(fails ? 1 : 0);
+/* ── 11. DWCACHE.restore() against a fake IndexedDB ─────────────────────── */
+/* deckwave-cache.js stays in the compile list above, but since 2026-10-22
+   its restore() has ONE behavioural check here, because of a mechanic no
+   text check can see: on a keyPath store, put() of a record with no id
+   throws SYNCHRONOUSLY, a throw inside a Promise executor rejects the
+   promise but does NOT abort the IDB transaction, and a transaction with no
+   pending requests auto-commits when control returns to the event loop. So
+   restore(file, 'replace') with one bad record at position N used to commit
+   clear() plus the first N-1 puts, wipe the store, keep a prefix, and tell
+   the caller the restore FAILED (ultracode review 2026-10-22).
+
+   The fake below models exactly that and nothing more: queued ops apply on
+   a timer unless abort() was called; put() throws DataError for a value
+   with no usable id; a commit-time abort fires onabort with no request
+   error (the quota shape). It is a model of the spec, not a browser — the
+   check pins that the module no longer RELIES on the executor's throw
+   doing something it does not do. Each check below was watched failing
+   against 6583d55 through DECKWAVE_CACHE_SRC. The control comes first: a
+   fake that never committed anything would leave every store "intact". */
+const CACHE_SRC = process.env.DECKWAVE_CACHE_SRC || path.join(REPO, 'assets', 'deckwave-cache.js');
+
+function makeIDB(rows, opts) {
+  opts = opts || {};
+  const data = new Map(rows.map(r => [r.id, r]));
+  const req = () => ({ onsuccess: null, onerror: null, result: undefined, error: null });
+  const db = {
+    objectStoreNames: { contains: n => n === 'f' },
+    close() {},
+    transaction() {
+      const ops = []; let aborted = false;
+      const t = { oncomplete: null, onerror: null, onabort: null, error: null,
+                  abort() { aborted = true; } };
+      t.objectStore = () => ({
+        clear() { ops.push(() => data.clear()); return req(); },
+        put(v) {
+          if (!v || typeof v !== 'object' || v.id === undefined || v.id === null) {
+            const e = new Error('Data provided to an operation does not meet requirements.');
+            e.name = 'DataError'; throw e;
+          }
+          if (Object.keys(v).some(k => typeof v[k] === 'function')) {
+            const e = new Error('could not be cloned.'); e.name = 'DataCloneError'; throw e;
+          }
+          ops.push(() => data.set(v.id, v)); return req();
+        },
+        getAll() { const r = req(); setTimeout(() => { r.result = Array.from(data.values()); r.onsuccess && r.onsuccess(); }, 0); return r; },
+      });
+      setTimeout(() => {
+        if (aborted) { t.onabort && t.onabort(); return; }
+        if (opts.abortOnCommit && ops.length) {
+          const e = new Error('quota'); e.name = 'QuotaExceededError'; t.error = e;
+          t.onabort && t.onabort(); return;
+        }
+        ops.forEach(f => f());
+        t.oncomplete && t.oncomplete();
+      }, 0);
+      return t;
+    },
+  };
+  const indexedDB = {
+    open() { const r = { result: db, onsuccess: null, onerror: null, onupgradeneeded: null };
+             setTimeout(() => r.onsuccess && r.onsuccess(), 0); return r; },
+    databases: async () => [],
+  };
+  return { indexedDB, data };
+}
+
+function makeCacheWorld(rows, opts) {
+  const idb = makeIDB(rows, opts);
+  const win = {};
+  const sb = { window: win, console, setTimeout, indexedDB: idb.indexedDB };
+  sb.globalThis = sb;
+  vm.createContext(sb);
+  new vm.Script(fs.readFileSync(CACHE_SRC, 'utf8').replace(/\r\n/g, '\n'), { filename: 'deckwave-cache.js' }).runInContext(sb);
+  return { C: win.DWCACHE, data: idb.data };
+}
+const flush = (ms) => new Promise(r => setTimeout(r, ms || 20));
+const settle = (p) => p.then(v => ({ settled: 'resolved', v }), e => ({ settled: 'rejected', err: (e && e.message) || String(e) }));
+const ids = (data) => Array.from(data.keys()).join(',');
+const ORIG = [{ id: 'a', bpm: 120, beats: [0, .5] }, { id: 'b', bpm: 124, beats: [0, .48] }, { id: 'c', bpm: 128, beats: [0, .47] }];
+const file = (records) => ({ format: 'deckwave-corpus-cache', records });
+
+(async () => {
+  console.log('\n── DWCACHE.restore(): a bad record must not leave a prefix behind ──');
+  const boot = safe(() => makeCacheWorld(ORIG));
+  ok('deckwave-cache.js RUNS in a bare context with a fake indexedDB',
+     boot.ok && boot.v && boot.v.C && typeof boot.v.C.restore === 'function',
+     'it threw at load or left no DWCACHE.restore: ' + (boot.err || '-'));
+  if (boot.ok && boot.v.C) {
+    /* control: the fake COMMITS. Replace with two good rows must leave two. */
+    const c0 = safe(() => makeCacheWorld(ORIG)).v;
+    const r0 = c0 ? await settle(c0.C.restore(file([{ id: 'x', bpm: 100, beats: [0] }, { id: 'y', bpm: 101, beats: [0] }]), 'replace')) : null;
+    await flush();
+    ok('CONTROL: replace with two good records commits — the store holds exactly x,y',
+       r0 && r0.settled === 'resolved' && ids(c0.data) === 'x,y',
+       'the fake never applied clear()+put(), so "intact" below would be the fake, not the module: ' + JSON.stringify(r0) + ' store=' + (c0 ? ids(c0.data) : '-'));
+
+    /* the finding: replace, one null record in the middle */
+    const c1 = safe(() => makeCacheWorld(ORIG)).v;
+    const r1 = c1 ? await settle(c1.C.restore(file([{ id: 'x', bpm: 100, beats: [0] }, null, { id: 'y', bpm: 101, beats: [0] }]), 'replace')) : null;
+    await flush();
+    ok('replace with a null record REJECTS and the store still holds a,b,c (not wiped to a prefix)',
+       r1 && r1.settled === 'rejected' && ids(c1.data) === 'a,b,c',
+       'clear()+prefix committed while the caller was told the restore failed: ' + JSON.stringify(r1) + ' store=' + (c1 ? ids(c1.data) : '-'));
+
+    /* same, merge mode, an object with no id: nothing may be added either */
+    const c2 = safe(() => makeCacheWorld(ORIG)).v;
+    const r2 = c2 ? await settle(c2.C.restore(file([{ id: 'x', bpm: 100, beats: [0] }, { bpm: 1 }]), 'merge')) : null;
+    await flush();
+    ok('merge with an id-less record REJECTS and adds nothing (no partial import under a "failed" message)',
+       r2 && r2.settled === 'rejected' && ids(c2.data) === 'a,b,c',
+       'a prefix was imported and reported as failure: ' + JSON.stringify(r2) + ' store=' + (c2 ? ids(c2.data) : '-'));
+
+    /* a record the id check passes but put() still throws for (a function
+       property is not structured-cloneable — DataCloneError, synchronous):
+       this is the only input that reaches the try/catch → t.abort() gate
+       rather than the up-front validation, so it is what pins that gate */
+    const c4 = safe(() => makeCacheWorld(ORIG)).v;
+    const r4 = c4 ? await settle(c4.C.restore(file([{ id: 'x', bpm: 100, beats: [0] }, { id: 'z', bpm: 1, beats: [0], f() {} }]), 'replace')) : null;
+    await flush();
+    ok('a record put() throws for AFTER validation passed (DataCloneError) aborts the transaction — store still a,b,c',
+       r4 && r4.settled === 'rejected' && /clone/i.test(r4.err || '') && ids(c4.data) === 'a,b,c',
+       'the catch did not abort, or the validation swallowed the case: ' + JSON.stringify(r4) + ' store=' + (c4 ? ids(c4.data) : '-'));
+
+    /* a commit-time abort with no request error (quota) must settle, not hang */
+    const c3 = safe(() => makeCacheWorld(ORIG, { abortOnCommit: true })).v;
+    const r3 = c3 ? await Promise.race([settle(c3.C.restore(file([{ id: 'x', bpm: 100, beats: [0] }]), 'merge')), flush(300).then(() => ({ settled: 'HUNG' }))]) : null;
+    ok('a transaction aborted at commit (quota shape) REJECTS the restore rather than leaving it unsettled',
+       r3 && r3.settled === 'rejected',
+       'no onabort handler — the caller awaits forever: ' + JSON.stringify(r3));
+  }
+
+  console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
+  process.exit(fails ? 1 : 0);
+})();

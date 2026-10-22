@@ -188,17 +188,36 @@ return {
     const d = typeof json === 'string' ? JSON.parse(json) : json;
     if (d.format !== 'deckwave-corpus-cache') throw new Error('not a deckwave corpus cache file');
     if (!Array.isArray(d.records)) throw new Error('no records in file');
+    /* Refuse the whole file BEFORE a transaction exists. The store's keyPath
+       is 'id', so put() of a record without one throws SYNCHRONOUSLY — and a
+       throw inside the executor below rejects the promise without aborting
+       the transaction, which then commits whatever was already queued. In
+       replace mode that was clear() plus every put before the bad record:
+       store wiped, a prefix kept, caller told the restore FAILED. A
+       hand-edited or foreign file is the only way to get here; our own
+       export() cannot emit an id-less row. Pinned in check-loop §11. */
+    const bad = d.records.findIndex(r => !r || typeof r !== 'object' || r.id === undefined || r.id === null);
+    if (bad !== -1) throw new Error('record ' + bad + ' has no id — nothing was written');
 
     const db = await open();
     await new Promise((res, rej) => {
       const t = db.transaction(STORE, 'readwrite');
       const s = t.objectStore(STORE);
-      if (mode === 'replace') s.clear();
-      /* Repair on the way in. Every cache file written before this fix carries
-         beats as {"0":n,...}; storing that shape verbatim is what breaks the
-         set at its first transition. */
-      d.records.forEach(r => s.put(normaliseRow(r)));
       t.oncomplete = res; t.onerror = () => rej(t.error);
+      /* a commit-time abort (quota) fires neither of those; without this
+         the await above never settles */
+      t.onabort = () => rej(t.error || new Error('cache restore transaction aborted'));
+      try {
+        if (mode === 'replace') s.clear();
+        /* Repair on the way in. Every cache file written before this fix carries
+           beats as {"0":n,...}; storing that shape verbatim is what breaks the
+           set at its first transition. */
+        d.records.forEach(r => s.put(normaliseRow(r)));
+      } catch (e) {
+        /* the gate that does not rest on the check above being complete:
+           anything put() throws for, discard the queued work too */
+        t.abort(); rej(e);
+      }
     });
     const after = summarise(await readAll(db));
     db.close();
