@@ -1082,6 +1082,45 @@ console.log('\n── one implementation each (review M12) ───────
      && !/DWLOOP\.start\(dash\); else/.test(dash),
      'the fallback is back — a gate that refuses beats a second implementation nobody can reach');
 
+  /* THE DECK SPLIT MUST FOLLOW THE ANALYSER (ultracode review, 2026-10-22).
+     Ledger 59 put the re-split into splitDeck() — kill → ▶ closes the context
+     and boots a fresh analyser, so a split on the old one reads a dead graph
+     and the goniometer and VU go flat. But after the inline loop() went
+     (2026-09-01) the only caller left was stereoSource(), guarded by
+     `if (!deckL)`: once the first split existed the identity check was never
+     reached again, and ledger 59's fix was unreachable from every frame.
+     Pinned by running the REAL splitDeck/stereoSource text against two fake
+     contexts: the first frame splits on the first; with the analyser
+     unchanged the next frame returns the same nodes (no per-frame rebuild,
+     which is what makes an unguarded call safe); the analyser moving to a
+     second context — the kill → ▶ shape — must move the split with it.
+     What this cannot see: whether a real closed AnalyserNode reads zeros or
+     throws; the needles after reset audio engine → ▶ are the eye's. */
+  {
+    const sd = dashSrc.match(/\n  function splitDeck\(\) \{[\s\S]*?\n  \}\n/);
+    const ss = dashSrc.match(/\n  function stereoSource\(\) \{[\s\S]*?\n  \}\n/);
+    ok('splitDeck() and stereoSource() found in the dashboard source', !!(sd && ss), 'regex did not match — moved or renamed?');
+    if (sd && ss) {
+      const fakeCtx = () => { const c = { connects: 0 }; const node = () => ({ context: c, gain: {}, connect() { c.connects++; } });
+        c.createChannelSplitter = node; c.createAnalyser = node; c.createGain = node; c.destination = {}; return c; };
+      const ctx1 = fakeCtx(), ctx2 = fakeCtx();
+      const win = { DW: { Player: { analyser: ctx1.createAnalyser() } }, DWLISTEN: undefined };
+      const F = eval('(function (window) { let deckL = null, deckR = null;' + sd[0] + ss[0] + 'return { splitDeck, stereoSource }; })')(win);
+      const first = F.stereoSource(), again = F.stereoSource();
+      ok('first frame splits the deck on the live context',
+         !!first && first.src === 'deck' && first.L.context === ctx1 && first.R.context === ctx1 && ctx1.connects > 0,
+         'stereoSource() returned null or a split on nothing — Act 14\'s frozen needles');
+      ok('…control: the analyser unchanged, the next frame returns the SAME nodes (no per-frame rebuild)',
+         !!again && again.L === first.L && again.R === first.R && ctx1.connects === 6,
+         'an unguarded splitDeck() rebuilds the graph every frame — the identity check is not holding');
+      win.DW.Player.analyser = ctx2.createAnalyser();   /* kill → ▶: fresh context, fresh analyser */
+      const after = F.stereoSource();
+      ok('kill → ▶: the analyser moved to a new context and stereoSource() re-split onto it',
+         !!after && after.L.context === ctx2 && after.R.context === ctx2 && after.L !== first.L && ctx2.connects > 0,
+         'the split still hangs off the closed context — goniometer and VU read a dead graph until a reload (ledger 59 undone)');
+    }
+  }
+
   /* THE CARD'S STYLESHEET. deckwave-nowplaying.js appends its own sheet after
      the dashboard's, so it wins every property both declare; the dashboard's
      .np block decided nothing and had already gone stale (it still styled

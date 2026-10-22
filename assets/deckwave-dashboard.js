@@ -730,8 +730,12 @@ function mount(hostEl) {
        goniometer and the VU meters with it, because DWVU.feed() sits inside
        the loop's `if (stereo)` branch: feed never called, needles frozen.
        Which is Act 14's bug arriving by a different road. Cheap to retry:
-       it returns false immediately once done, or while there is no deck. */
-    if (!deckL) splitDeck();
+       it returns false immediately once done, or while there is no deck.
+       UNGUARDED on purpose (2026-10-22): `if (!deckL)` made ledger 59's
+       re-split unreachable — kill → ▶ moved the analyser to a new context
+       and the split stayed on the closed one. splitDeck() itself is the
+       guard; check-panels pins the kill → ▶ shape. */
+    splitDeck();
     if (deckL && deckR) return { L: deckL, R: deckR, src: 'deck' };
     return null;
   }
