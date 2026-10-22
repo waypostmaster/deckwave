@@ -517,6 +517,56 @@ const dashSrc = fs.readFileSync(process.env.DECKWAVE_DASH_SRC || 'assets/deckwav
      iGuard > -1 && iPlan > -1 && iGuard < iPlan,
      'the header reaches the plan fallback for track 0, where _stretch is 1 by construction, and prints 0.0%');
 }
+/* THE CARD'S ALIGNMENT WORD, DRIVEN, NOT READ. The blend line tested only
+   the INCOMING track for `_unlocked`, so a grid-unlocked OUTGOING track with
+   a locked successor printed "downbeat-aligned" while the engine left it on
+   the clock (deckwave.js naturalExit() and the `!m._unlocked` exit snap both
+   refuse a distrusted grid) and the transition monitor beside it said
+   STRAIGHT (ultracode review 2026-10-22). The card is mounted into a stub
+   shadow root and update() is called against the engine getters above, so
+   the string asserted on is the one the keeper reads. CONTROL FIRST: the
+   locked→locked case MUST print the word, or the branch was never reached
+   and the two zeros after it are decoration. DECKWAVE_NP_SRC points this
+   block at another copy of the card (run it against HEAD's to see it fail). */
+{
+  const npPath = process.env.DECKWAVE_NP_SRC || 'assets/deckwave-nowplaying.js';
+  const nodes = {};
+  const mkEl = () => ({ style: {}, textContent: '', innerHTML: '', className: '', title: '', children: [], parentElement: null,
+    classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, appendChild() {}, remove() {}, querySelector: () => null });
+  const sr = { getElementById: id => (id === 'dw-np-css' || id === 'npBox' || id === 'list' || id === 'kReg')
+                                     ? null : (nodes[id] || (nodes[id] = mkEl())),
+               querySelector: s => (s === '.app' ? mkEl() : null), appendChild() {} };
+  const save = [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate];
+  let NP = null, err = '';
+  try {
+    eval(fs.readFileSync(npPath, 'utf8').replace(/\r\n/g, '\n'));
+    NP = global.DWNOWPLAYING; NP.mount({ shadow: sr });
+  } catch (e) { err = e.message; NP = null; }
+  /* one planned blend, 42 s out, 16 s crossfade — the card's own fixture shape */
+  const line = (cur, nxt) => {
+    nowMeta = cur; nextMeta = nxt; elapsed = 60;
+    deck = { meta: cur, name: cur.name, bpm: cur.bpm, rate: 1, origin: 'chain', settling: false, settleLeft: 0 };
+    nextDeck = { meta: nxt, name: nxt.name, bpm: nxt.bpm, rate: 1, straight: !!(cur._unlocked || nxt._unlocked), startsAt: 300, entry: 0 };
+    blend = { in: 42, at: 102, dur: 240, xfade: 16, frac: 102 / 240, fadeFrac: 16 / 240 };
+    DWstate = { idx: 0, of: 5, tempo: cur.bpm, now: cur.name, next: nxt.name, live: 2, ctx: 'running' };
+    nodes.npBlend = mkEl();
+    try { NP.update(bundle({ transLeft: 42 }), 42); } catch (e) { return 'THREW: ' + e.message; }
+    return String(nodes.npBlend.innerHTML);
+  };
+  const ctrl = NP ? line(T0, T1) : '';
+  ok('CONTROL: the card calls a locked→locked planned blend downbeat-aligned (the blend line is reached)',
+     !!NP && /downbeat-aligned/.test(ctrl),
+     'the card never reached its blend line, so the two checks after this would pass on nothing: ' + JSON.stringify(err || ctrl));
+  const outU = NP ? line(TS, T1) : '';
+  ok('a grid-UNLOCKED OUTGOING track with a locked successor is not called downbeat-aligned — the engine leaves it on the clock',
+     !!NP && !/downbeat-aligned/.test(outU) && /no beat alignment/.test(outU),
+     'the card claims an alignment the engine is not making: ' + JSON.stringify(outU));
+  const inU = NP ? line(T0, TS) : '';
+  ok('a straight INCOMING track is still not called downbeat-aligned',
+     !!NP && !/downbeat-aligned/.test(inU) && /no beat alignment/.test(inU),
+     'the incoming case regressed: ' + JSON.stringify(inU));
+  [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate] = save;
+}
 const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(/\r\n/g, '\n');
 /* CLAUDE.md: "Do not label an axis with numbers the project chose." The
    loudness panel drew reference lines at -14 and -23 and labelled them

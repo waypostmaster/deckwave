@@ -398,12 +398,17 @@ return {
       b.className = 'blend' + (transLeft < 20 ? ' soon' : '');
       /* the crossfade length comes off the schedule (Player.setXfade exists;
          it is not on the DW facade, so nothing in the UI can move it yet);
-         a straight incoming track is not downbeat-aligned and must not say so */
+         a straight track on EITHER side is not downbeat-aligned and must not
+         say so. The outgoing side was missed until 2026-10-22: chain() leaves
+         a grid-unlocked outgoing track on the clock (naturalExit() and the
+         exit snap both refuse a distrusted grid), and the transition monitor
+         already said STRAIGHT while this line said downbeat-aligned. */
       const xs = B ? Math.round(B.xfade) : 16;
       b.innerHTML = transLeft <= 0
         ? '<b>\u25c9 BLENDING NOW</b> \u00b7 bass swap at 45%'
         : 'blend in <b>' + Math.round(transLeft) + 's</b> \u00b7 ' + xs + 's crossfade, '
-          + (nx._unlocked ? 'straight \u2014 no beat alignment' : 'downbeat-aligned');
+          + (t._unlocked ? 'straight \u2014 leaves on the clock, no beat alignment'
+             : nx._unlocked ? 'straight \u2014 no beat alignment' : 'downbeat-aligned');
     } else b.innerHTML = nx ? '' : 'final track';
 
     $('npN').innerHTML = nx
