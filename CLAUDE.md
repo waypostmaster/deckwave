@@ -313,7 +313,9 @@ hours, or drift.** Those need the ear or a browser.
 
 ### Open items — BASE (each needs the keeper's ear; none is a build task)
 
-0. **§23, the two tunes — UNHEARD.** `CAMELOT_MINOR` numbered minors by
+0. **§23, the two tunes — HEARD 2026-10-22 (ledger 152): the sets differ,
+   "good to have options", no wheel preferred, default STAYS deckwave.**
+   Closed as a listening task; reopens only on a named pair. History: `CAMELOT_MINOR` numbered minors by
    their parallel major; not swapped (keeper: *"so we're not messing up my
    mix"*) — `tune` in ⚙, deckwave tune the default, standard Camelot one
    select away, `DW.retune()`. Measured: only 3.2% of ordered pairs on the

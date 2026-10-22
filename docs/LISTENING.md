@@ -1412,7 +1412,14 @@ do, the README's extension paragraph gets one sentence saying so. The
 OS-voice half of the `voice` fader is capped at 100% and iOS ignores it
 entirely (ledger 75) — that is the platform, already said on the tooltip.
 
-## 23 - The two tunes — built 2026-08-29, the standard one UNHEARD
+## 23 - The two tunes — built 2026-08-29, HEARD 2026-10-22: they differ, default stays
+
+**HEARD (BUILD-LOG 152):** Edge on the desktop, 2026-10-22: *"It's
+different. Good. It's good to have options."* Question 1 below is answered
+— the orders differ on this library. Questions 2 and 3 are not: no pair was
+named better or worse, so the deckwave tune stays the default and standard
+Camelot stays the select. Reopen only if a specific handover is called out.
+
 
 **The one that changes what you hear, and the reason it is a select and
 not a fix.** The cloud review found that this deck's minor-key wheel

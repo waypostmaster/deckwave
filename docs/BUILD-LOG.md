@@ -4202,3 +4202,24 @@ Node update remains host hygiene, the keeper's. Nothing staged, nothing
 changed. [MEASURED on the tree at 1fb7fde; INFERRED only that no path
 outside the repo, e.g. the house's skills, fetches through Node — not
 swept here, not Deckwave's.]
+
+## Act 51 — The two tunes, heard (2026-10-22)
+
+**152 · §23 HEARD on the desktop (reported 2026-10-22T02:38Z, Edge on the
+PC).** The keeper's words, whole: *"I tried out the camelot tune. It's
+different. Good. It's good to have options."* That answers LISTENING §23's
+question 1 — **the two builds DIFFER on this library** — which the
+measurement (3.2% of pairs rescored) said was possible but did not promise
+for a short set. It does NOT answer questions 2 or 3: no handover was named
+better or worse, and "good" attaches to having the option, not to one wheel
+over the other. **So the default does not flip.** Deckwave tune stays
+checked; standard Camelot stays one select away in ⚙ › mix; nothing moves on
+this report, and nothing should until the keeper names a pair. The one
+outcome §23 listed as ending the matter — identical sets — is ruled out.
+[CONFIRMED that the sets differ and that the option is wanted, by the
+keeper's ear; INFERRED only that the difference heard was a cross-mode
+handover, which is the only kind the tune can change — not asked, not
+checked.] Carried from here: item 0 of CLAUDE.md's BASE list closes as a
+listening task and becomes a standing option; what remains is a preference
+the keeper may or may not ever state. Written at 02:4xZ the same night.
+
