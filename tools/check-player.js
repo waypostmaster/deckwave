@@ -723,6 +723,49 @@ const x = mk('x', 200);
        D.B === s.nextDeck && started.length === s.nStarted && !pending.has('n2'),
        'B=' + (D.B && D.B.track.meta.name) + ', ' + (started.length - s.nStarted) + ' more sources started, n2 re-decoding ' + pending.has('n2'));
   }
+  /* Codex's read of the above (2026-10-27): every case SUPERSEDES, so an
+     unconditional `return 'superseded'` after the decode passes them all
+     while disabling the verbs; and only the resolve path is raced, so
+     removing reorder's catch-side guard passes too. Falsifiers: a click
+     on the set that is still playing does not land; a stale reorder whose
+     decode FAILS re-chains set 2. */
+  {
+    Player.stop(); started.length = 0; pending.clear();
+    const setOne = [mk('c1', 240), mk('c2', 240), mk('c3', 240)];
+    const xb = mk('xb-ctl', 200), xq = mk('xq-ctl', 200);
+    let p = Player.play(setOne, 0); await tick(); await settle('c1'); await p; await tick();
+    const vb = Player.blendNow(xb, { lead: 1 }); await tick(); await settle('xb-ctl'); await tick();
+    const rb = await Promise.race([vb, tick().then(() => '(still pending)')]);
+    ok('blendNow on the set that is still playing lands (control: not superseded)',
+       typeof rb === 'string' && rb !== 'superseded' && rb !== '(still pending)' && D.order.includes(xb),
+       'blendNow returned ' + JSON.stringify(rb) + ', xb in order ' + D.order.includes(xb));
+    for (const n of [...pending.keys()]) settle(n); await tick();
+    const vq = Player.queueNext(xq); await tick(); await settle('xq-ctl'); await tick();
+    const rq = await Promise.race([vq, tick().then(() => '(still pending)')]);
+    ok('queueNext on the set that is still playing lands (control: not superseded)',
+       typeof rq === 'string' && rq !== 'superseded' && rq !== '(still pending)' && D.order.includes(xq),
+       'queueNext returned ' + JSON.stringify(rq) + ', xq in order ' + D.order.includes(xq));
+  }
+  {
+    Player.stop(); started.length = 0; pending.clear();
+    const setOld2 = [mk('r1', 240), mk('r2', 240), mk('r3', 240)];
+    const setNew2 = [mk('s1', 240), mk('s2', 240), mk('s3', 240)];
+    const xr = mk('xr-fail', 200);
+    let p = Player.play(setOld2, 0); await tick(); await settle('r1'); await p; await tick();
+    await settle('r2'); await tick();
+    const v = Player.reorder([setOld2[0], xr, setOld2[1], setOld2[2]], { now: true }); await tick();
+    const was = pending.has('xr-fail');
+    p = Player.play(setNew2, 0); await tick(); await settle('s1'); await p; await tick();
+    await settle('s2'); await tick();
+    const nextDeck = D.B, nStarted = started.length;
+    fail('xr-fail'); await tick();
+    const r = await Promise.race([v, tick().then(() => '(still pending)')]); await tick();
+    ok('reorder({now}) on set 1 whose decode FAILS after ▶ on set 2 stands down',
+       was && r === 'superseded' && D.B === nextDeck && nextDeck && nextDeck.track.meta.name === 's2' &&
+       started.length === nStarted && !pending.has('s2'),
+       'in-flight ' + was + ', returned ' + JSON.stringify(r) + ', B=' + (D.B && D.B.track.meta.name) +
+       ', s2 re-decoding ' + pending.has('s2'));
+  }
   Player.stop(); pending.clear();
 
   console.log('\n── the analysis cache when the browser refuses it ──────────');
