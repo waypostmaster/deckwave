@@ -697,6 +697,26 @@ const dashSrc = fs.readFileSync(process.env.DECKWAVE_DASH_SRC || 'assets/deckwav
   ok('CONTROL: 30 s in, the fade is over and the card counts down to the next blend again',
      !!NP && /blend in/.test(after) && !/BLENDING/.test(after),
      'the fading read never ends, or the countdown is gone: ' + JSON.stringify(after));
+  /* Codex's read of the fix above (2026-10-27): both cases use a 16 s exit
+     for a 16 s fade, so a card timing the RUNNING fade by the live deck's
+     own exit (B.xfade) passes them. Since phrase-next the two differ: a
+     19 s phrase fade under a 16 s planned exit. The engine's record
+     (DW.prevDeck.xfade / .prog) is the running fade, as the monitor reads
+     it. Falsifiers: 17 s in, the card falls back to "blend in"; 8 s in, it
+     prints 50% and "bass swapped" (8/16) instead of 42% "on outgoing" (8/19). */
+  prevDeck = { meta: T0, name: T0.name, bpm: 120, rate: 1, origin: 'chain', matched: true,
+               fadeElapsed: 17, xfade: 19, prog: 17 / 19 };
+  const late = NP ? fade(17) : '';
+  ok('17 s into a 19 s PHRASE fade under a 16 s exit, the card still says BLENDING at 89%',
+     !!NP && /BLENDING/.test(late) && /\b89%/.test(late) && !/blend in/.test(late),
+     'the card timed the running fade by the next exit: ' + JSON.stringify(late));
+  prevDeck = { meta: T0, name: T0.name, bpm: 120, rate: 1, origin: 'chain', matched: true,
+               fadeElapsed: 8, xfade: 19, prog: 8 / 19 };
+  const early = NP ? fade(8) : '';
+  ok('8 s into that 19 s fade the card reads 42% and the bass still on the outgoing deck',
+     !!NP && /\b42%/.test(early) && /on outgoing/.test(early),
+     'progress or bass state taken from the 16 s exit: ' + JSON.stringify(early));
+  prevDeck = null;
   [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate] = save;
 }
 const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(/\r\n/g, '\n');

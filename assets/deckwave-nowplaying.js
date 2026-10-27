@@ -349,9 +349,16 @@ return {
        fixed in August, this card on 2026-10-22). Same read as the monitor:
        a crossfade is running when the deck's elapsed is inside one crossfade
        and there is a track it took over from (D.prev — the loop's record,
-       the engine's DW.prevDeck while that is live). */
-    const xfLen = (B && B.xfade) || 16;
-    const fading = !!(D.prev && el < xfLen);
+       the engine's DW.prevDeck while that is live). The LENGTH and progress
+       come from that record too, exactly as the monitor reads them: B.xfade
+       is the live deck's OWN exit, and since phrase-next the running fade
+       and the next one differ as a matter of course (a 19 s phrase fade
+       timed by a 16 s exit fell back to the countdown with 3 s audible, and
+       printed "bass swapped" early — Codex, 2026-10-27). */
+    const pdk = (window.DW && window.DW.prevDeck) || null;
+    const xfLen = (pdk && pdk.xfade) || (B && B.xfade) || 16;
+    const fading = !!(D.prev && (pdk || el < xfLen));
+    const fadeProg = (pdk && typeof pdk.prog === 'number') ? pdk.prog : Math.min(1, el / xfLen);
 
     /* the scheduled blend, straight off the schedule */
     const xf = $('npXf'), mk = $('npMk'), bar = $('npBar');
@@ -409,7 +416,7 @@ return {
     if (fading) {
       /* the monitor's own figure: progress through the crossfade, and the
          bass-swap point it already prints (45%, a chosen number, unchanged) */
-      const prog = Math.min(1, el / xfLen);
+      const prog = fadeProg;
       b.className = 'blend soon';
       b.innerHTML = '<b>◉ BLENDING</b> · ' + Math.round(prog * 100) + '% · from '
         + esc(clean(D.prev.name).slice(0, 24)) + ' · bass '
