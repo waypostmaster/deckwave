@@ -2080,7 +2080,7 @@ function buildTransport(dash) {
     const r = window.DW.retune(k);
     log('tune: ' + (r.mode === 'standard' ? 'standard camelot' : 'deckwave tune')
       + ' · ' + r.restamped + ' of ' + r.corpus + ' keys restamped · the play order changes at the next build');
-    renderList();
+    dash.renderList();                       /* mount()'s, not in this scope: a bare call threw */
   }, tune0, GRP.mix);
   /* THE OUTPUT — keeper, 2026-10-07: SteelSeries Sonar puts all of Chrome
      on its Chat channel (Google Meet lives there too), and Sonar sorts by

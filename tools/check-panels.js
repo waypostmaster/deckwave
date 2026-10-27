@@ -1608,5 +1608,33 @@ console.log('\n── the control budget (UI walk decision 5) ──────
      'the drawer holds tune, settle, output and phone — "display" is the wrong word for it (finding 9)');
 }
 
+console.log('\n── the tune switch runs to the end ─────────────────────────');
+/* ultracode review 2026-10-22 (Codex finder, never fixed by its run):
+   the tune select's handler sits in buildTransport(), but called a bare
+   renderList(), which is declared inside mount() — a sibling, not a parent.
+   The file is 'use strict', so every switch threw ReferenceError after
+   DW.retune() had already run: the list never repainted and the console
+   took an uncaught error. Ledger 152's A/B worked because a rebuild
+   repaints the list by another path. EXECUTED, not matched: the handler is
+   cut out of the source and run in strict mode with only what
+   buildTransport has in scope (dash, log, window). Falsifier: it throws, or
+   it does not repaint the list exactly once. */
+{
+  const m = dashSrc.match(/select\('tune', \[[\s\S]*?\], (k => \{[\s\S]*?\n  \}), tune0, GRP\.mix\);/);
+  ok('the tune select\'s handler can be found in buildTransport', !!m, 'extractor missed: the select(\'tune\', ...) call changed shape');
+  let err = null, repaints = 0, retuned = null, logged = '';
+  if (m) {
+    const dashStub = { renderList() { repaints++; } };
+    const winStub = { DW: { retune(k) { retuned = k; return { mode: k, restamped: 3, corpus: 5 }; } } };
+    try {
+      const fn = new Function('dash', 'log', 'window', '"use strict"; return (' + m[1] + ');')(dashStub, s => { logged = s; }, winStub);
+      fn('standard');
+    } catch (e) { err = e.name + ': ' + e.message; }
+  }
+  ok('switching the tune runs to the end: retune, log line, and ONE list repaint — no ReferenceError',
+     !!m && !err && retuned === 'standard' && /standard camelot/.test(logged) && repaints === 1,
+     'threw ' + JSON.stringify(err) + ', retuned ' + retuned + ', repaints ' + repaints);
+}
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);
