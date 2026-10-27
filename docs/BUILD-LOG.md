@@ -4391,3 +4391,10 @@ boot fault (ledger 132's class) would still need the page opened.
 on-screen changes.] This row is docs-only and leaves `public` one commit
 behind the working branch; nothing a visitor sees depends on it.
 
+**153g · The live boot, seen (keeper, 2026-10-27T01:3xZ).** *"I can see it
+in the browser."* [CONFIRMED: the page loads on `f85204c` — the gap 153f
+left open.] Surface not named; carried as a browser on the keeper's desk.
+NOT covered by that sentence, and still UNSEEN: BLENDING through a phrase
+fade on the card, `◉ PERIODS LOCKED` on the monitor, the tune switch
+repainting the list.
+
