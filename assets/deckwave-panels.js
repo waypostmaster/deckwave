@@ -1040,7 +1040,7 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
   } else if (nxt && perA && perB) {
     /* An UNMATCHED side is the same class as a straight one for the verdict:
        a deck play() started was never beat-aligned to the other, so a drift
-       figure measures an event that did not happen and `◉ PHASE LOCKED`
+       figure measures an event that did not happen and a LOCKED verdict
        against two decks both running at rate 1 is a tick under nothing.
        That is exactly what a jump to row 7 produced (ledger 82's reading on
        the monitor); read the engine's `origin`, do not infer it. */
@@ -1056,7 +1056,7 @@ window.DWPANELS.register('transition', 'transition monitor', function (c, w, h, 
     c.fillText(unmatched && !(cur._unlocked || nxt._unlocked)
         ? '∿ NOT MIXED · this deck was started, not blended into'
       : straight ? '∿ STRAIGHT · no beat alignment claimed'
-      : locked ? '◉ PHASE LOCKED · periods match'
+      : locked ? '◉ PERIODS LOCKED'
       : '△ DRIFT ' + (drift * 100).toFixed(2) + '%', w / 2, by);
     c.shadowBlur = 0; c.font = '8px ' + fn;
     const bw = inner * 0.7, bx = (w - bw) / 2, byy = by + 14;

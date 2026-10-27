@@ -1536,7 +1536,8 @@ ones with a discriminating glance or listen, cheapest first:
    header, the card, the route footer, the transition monitor and RECON's
    instrument column. **They should all read `∿ jumped` / `∿ first` and
    NOTHING that looks like a stretch figure** — no `+0.00%`, no `×1.000`,
-   no `PHASE LOCKED`. One `0.0%` anywhere is a sixth surface.
+   no `PERIODS LOCKED` (it said `PHASE LOCKED` before 2026-10-27).
+   One `0.0%` anywhere is a sixth surface.
 2. **A negated instruction.** From the console or RECON's tray:
    `DWEVENTS.inject("don't speed up")`. It should do NOTHING to the music
    and answer with a sentence naming what it read. Before 0.8.1 it blended

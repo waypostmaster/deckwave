@@ -173,8 +173,8 @@ const draw1 = (id, D) => { texts.length = 0; const p = P.get(id);
   const wasIdx = DWstate.idx; DWstate.idx = 0;
   const tt = draw1('transition', bundle({}));
   ok('stopped WITH a next track: the transition monitor claims no lock verdict',
-     !tt.some(s => /PHASE LOCKED|DRIFT \d/.test(s)),
-     'a lock verdict about a transition no deck is making: ' + JSON.stringify(tt.filter(s => /PHASE LOCKED|DRIFT/.test(s))));
+     !tt.some(s => /(PHASE|PERIODS) LOCKED|DRIFT \d/.test(s)),
+     'a lock verdict about a transition no deck is making: ' + JSON.stringify(tt.filter(s => /(PHASE|PERIODS) LOCKED|DRIFT/.test(s))));
   ok('stopped: the transition monitor says it is cued, not playing',
      tt.some(s => /cued/.test(s) && /not playing/.test(s)),
      'no not-playing marker; texts ' + JSON.stringify(tt.slice(0, 6)));
@@ -238,6 +238,16 @@ texts.length = 0;
   ok('OUTGOING is the previous track, INCOMING the deck', texts.includes('OUTGOING') && texts.includes('INCOMING') &&
      texts.some(s => /\bone\b/.test(s)) && texts.some(s => /\btwo\b/.test(s)),
      'texts: ' + JSON.stringify(texts.slice(0, 12)));
+  /* The keeper, 2026-10-27: "◉ PERIODS LOCKED". The verdict compares played
+     PERIODS (drift < 0.005); it never measures beat offset, so a half-beat
+     slip between two matched decks would have read PHASE LOCKED. This is
+     also the positive control for every "(PHASE|PERIODS) LOCKED must not
+     appear" check in this file: without it those could pass on a panel
+     that draws no verdict at all. Falsifier: the old wording, or no lock
+     verdict on two locked, matched decks. */
+  ok('two locked, matched decks get the verdict "◉ PERIODS LOCKED", not a phase claim',
+     texts.some(s => /^◉ PERIODS LOCKED/.test(s)) && !texts.some(s => /PHASE LOCKED/.test(s)),
+     'verdict: ' + JSON.stringify(texts.filter(s => /LOCKED|DRIFT|STRAIGHT|NOT MIXED/.test(s))));
 }
 drawAll('crossfade in progress', bundle({ transLeft: 220, prev: T0, prevRate: 1 }));
 
@@ -260,8 +270,8 @@ texts.length = 0;
      !texts.some(s => /×1\.000/.test(s)),
      'texts: ' + JSON.stringify(texts.filter(s => /×|first|straight/.test(s))));
   ok('…and claims no lock: NOT MIXED, because one side was started rather than blended into',
-     texts.some(s => /NOT MIXED/.test(s)) && !texts.some(s => /PHASE LOCKED|DRIFT/.test(s)),
-     'verdict: ' + JSON.stringify(texts.filter(s => /NOT MIXED|PHASE LOCKED|DRIFT|STRAIGHT/.test(s))));
+     texts.some(s => /NOT MIXED/.test(s)) && !texts.some(s => /(PHASE|PERIODS) LOCKED|DRIFT/.test(s)),
+     'verdict: ' + JSON.stringify(texts.filter(s => /NOT MIXED|(PHASE|PERIODS) LOCKED|DRIFT|STRAIGHT/.test(s))));
 }
 drawAll('the set\'s first fade — outgoing deck was started, not mixed into',
         bundle({ transLeft: 220, prev: T0, prevRate: 1 }), true);
@@ -356,16 +366,16 @@ drawAll('a JUMPED-TO deck at row 3 (origin play, rate 1, idx 2)', bundle({ trans
   for (const id of ids) {
     texts.length = 0;
     try { for (let k = 0; k < 2; k++) P.get(id).draw(ctx(), 320, 200, Tk, bundle({ transLeft: 200 })); } catch (e) {}
-    texts.forEach(s => { if (/\+?0\.00%|×1\.000|PHASE LOCKED/.test(String(s))) offenders.push(id + ': ' + s); });
+    texts.forEach(s => { if (/\+?0\.00%|×1\.000|(PHASE|PERIODS) LOCKED/.test(String(s))) offenders.push(id + ': ' + s); });
   }
-  ok('no panel prints +0.00%, ×1.000 or PHASE LOCKED against a jumped-to deck',
+  ok('no panel prints +0.00%, ×1.000 or a LOCKED verdict against a jumped-to deck',
      offenders.length === 0,
      JSON.stringify(offenders.slice(0, 4)));
   texts.length = 0;
   try { P.get('transition').draw(ctx(), 320, 200, Tk, bundle({ transLeft: 200 })); } catch (e) {}
   ok('the transition monitor says NOT MIXED for a deck that was started, not blended into',
      texts.some(s => /NOT MIXED/.test(s)),
-     'verdict: ' + JSON.stringify(texts.filter(s => /NOT MIXED|PHASE LOCKED|DRIFT|STRAIGHT/.test(s))));
+     'verdict: ' + JSON.stringify(texts.filter(s => /NOT MIXED|(PHASE|PERIODS) LOCKED|DRIFT|STRAIGHT/.test(s))));
   texts.length = 0;
   try { P.get('route').draw(ctx(), 320, 200, Tk, bundle({ transLeft: 200 })); } catch (e) {}
   ok('the route panel calls it JUMPED, not FIRST — the set does have a step before this one',
