@@ -402,7 +402,9 @@ hours, or drift.** Those need the ear or a browser.
    review; pick from that file, build as the UI review's §7 says. Three
    on-screen changes from ledger 153 are UNSEEN: BLENDING through a phrase
    fade on the card, `◉ PERIODS LOCKED` on the monitor, the tune switch
-   repainting the list.
+   repainting the list. **Pushed and live at `f85204c` 2026-10-27 (153f);
+   the live page has NOT been booted in a browser** (extension down) —
+   open deckwave.fm once and look before trusting it.
 
 ### Open items — CONSOLE EXTENSION (RECON + the voice)
 

@@ -4370,3 +4370,24 @@ repo at `C:\Claude\outbox\deckwave\ultracode-2026-10-22\`
 there 2026-10-27 because the session scratchpad that held them is a temp
 directory. **Do not re-run the review**; triage that file.
 
+**153f · Pushed and live, 2026-10-27.** `public` fast-forwarded to
+`f85204c`; before the push, on a clean checkout of exactly that commit with
+`.citywalk-denylist` copied in, all sixteen green at 1188 (01:24:08Z); the
+private sweep compared every term's hits in the outgoing tree against the
+tree GitHub served (`09417d5`), with the control `deckwave` hitting 135
+files — two NEW hits, both benign (a public file name's word in ledger
+151's text; Codex writing "record IDs" about cache rows). Dry run showed
+only `09417d5..f85204c public -> main`. **The keeper ran `! git push
+origin`** (~01:25Z). `git ls-remote origin refs/heads/main` →
+`f85204c1bfb3c6c908655cd859aca3afe575bfc1`; Pages build `built` for that
+commit at 01:25:44Z. MEASURED 01:27Z: all six changed assets served
+byte-identical to `f85204c` (sha256, cache-busted, `no-cache`), with
+`index.html` — unchanged in this release — as the control matching both
+commits. **NOT done: a live boot in a real browser** — the Chrome extension
+was not connected. The substitute is `check-panels` executing every script
+`index.html` loads on that exact commit, plus the byte match; a Pages-only
+boot fault (ledger 132's class) would still need the page opened.
+[MEASURED: push, build, bytes. UNVERIFIED: live boot. UNSEEN: the three
+on-screen changes.] This row is docs-only and leaves `public` one commit
+behind the working branch; nothing a visitor sees depends on it.
+
