@@ -557,6 +557,17 @@ const file = (records) => ({ format: 'deckwave-corpus-cache', records });
     ok('...and the result says so: imported 1 (d), kept 1 (a) — not "2 merged"',
        r6 && r6.settled === 'resolved' && r6.v && r6.v.imported === 1 && r6.v.kept === 1,
        'the caller\'s log line would still claim every file row was merged: ' + JSON.stringify(r6 && r6.v));
+    /* Codex's read (2026-10-27): every id above is distinct, so a count of
+       put() calls passes. A file naming the new id d TWICE adds one row; the
+       report must say 1, and the stored d is the LAST occurrence (put()'s
+       own rule, unchanged). Falsifier: imported 2 for a store that grew by one. */
+    const c6b = safe(() => makeCacheWorld(LIVE)).v;
+    const r6b = c6b ? await settle(c6b.C.restore(file([{ id: 'd', bpm: 130, beats: [0] }, { id: 'd', bpm: 131, beats: [0] }]), 'merge')) : null;
+    await flush();
+    const d6b = c6b && c6b.data.get('d');
+    ok('merge: a file naming one new id twice reports imported 1, and the store grew by exactly that row',
+       r6b && r6b.settled === 'resolved' && r6b.v && r6b.v.imported === 1 && ids(c6b.data) === 'a,b,c,d' && d6b && d6b.bpm === 131,
+       'the report counts put() calls, not rows added: ' + JSON.stringify(r6b && r6b.v) + ' store=' + (c6b ? ids(c6b.data) : '-') + ' d=' + JSON.stringify(d6b));
     /* the abort gate must hold on the merge path too: a row put() throws for
        AFTER the key read (DataCloneError) aborts rather than committing d */
     const c7 = safe(() => makeCacheWorld(LIVE)).v;

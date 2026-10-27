@@ -214,9 +214,17 @@ return {
       const rows = d.records.map(normaliseRow);
       /* the gate that does not rest on the id check above being complete:
          anything put() throws for, discard the queued work too */
+      /* `written` counts distinct ids, not put() calls: a file naming one new
+         id twice adds ONE row (the last occurrence wins, as put() always
+         made it), and saying "2 records added" would overstate it (Codex,
+         2026-10-27). */
+      const seen = new Set();
       const write = (skip) => {
         try {
-          rows.forEach(r => { if (skip && skip.has(r.id)) kept++; else { s.put(r); written++; } });
+          rows.forEach(r => {
+            if (skip && skip.has(r.id)) { kept++; return; }
+            s.put(r); if (!seen.has(r.id)) { seen.add(r.id); written++; }
+          });
         } catch (e) { t.abort(); rej(e); }
       };
       try {
