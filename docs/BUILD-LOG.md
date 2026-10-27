@@ -4253,3 +4253,120 @@ fault and worth a screenshot.] Not a threshold, nothing to move;
 scratchpad `tune-length.js`, not kept — it is check-pool's extraction seam
 plus a tune switch and a v2 overlay.
 
+## Act 52 — The ultracode review, found unfinished and landed through a second model family (2026-10-22 → 2026-10-27)
+
+**153 · A review nobody had written down.** On 2026-10-22 a delta session
+(Fable 5.1) ran a multi-model review of the whole tree — 45 finders across
+Sonnet, Opus, Haiku, Fable and nine Codex runs; 308 raw findings, 305
+deduped, **155 confirmed and 150 refuted** by adversarial verifiers after a
+resume (the first pass said 96: 576 verifiers had died on a session limit).
+A fix workflow built from that FIRST result — 49 clusters, 79 findings, four
+worktrees off `6583d55`, check-first — committed **15 fixes** on
+`review/ultracode-{engine,modules,panels,dashboard}`, then the session ran
+out of credits: **34 clusters were never attempted**, nothing was merged, no
+sweep ran on a merge, no ledger row was written, and its con expired
+unreleased. Found 2026-10-27T00:45Z by `helm.py status` (the expired con)
+and `git branch -vv` (four branches CLAUDE.md never named). [MEASURED from
+that session's transcript and `git log`.] **The class is the one this
+file's compaction rule names, one level up:** not a finding lost to a
+summary, but a whole run lost to a session that ended mid-sentence — the
+work was on disk and in git, and nothing pointed at it.
+
+**153a · The second read was Codex, on purpose.** The keeper's ChatGPT
+credit expires 2026-10-29 (carried from echo-88). echo-88's suggestion,
+taken: a different model family reading fixes a Claude review wrote, before
+merge, is worth more than another whole-tree pass. Four runs, gpt-6-astra at
+xhigh, `codex exec` from an EMPTY directory with web search, apps and
+connectors off (echo-88's measured flags), diffs and full commit messages
+pasted in at `-U40`, the house's five reporting rules inlined verbatim. Sent
+under echo-88's flow row 19 (house source may go to OpenAI as a scanned
+COPY): the four prompts were scanned for credential names against a control
+file that had to hit (3 of 3 terms hit; the prompts' only hits were
+`process.env.DECKWAVE_*` harness seams). **Split by question, not branch,
+because two branches CONFLICT:** `cf9dcc1` (engine) and `62add0a` (modules)
+are rival fixes for ONE defect, the worklet-gap tally missing a handed-over
+deck's fade. Reports filed in `evidence/codex-2026-10-27/`. Codex executed
+nothing and said so; every verdict below that rests on its read was
+re-checked against the code path by this desk before acting.
+
+**153b · What Codex's read changed, each confirmed by reading before it was
+acted on.**
+- **Gap duel:** keep `cf9dcc1`, drop `62add0a` (Codex: the latter can keep
+  an already-ended deck in its `fading` Set). Its worry about `cf9dcc1` —
+  a stopped deck's late metrics leaking into the next set's tally — is
+  [INFERRED unreachable]: `stop()` does not detach handlers, but the stopped
+  sources' `onended` (which does, via `releaseDeck`) fires before `play()`'s
+  decode resolves and resets the tally.
+- **Plan token (`9bd7676`):** Codex asked whether a handover bumps `gen`
+  and so discards valid presses — **no**: `gen` is written only by
+  `cancelPending()`, `stop()` and a set ending with no successor
+  (`assets/deckwave.js` at the three `gen++` sites). Its two test gaps were
+  REAL: every case superseded (so an unconditional `'superseded'` passed),
+  and only the resolve path was raced (so removing reorder's catch-side
+  guard passed). Both added and falsified by mutant — 8 and 1 FAILED of 117.
+  The keeper chose merge-with-checks over an A/B: the ordinary path does not
+  change, and the race cannot be auditioned on purpose.
+- **Card fade (`dac1bbc`):** the card timed the RUNNING fade by `B.xfade`,
+  the live deck's OWN next exit; the engine's handover record carries the
+  real one. A 19 s phrase fade under a 16 s exit fell back to "blend in"
+  with 3 s audible and said "bass swapped" at 8 s. Now reads
+  `DW.prevDeck.xfade/.prog` like the monitor (`e068436`); 2 FAILED on
+  `dac1bbc`'s card, 4 on `6583d55`'s.
+- **Monitor verdict (`ec4bb8d`):** still printed `◉ PHASE LOCKED` on a
+  panel that compares PERIODS. **The keeper chose the words: `◉ PERIODS
+  LOCKED`.** The three negative checks that forbid a lock verdict matched
+  the literal old string, so the rename alone would have made them
+  unfailable; they now match `(PHASE|PERIODS) LOCKED`, and a new positive
+  control requires the verdict to draw on two locked, matched decks
+  (fails on the old wording AND on a blank verdict).
+- **Merge restore (`ea2dde8`):** a file naming one new id twice reported
+  "2 records added". Now counts distinct ids. NOT changed: Codex's note
+  that JS `Set` equality differs from IndexedDB key equality for ARRAY
+  keys — every id this project writes is a string,
+  `name|size|lastModified` (`assets/deckwave.js:280`), so only a hand-made
+  file reaches it. [INFERRED harmless, unfixed.]
+- **Weaker checks Codex named and that were NOT strengthened** (text
+  matches standing in for rendered state on `aa7a182`, `49d5f24`,
+  `7be36fe`; `d69e03c`'s control accepting `-2.0%` from the footer; the
+  fake `connect()` counting calls without endpoints on `795d99d`): each
+  can still fail on its defect, none excludes every wrong fix. Written
+  here, not built.
+
+**153c · One finding the run never reached, fixed: the tune switch threw.**
+`deckwave-dashboard.js` — the tune select's handler sits in
+`buildTransport()` and called a bare `renderList()`, declared inside
+`mount()`, a sibling scope; under `'use strict'` every switch threw
+`ReferenceError` AFTER `DW.retune()` had run. Ledger 152's A/B was not
+affected — the rebuild that followed repainted the list another way. The
+new check EXECUTES the cut-out handler with only `buildTransport`'s
+bindings and reproduced the exact error before the fix. (A Codex finder
+found it on 2026-10-22; its cluster was one of the 34 never attempted.)
+
+**153d · Landed.** Nineteen commits on `review/ultracode-integrate` → the
+working branch: ten picks as written (`568053f` `cf9dcc1` `f4fa06b`
+`03af9f6` `e068436` `d69e03c` `aa7a182` `795d99d` `49d5f24` `7be36fe`),
+four picks with a follow-up each (`9bd7676` `ec4bb8d` `dac1bbc` `ea2dde8`),
+the tune fix, this row. **All sixteen harnesses green, 1188 checks, clean
+tree at `99dc7fb`, MEASURED 2026-10-27T01:17:35Z** (1125 before; +63:
+`check-player` 93 → 117, `check-panels` 237 → 265, `check-loop` 46 → 57).
+A worktree needs `.citywalk-denylist` copied in or `check-citywalk` refuses
+— by design, it will not pass on an empty list. **Nothing here is heard
+path, threshold, calibration or detector input**; nothing is pushed.
+[CONFIRMED by harness and mutant for each check named above; every
+on-screen change — BLENDING through a phrase fade, PERIODS LOCKED, the tune
+switch repainting the list — is UNSEEN live.]
+
+**153e · What is NOT done, so it is not mistaken for done.** Of the 155
+confirmed findings, these 15 (+ the tune fix) are landed. **About 120 are
+neither fixed nor ruled on**: the 33 remaining unattempted clusters, and
+everything the second, fuller verification confirmed that the fix run was
+never given. **17 were held for the keeper** (heard path, needs-keeper,
+threshold) — the first is that `cancelPending()` snaps a still-fading-in
+deck to full gain and full bass, an audible step if next / blend / reorder
+lands within ~fade×0.6 of a handover (two reviewers, `assets/deckwave.js`
+at `cancelPending`'s unconditional A reset). The raw set lives OUTSIDE the
+repo at `C:\Claude\outbox\deckwave\ultracode-2026-10-22\`
+(`confirmed-sorted.json`, `keeper-items.md`, both workflow results), copied
+there 2026-10-27 because the session scratchpad that held them is a temp
+directory. **Do not re-run the review**; triage that file.
+
