@@ -1789,6 +1789,46 @@ console.log('\n── the tune switch runs to the end ────────�
      'threw ' + JSON.stringify(err) + ', retuned ' + retuned + ', repaints ' + repaints);
 }
 
+/* the one async block in this file; the tally at the end waits for it */
+let lateChecks = Promise.resolve();
+console.log('\n── blend() and applyRoute() hand back the deck\'s answer ────');
+/* ultracode review 2026-10-22, Codex triage F136, the dashboard half:
+   DWEVENTS.steer can only report what the deck did if the wired
+   primitives return it. Both are cut out of the source and RUN with stub
+   DW/DWNAV. Falsifier: a refusal (blendNow 'cannot load: …', a failed
+   commitAndRepair, a refused reorder) comes back as anything but itself /
+   {ok:false}. Control: the log line each one writes is unchanged. */
+{
+  const cut = sig => { const m = dashSrc.match(new RegExp('(async function ' + sig + ' \\{[\\s\\S]*?\\n  \\})\\n')); return m ? m[1] : null; };
+  const bsrc = cut('blend\\(i\\)'), rsrc = cut('applyRoute\\(entry, label\\)');
+  ok('…control: blend() and applyRoute() can be cut out of the dashboard', !!bsrc && !!rsrc, 'extractor missed one of them');
+  const mk = (src, win) => { const logs = []; const dash = {};
+    const fn = new Function('window', 'log', 'renderList', 'dash', 'set', '"use strict"; return (' + src + ');')(win, s => logs.push(s), () => {}, dash, [{ name: 'a' }, { name: 'b' }]);
+    return { fn, logs }; };
+  const run = async (src, win, args) => { if (!src) return { out: 'not found', logs: [] };
+    try { const k = mk(src, win); return { out: await k.fn(...args), logs: k.logs }; } catch (e) { return { out: 'threw ' + e.message, logs: [] }; } };
+  lateChecks = (async () => {
+    const DWb = ans => ({ DW: { state: { now: 'a', idx: 0 }, async blendNow() { return ans; } }, DWNAV: { push() {} } });
+    const b1 = await run(bsrc, DWb('cannot load: gone'), [1]);
+    ok('blend() returns blendNow\'s refusal, and still logs it', b1.out === 'cannot load: gone' && b1.logs[0] === 'cannot load: gone', JSON.stringify(b1));
+    const b2 = await run(bsrc, { DW: { state: { now: null } }, DWNAV: null }, [1]);
+    ok('blend() on a stopped deck returns the sentence it logs', b2.out === 'nothing playing — use jump' && b2.logs[0] === b2.out, JSON.stringify(b2));
+    const nav = (cr) => ({ setQueue() {}, clearQueue() {}, clearRoute() {}, commitAndRepair: () => cr,
+                           verify: () => ({ overGate: 0 }) });
+    const r1 = await run(rsrc, { DW: { state: { of: 2, idx: 0, tempo: 120 } }, DWNAV: nav({ ok: false, why: 'no stones' }) }, [{ idx: 1 }, 'x']);
+    ok('applyRoute() returns {ok:false} with the reason when the route fails, and still logs it',
+       r1.out && r1.out.ok === false && r1.out.msg === 'route failed: no stones' && r1.logs[0] === 'route failed: no stones', JSON.stringify(r1));
+    const okSet = { ok: true, set: [{}, {}, {}], inserted: 1, tailKept: 1, tailDropped: 0 };
+    const r2 = await run(rsrc, { DW: { state: { of: 2, idx: 0, tempo: 120 }, async reorder() { return 'refused: b is playing but is not at index 0'; } }, DWNAV: nav(okSet) }, [{ idx: 1 }, 'x']);
+    ok('applyRoute() returns {ok:false} when the deck refuses the reorder',
+       r2.out && r2.out.ok === false && /^route refused/.test(r2.out.msg), JSON.stringify(r2));
+    const r3 = await run(rsrc, { DW: { state: { of: 2, idx: 0, tempo: 120 }, async reorder() { return 'reordered · 2 ahead'; } }, DWNAV: nav(okSet) }, [{ idx: 1 }, 'inject · faster']);
+    ok('applyRoute() returns {ok:true, moved} on success, and the log line is the one it always wrote',
+       r3.out && r3.out.ok === true && r3.out.moved === 'reordered · 2 ahead'
+       && r3.logs[0] === 'inject · faster · +1 spliced · tail 1 kept, 0 dropped · gate holds · reordered · 2 ahead', JSON.stringify(r3));
+  })().catch(e => ok('blend/applyRoute checks complete', false, e && e.stack));
+}
+
 console.log('\n── the header key tooltip names both tunes ─────────────────');
 /* ultracode review 2026-10-22, Codex triage F48 (F59 the same defect):
    DWDASH.TERMS.kKey.d said, unconditionally, that the same number with the
@@ -1819,5 +1859,7 @@ console.log('\n── the header key tooltip names both tunes ──────
      'the tip does not say which tune means which: ' + JSON.stringify(d));
 }
 
-console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
-process.exit(fails ? 1 : 0);
+lateChecks.then(() => {
+  console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
+  process.exit(fails ? 1 : 0);
+});

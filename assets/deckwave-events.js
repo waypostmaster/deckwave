@@ -41,6 +41,8 @@
    dashboard calls DWEVENTS.wire({log, set, blend, later, applyRoute}) at
    boot; unwired (a bare page), every steering intent answers with a
    sentence, and only duck/unduck/change — which touch DW alone — work.
+   blend() returns the engine's blendNow string and applyRoute() returns
+   {ok, msg, moved}; steer() reports those, never its own guess (F136).
 
    SURFACES. Console: DWEVENTS.inject('…'). Cross-window: postMessage
    {deckwave: 'inject', event: '…'} from the SAME ORIGIN (other origins
@@ -141,9 +143,19 @@ async function steer(kind) {
   if (p.none) return say(kind + ': ' + p.none);
   const label = String(p.t.name || '').slice(-40) + ' (' + Math.round(p.t.bpm) + ' bpm · energy '
               + (p.t.energy != null ? p.t.energy.toFixed(2) : '?') + ')';
+  /* REPORT WHAT THE DECK SAID, not what was asked (ultracode review
+     2026-10-22, F136). W.blend answers with blendNow's string, which starts
+     'blending in' only when the crossfade was scheduled; anything else —
+     'cannot load: …', 'superseded', the demo's hold line — is a refusal,
+     and the return of inject() is what a narrator or RECON reads. The deck
+     is driven exactly as before; only the sentence follows the answer. */
   if (p.direct) {
     last = { kind, axis, dir, target: p.t.name, how: 'blend' };
-    await W.blend(p.i);
+    const ans = String((await W.blend(p.i)) || '');
+    if (!/^blending in\b/.test(ans)) {
+      last.how = 'refused'; last.result = ans || null;
+      return say(kind + ': did not blend into ' + label + ' — ' + (ans || 'the deck gave no answer'));
+    }
     return say(kind + ': blending now into ' + label);
   }
   /* out of gate: the navigator's FAST route — "I need" means soon */
@@ -157,10 +169,18 @@ async function steer(kind) {
                ' · nothing in the gate moves the ' + axis + ' ' + (dir > 0 ? 'up' : 'down'));
   }
   last = { kind, axis, dir, target: p.t.name, how: fast.kind, ladder: fast.ladder || null };
-  await W.applyRoute({ idx: p.i, mode: 'route', hops: fast.hops, dwellSec: fast.dwellSec },
-                     'inject · ' + kind);
-  return say(kind + ': ' + (fast.kind === 'fast' ? 'fast route' : 'route') + ' to ' + label
-             + (fast.ladder ? ' via ' + fast.ladder.join(' → ') : ''));
+  /* W.applyRoute answers {ok, msg, moved}: ok only once the route is in
+     the set; moved is what the deck did with it (reorder's line) */
+  const r = await W.applyRoute({ idx: p.i, mode: 'route', hops: fast.hops, dwellSec: fast.dwellSec },
+                               'inject · ' + kind);
+  const what = fast.kind === 'fast' ? 'fast route' : 'route';
+  if (!r || r.ok !== true) {
+    last.how = 'refused'; last.result = (r && r.msg) || null;
+    return say(kind + ': did not route to ' + label + ' — ' + ((r && r.msg) || 'the dashboard gave no answer'));
+  }
+  return say(kind + ': ' + what + ' to ' + label
+             + (fast.ladder ? ' via ' + fast.ladder.join(' → ') : '')
+             + (r.moved ? ' · ' + r.moved : ''));
 }
 
 async function inject(input, opts) {

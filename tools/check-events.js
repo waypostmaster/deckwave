@@ -74,9 +74,15 @@ global.location = { origin: 'http://localhost:8777' };
 global.addEventListener = (k, fn) => { if (k === 'message') messages.push(fn); };
 eval(src);
 const E = window.DWEVENTS;
+/* the wired primitives answer the way the dashboard's do since F136: blend()
+   returns the engine's blendNow string, applyRoute() returns {ok, msg,
+   moved}. `refuse` switches them to the refusals the engine really gives. */
+let refuse = null;
 E.wire({ log: s => calls.logs.push(s), set: () => SET,
-         blend: async i => calls.blend.push(i), later: async i => calls.later.push(i),
-         applyRoute: async (entry, label) => calls.route.push({ entry, label }) });
+         blend: async i => { calls.blend.push(i); return refuse ? refuse.blend : 'blending in 1.2s · ' + SET[i].name; },
+         later: async i => calls.later.push(i),
+         applyRoute: async (entry, label) => { calls.route.push({ entry, label });
+           return refuse ? refuse.route : { ok: true, msg: label + ' · +2 spliced', moved: 'reordered · leaving in 3.0s · ' + SET[entry.idx].name }; } });
 
 (async () => {
   console.log('\n── the synonym table ────────────────────────────────────────');
@@ -115,6 +121,48 @@ E.wire({ log: s => calls.logs.push(s), set: () => SET,
   ok('an unreachable extreme is a sentence naming the reason, not a crash',
      calls.route.length === 1 && /out of reach/.test(r6) && /no stones below 100/.test(r6), r6);
   DW.state.tempo = 120; DW.nowMeta = SET[1] = mk('NOW', 120, .50);
+
+  console.log('\n── steering reports what the deck did, not what it asked ────');
+  /* ultracode review 2026-10-22, Codex triage F136: steer() awaited
+     W.blend / W.applyRoute, threw the answer away, and returned 'blending
+     now into X' / 'fast route to X' — so a blendNow that answered 'cannot
+     load: …' (a missing file) or a route that failed produced one true log
+     line and one false one, and status().last.how said 'blend'. The fakes
+     now answer with the engine's real refusals. Falsifier: the returned
+     text claims the blend/route, or omits the deck's reason, or last.how is
+     not 'refused'. Control: the same calls with success answers still say
+     'blending now into' / 'fast route' and last.how is 'blend' / 'fast'. */
+  {
+    const okB = await E.inject('faster');
+    ok('…control: a blend the deck started is reported as one, last.how = blend',
+       /blending now into/.test(okB) && E.status.last && E.status.last.how === 'blend', okB + ' · last ' + JSON.stringify(E.status.last));
+    refuse = { blend: 'cannot load: the file is not in the open library', route: { ok: false, msg: 'route failed: no stones' } };
+    const nb = calls.blend.length;
+    const rb = await E.inject('faster');
+    ok('a blend the deck REFUSED is not reported as blending, and the deck\'s reason is in the answer',
+       calls.blend.length === nb + 1 && !/blending now/.test(rb) && /cannot load: the file is not in the open library/.test(rb),
+       rb);
+    ok('…and status().last.how says refused, not blend', E.status.last && E.status.last.how === 'refused', JSON.stringify(E.status.last));
+    refuse = { blend: 'demo: the set is still arriving (2/9) — controls return when it is home · pause still works' };
+    const rd = await E.inject('faster');
+    ok('the demo\'s hold answer is not reported as a blend either', !/blending now/.test(rd) && /still arriving/.test(rd), rd);
+
+    DW.state.tempo = 127; DW.nowMeta = mk('NOW2', 127, .95); SET[1] = DW.nowMeta;
+    refuse = null;
+    const okR = await E.inject('faster');
+    ok('…control: a route the dashboard applied is reported as one, last.how = fast',
+       /fast route to/.test(okR) && E.status.last && E.status.last.how === 'fast',
+       okR + ' · last ' + JSON.stringify(E.status.last));
+    ok('…and the answer carries what the deck did with it (the reorder line), not only that it was asked',
+       /leaving in 3\.0s/.test(okR), okR + ' — "reordered, but cannot load …" would be invisible here');
+    refuse = { route: { ok: false, msg: 'route failed: no stones between 127 and 150' } };
+    const rr = await E.inject('faster');
+    ok('a route the dashboard REFUSED is not reported as a route, and its reason is in the answer',
+       !/fast route to/.test(rr) && /route failed: no stones between 127 and 150/.test(rr)
+       && E.status.last && E.status.last.how === 'refused', rr + ' · last ' + JSON.stringify(E.status.last));
+    refuse = null;
+    DW.state.tempo = 120; DW.nowMeta = SET[1] = mk('NOW', 120, .50);
+  }
 
   /* ── negation, and the ceiling that stays (review 2026-09-01) ───────────
      The table is a lookup. "don't speed up" contained `speed` and STEERED

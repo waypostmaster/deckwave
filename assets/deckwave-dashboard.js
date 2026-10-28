@@ -1035,7 +1035,9 @@ function mount(hostEl) {
        .queued row outline) that the engine had already refused. It is
        clearQueue, not clearRoute: nothing committed, so `active` is not
        the thing holding the ghost (ultra review F4). */
-    if (!r.ok) { N.clearQueue(); log('route failed: ' + r.why); return; }
+    /* every exit returns {ok, msg, moved} as well as logging, for
+       DWEVENTS.steer (F136); the menu's act() ignores it */
+    if (!r.ok) { N.clearQueue(); log('route failed: ' + r.why); return { ok: false, msg: 'route failed: ' + r.why }; }
     const v = N.verify(r.set, window.DW.state.idx, window.DW.state.tempo);
     let moved = 'not playing — press ▶';
     if (window.DW.state.of) {
@@ -1044,17 +1046,19 @@ function mount(hostEl) {
          array. Adopting the array here anyway would leave the dashboard on a
          third array the player never saw — the ledger-40 desync, self-
          inflicted. Keep the old set and say so. */
-      if (/^refused/.test(moved)) { N.clearRoute(); log('route ' + moved); return; }
+      if (/^refused/.test(moved)) { N.clearRoute(); const m = 'route ' + moved; log(m); return { ok: false, msg: m }; }
     }
     dash.set = r.set;                       /* setter re-renders the list */
     renderList();
     /* `v.overGate` — verify() never had a field called `over`, so this line
        read undefined and printed "gate holds" unconditionally: a check whose
        pass condition could not fail. */
-    log(label + ' · +' + r.inserted + ' spliced · tail ' + r.tailKept +
+    const line = label + ' · +' + r.inserted + ' spliced · tail ' + r.tailKept +
         ' kept, ' + r.tailDropped + ' dropped' +
         (v && v.overGate ? ' · ⚠ ' + v.overGate + ' over gate (max ' + v.maxStretch + '%)' : ' · gate holds') +
-        ' · ' + moved);
+        ' · ' + moved;
+    log(line);
+    return { ok: true, msg: line, moved };
   }
 
   function openNav(el, idx) {
@@ -1224,10 +1228,14 @@ function mount(hostEl) {
        passed on a stopped deck and blendNow then returned 'nothing
        playing', printing two contradictory lines from one press.
        `state.now` is the deck's own answer. */
-    if (!window.DW.state.now) { log('nothing playing — use jump'); return; }
+    if (!window.DW.state.now) { const m = 'nothing playing — use jump'; log(m); return m; }
     if (N) N.push(window.DW.state.idx);
-    log(await window.DW.blendNow(set[i]));
+    /* returned as well as logged: DWEVENTS.steer reports this answer, not
+       its own guess at it (ultracode review 2026-10-22, F136) */
+    const ans = await window.DW.blendNow(set[i]);
+    log(ans);
     renderList();
+    return ans;
   }
 
   async function later(i) {
