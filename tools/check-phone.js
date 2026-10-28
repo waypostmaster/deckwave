@@ -60,14 +60,16 @@ global.setInterval = (fn) => { intervals.push(fn); return intervals.length; };
 global.clearInterval = (id) => { intervals[id - 1] = null; };
 const runTick = () => { const fn = intervals.filter(Boolean).pop(); if (fn) fn(); };
 
-/* canvas: records what the panel was asked to draw; toBlob is synchronous */
+/* canvas: records what the panel was asked to draw; toBlob is synchronous
+   unless `deferBlobs` is an array, when the callback waits there to be
+   released by hand (a real encode is async — F123) */
 const drawn = [];
-let blobs = 0;
+let blobs = 0, deferBlobs = null;
 const ctx2d = { setTransform() {}, fillRect() {}, fillText() {}, save() {}, restore() {},
   set fillStyle(v) {}, set font(v) {}, set textAlign(v) {}, set textBaseline(v) {},
   set globalAlpha(v) {}, set shadowBlur(v) {} };
 const makeCanvas = () => ({ width: 0, height: 0, getContext() { return ctx2d; },
-  toBlob(cb) { blobs++; cb({ size: 1, type: 'image/png' }); } });
+  toBlob(cb) { blobs++; if (deferBlobs) deferBlobs.push(cb); else cb({ size: 1, type: 'image/png' }); } });
 global.URL = { createObjectURL: () => 'blob:art-' + blobs, revokeObjectURL() {} };
 
 /* the loop: a bundle on demand, and a record of which accessor was used */
@@ -343,6 +345,60 @@ const tick = () => new Promise(r => setTimeout(r, 0));
       ok('"' + cases[i][0] + '" reaches the lock screen and the poster as "' + cases[i][1] + '"',
          got[i].title === cases[i][1] && got[i].poster === cases[i][1], JSON.stringify(got[i]));
     DW.state.now = null; DW.nowMeta = null;
+    await PH.set('off'); await tick();
+  }
+
+  console.log('\n── an encode that finishes late publishes nothing stale ─────');
+  /* ultracode review 2026-10-22, Codex triage F123: updateArt() captured
+     the track, then the toBlob callback installed the art and pushed THAT
+     track's metadata whatever had happened meanwhile. (a) art switched off
+     during the encode: the callback put the artwork back. (b) the track
+     changed during the encode: updateSession had already published the new
+     title, the callback pushed the OLD one, and the title gate kept it
+     there. toBlob is held here and released by hand. Falsifier: after the
+     late release, artwork is present with art off, or the title is the old
+     track's. Control: with nothing changed, the same late release DOES
+     publish its art, and after a drop the next tick draws the current track. */
+  {
+    const md = () => navigatorFake.mediaSession.metadata || {};
+    const release = () => { const q = deferBlobs.splice(0); q.forEach(cb => cb({ size: 1, type: 'image/png' })); return q.length; };
+    PH.setArt('poster', 'journey');
+    await PH.set('background'); await tick();
+    const A = { name: 'LukHash - OLD TRACK', bpm: 120, camelot: '8A' }, B = { name: 'LukHash - NEW TRACK', bpm: 124, camelot: '9A' };
+
+    deferBlobs = [];
+    DW.state.now = { name: A.name }; DW.nowMeta = A; runTick(); await tick();
+    const heldCtl = deferBlobs.length, n0 = release();
+    ok('…control: a late encode with nothing changed publishes its art on its own track',
+       heldCtl === 1 && n0 === 1 && md().title === 'OLD TRACK' && !!(md().artwork && md().artwork[0]),
+       'held ' + heldCtl + ' · ' + JSON.stringify(md()));
+
+    DW.state.now = { name: B.name }; DW.nowMeta = B; runTick(); await tick();
+    const heldB = deferBlobs.length;
+    PH.setArt('off'); await tick();
+    const offBefore = !md().artwork;
+    const nB = release();
+    ok('(a) art switched off mid-encode: the late callback does not put the artwork back',
+       heldB === 1 && nB === 1 && offBefore && !md().artwork && md().title === 'NEW TRACK',
+       'held ' + heldB + ' · artwork gone before release ' + offBefore + ' · after ' + JSON.stringify(md()));
+
+    deferBlobs = null;
+    PH.setArt('poster', 'journey'); await tick();          /* B drawn synchronously; the title on the card is B */
+    deferBlobs = [];
+    const A2 = { ...A };
+    DW.state.now = { name: A2.name }; DW.nowMeta = A2; runTick(); await tick();   /* A published, A's encode held */
+    const heldA = deferBlobs.length;
+    DW.state.now = { name: B.name }; DW.nowMeta = B; runTick(); await tick();     /* the track changes: B published */
+    const titleBefore = md().title;
+    release();
+    ok('(b) the track changed mid-encode: the late callback does not put the old title back',
+       heldA === 1 && titleBefore === 'NEW TRACK' && md().title === 'NEW TRACK',
+       'held ' + heldA + ' · title before release ' + titleBefore + ', after ' + md().title);
+    deferBlobs = null;
+    runTick(); await tick();
+    ok('…control: after a dropped encode the next tick draws the track now playing',
+       md().title === 'NEW TRACK' && !!(md().artwork && md().artwork[0]), JSON.stringify(md()));
+    DW.state.now = null; DW.nowMeta = null; deferBlobs = null;
     await PH.set('off'); await tick();
   }
 

@@ -177,7 +177,7 @@ let mode = 'off', wakeLock = null, audioEl = null, lastTitle = null, tick = null
 /* lock-screen art: 'off' | 'poster' | 'live', and which panel draws it */
 const ART = ['off', 'poster', 'live'];
 let art = 'poster', artPanel = 'journey';
-let artCanvas = null, artUrl = null, artMeta = null, artBusy = false, artFrames = 0, artAt = 0, artErr = null;
+let artCanvas = null, artUrl = null, artMeta = null, artBusy = false, artFrames = 0, artAt = 0, artErr = null, artGen = 0;
 /* the silent element that is the lock screen's handle in `controls` */
 let silentEl = null, silentUrl = null;
 /* whether THIS page set navigator.audioSession.type — so `off` only touches
@@ -475,9 +475,15 @@ function updateArt(force) {
   if (!bnd) return;
   artBusy = true;
   try { drawArt(bnd.T, bnd.D); } catch (e) { artErr = e.message; artBusy = false; return; }
+  const gen = artGen;
   artCanvas.toBlob(blob => {
     artBusy = false;
     if (!blob) return;
+    /* the encode is async: drop it if art was switched (off, or another
+       panel) or the track changed while it ran — publishing it would put
+       the artwork back after `off`, or the OLD title back over the new one,
+       where the title gate keeps it (ultracode review 2026-10-22, F123) */
+    if (gen !== artGen || art === 'off' || !window.DW || window.DW.nowMeta !== m) return;
     if (artUrl) { try { URL.revokeObjectURL(artUrl); } catch (e) {} }
     artUrl = URL.createObjectURL(blob); artMeta = m; artFrames++; artAt = Date.now();
     push(m);
@@ -574,7 +580,7 @@ return {
     art = a;
     if (panel) artPanel = panel;
     try { localStorage.setItem('dw-phone-art', a); localStorage.setItem('dw-phone-art-panel', artPanel); } catch (e) {}
-    artMeta = null;                       /* redraw for the current track */
+    artMeta = null; artGen++;             /* redraw for the current track; an encode in flight is now stale */
     if (a === 'off') { artUrl = null; push(window.DW && window.DW.nowMeta || null); }
     else updateArt(true);
     return { art, artPanel };
