@@ -315,6 +315,37 @@ const tick = () => new Promise(r => setTimeout(r, 0));
   ok('an unknown art mode throws', !!badArt, 'no throw');
   await PH.set('off'); await tick();
 
+  console.log('\n── hyphenated titles survive the lock-screen cleaner ────────');
+  /* ultracode review 2026-10-22, Codex triage F94 (F108, F115 the same
+     cleaner): clean() stripped up to the first BARE hyphen, twice, then any
+     leading digits, so 'LukHash - Fast-Forward' reached the lock screen and
+     the poster as 'Forward'. Driven through the real module: the title is
+     read from the MediaMetadata it publishes and from the poster's
+     fillText. Falsifier: any title below differs from the expected string.
+     Control: the artist/album/track prefix is still stripped. */
+  {
+    const posterTexts = [], fill0 = ctx2d.fillText;
+    ctx2d.fillText = s => posterTexts.push(String(s));
+    PH.setArt('poster', 'journey');
+    await PH.set('background'); await tick();
+    const cases = [['LukHash - GHOSTS - 05 TAKE CONTROL', 'TAKE CONTROL'], ['LukHash - Fast-Forward', 'Fast-Forward'],
+                   ['01 LukHash - X-Ray Vision', 'X-Ray Vision'], ['LukHash - 8-Bit Warrior', '8-Bit Warrior']];
+    const got = [];
+    for (const [name] of cases) {
+      DW.state.now = { name }; DW.nowMeta = { name, bpm: 120, camelot: '8A' };
+      posterTexts.length = 0; runTick(); await tick();
+      got.push({ title: navigatorFake.mediaSession.metadata && navigatorFake.mediaSession.metadata.title, poster: posterTexts[0] });
+    }
+    ctx2d.fillText = fill0;
+    ok('…control: the artist/album/track-number prefix is still stripped (lock screen and poster)',
+       got[0].title === cases[0][1] && got[0].poster === cases[0][1], JSON.stringify(got[0]));
+    for (let i = 1; i < cases.length; i++)
+      ok('"' + cases[i][0] + '" reaches the lock screen and the poster as "' + cases[i][1] + '"',
+         got[i].title === cases[i][1] && got[i].poster === cases[i][1], JSON.stringify(got[i]));
+    DW.state.now = null; DW.nowMeta = null;
+    await PH.set('off'); await tick();
+  }
+
   console.log('\n── controls: a silent element as the lock screen\'s handle ───');
   DW.state.now = { name: 'x' }; DW.state.ctx = 'running';
   DW.nowMeta = { name: 'LukHash - GHOSTS - 05 TAKE CONTROL', bpm: 128, camelot: '7A', dur: 240 };

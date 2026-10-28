@@ -388,7 +388,10 @@ document.addEventListener('click', kick, true);
 
 /* ── media session: title on the lock screen, buttons that do things ──── */
 function playing() { return !!(window.DW && window.DW.state && window.DW.state.now); }
-function clean(n) { return String(n || '').replace(/^[^-]+-\s*/, '').replace(/^[^-]+-\s*/, '').replace(/^\d+\s*/, '') || String(n || ''); }
+/* spaced separators only, as nowplaying.js and panels.js clean: a bare
+   hyphen is part of a title ('Fast-Forward', '8-Bit Warrior'), and a track
+   number is digits followed by a space (ultracode review 2026-10-22, F94) */
+function clean(n) { return String(n || '').replace(/^[^-]+ - /, '').replace(/^[^-]+ - /, '').replace(/^\d+\s+/, '') || String(n || ''); }
 function fields(m) {
   return { title: clean(m.name).slice(0, 80),
            artist: String(m.name).split(' - ')[0].slice(0, 60),
