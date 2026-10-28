@@ -4495,7 +4495,8 @@ session's modified `citywalk.jsonl`, which none of this touched.
   the ASCII fold only when non-empty and naming one track. **MEASURED on
   the keeper's corpus: the same track at all 189 positions, old and new;**
   it changes only non-Latin names, which used to all load the first such
-  track. Shown to the keeper before landing; droppable as one commit.
+  track. Described to the keeper as it reached the branch; unpushed and
+  droppable as one commit until the keeper says.
 - Desk edits on integration: F86's loudness comment had been put inside a
   declaration; moved above the loop, behaviour identical.
 - **[INFERRED, all sixteen: none is seen or heard, none run in a browser.**
