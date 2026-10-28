@@ -258,6 +258,33 @@ ok('…while the genuine hosts still are (the control that must return hits)',
    && L.licenceName('http://artlibre.org/licence/lal/en/') === 'Free Art Licence',
    'host-parsing threw the real table away: cc→' + L.licenceName('https://creativecommons.org/licenses/by/4.0/')
    + ' gnu→' + L.licenceName('https://www.gnu.org/licenses/gpl-3.0.html'));
+/* ── ultracode review 2026-10-22 F132: gnu.org is a HOST of many texts ──
+   The host table made every gnu.org / fsf.org URL "GPL" without reading
+   the path, so the FDL, the LGPL, the AGPL and the Emacs home page were
+   all printed as GPL on the card, the score and the .cue. Each refusal is
+   paired with GPL controls through the SAME branch — a regex that returned
+   null for everything would fail the first half. */
+const gnuNames = {
+  'https://www.gnu.org/licenses/fdl-1.3.html': 'GNU FDL',
+  'https://www.gnu.org/licenses/lgpl-2.1.html': 'LGPL',
+  'https://www.gnu.org/licenses/agpl-3.0.html': 'AGPL',
+  'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html': 'LGPL',
+  'https://www.gnu.org/software/emacs/': null,
+  'https://www.gnu.org/licenses/gpl-faq.html': null,
+  'https://www.gnu.org/licenses/': null,
+  'https://www.fsf.org/about/': null,
+  /* controls: genuine GPL URLs still get the name they had */
+  'https://www.gnu.org/licenses/gpl-3.0.html': 'GPL',
+  'http://www.gnu.org/licenses/old-licenses/gpl-2.0.html': 'GPL',
+  'https://www.gnu.org/licenses/gpl-3.0.en.html': 'GPL',
+  'http://www.gnu.org/copyleft/gpl.html': 'GPL',
+  'gnu.org/licenses/gpl-3.0.txt': 'GPL'
+};
+const gnuWrong = Object.keys(gnuNames).filter(u => L.licenceName(u) !== gnuNames[u]);
+ok('a gnu.org / fsf.org URL is named by its PATH: FDL, LGPL, AGPL named as themselves, a non-licence page gets no name, GPL still GPL',
+   gnuWrong.length === 0,
+   gnuWrong.map(u => u + ' → ' + JSON.stringify(L.licenceName(u)) + ' (want ' + JSON.stringify(gnuNames[u]) + ')').join(' · ')
+   + ' — a licence name with legal weight issued on a URL that does not say it');
 ok('no-derivatives is read from the SHORT NAME too (a Commons file with no licence URL)',
    L.noDerivs(null, 'CC BY-ND 4.0') && L.noDerivs('', 'Attribution-NoDerivatives 4.0 International')
    && !L.noDerivs(null, 'CC BY-NC-SA 3.0') && !L.noDerivs(null, 'CC0') && !L.noDerivs(null, 'Public Domain'),

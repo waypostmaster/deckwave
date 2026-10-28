@@ -196,15 +196,25 @@ function licenceHost(url) {
   h = String(h || '').toLowerCase().replace(/^www\./, '');
   return LICENCE_HOSTS[h] ? { family: LICENCE_HOSTS[h], host: h } : null;
 }
+/* gnu.org and fsf.org host MANY texts (ultracode review 2026-10-22, F132):
+   the GPL, but also the LGPL, the AGPL, the FDL, FAQs and software pages.
+   The host alone used to make all of them "GPL". Only a path whose LAST
+   segment is one of the four licence texts gets a name — gpl-3.0.html,
+   old-licenses/lgpl-2.1.en.html, copyleft/gpl.html — and anything else
+   (gpl-faq.html, /software/emacs/) gets none, so the URL itself is shown. */
+const GNU_NAMES = { gpl: 'GPL', lgpl: 'LGPL', agpl: 'AGPL', fdl: 'GNU FDL' };
 function licenceName(url) {
   const H = licenceHost(url);
   if (!H) return null;
-  if (H.family === 'gpl') return 'GPL';
   if (H.family === 'artlibre') return 'Free Art Licence';
-  /* creativecommons.org: the path names the deed */
   let p = '';
   try { p = new URL(/^[a-z]+:/i.test(String(url)) ? String(url) : 'https://' + String(url)).pathname.toLowerCase(); }
   catch (e) { return null; }
+  if (H.family === 'gpl') {
+    const g = /\/(gpl|lgpl|agpl|fdl)(?:-\d+(?:\.\d+)*)?(?:\.[a-z]{2}(?:[-_][a-z]{2})?)?(?:\.(?:html?|txt))?\/?$/.exec(p);
+    return g ? GNU_NAMES[g[1]] : null;
+  }
+  /* creativecommons.org: the path names the deed */
   if (/\/publicdomain\/zero|\bcc0\b/.test(p)) return 'CC0';
   if (/publicdomain|public-domain/.test(p)) return 'public domain';
   const m = /\/licenses\/(by[a-z-]*)\/([0-9.]+)/.exec(p);
