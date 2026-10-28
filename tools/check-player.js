@@ -46,14 +46,20 @@ const node = () => ({ playbackRate: param(), gain: param(), type: '', frequency:
   port: { onmessage: null, posted: [], postMessage(m) { this.posted.push(m); } } });
 let now = 100;
 function AC() {
+  /* AC.made / AC.closed count constructions and close() calls, so a
+     failed boot can be checked for the context it leaves open (ultracode
+     review 2026-10-22 F1). close() used to be an uncounted no-op. */
+  AC.made++;
   return { get currentTime() { return now; }, state: 'running',
-    async resume() {}, async suspend() {}, close() {},
+    async resume() {}, async suspend() {}, close() { AC.closed++; this.state = 'closed'; },
     /* AC.moduleOk gates the held-worklet module: false (default) refuses
        the static module and any blob — the posture of a platform where the
        held path cannot load — so every earlier check runs on the plain
-       worklet exactly as before; true accepts everything. */
+       worklet exactly as before; true accepts everything. AC.plainRefuse
+       refuses the plain route too: every worklet route fails. */
     audioWorklet: { async addModule(u) {
       if (!AC.moduleOk && /deckwave-stretch\.module|^blob:/.test(String(u))) throw new Error('refused (test)');
+      if (AC.plainRefuse) throw new Error('refused (test, plain)');
     } },
     createGain: node, createDynamicsCompressor: node, createAnalyser: node,
     createBufferSource: node, createBiquadFilter: node,
@@ -70,7 +76,7 @@ function AC() {
    in makeDeck would have passed it (review 2026-09-01; ledger 98's class).
    The name is the whole difference between the held pipe and the one that
    zero-fills a block a few times a minute. */
-AC.sinks = []; AC.sinkRefuse = false;
+AC.sinks = []; AC.sinkRefuse = false; AC.made = 0; AC.closed = 0; AC.plainRefuse = false;
 const AudioWorkletNode = function (c, name) { const n = node(); n._processorName = name; return n; };
 /* ── fake LONG timers ───────────────────────────────────────────────────
    chain()'s handover timer is minutes away on the fake clock. Anything
@@ -667,6 +673,36 @@ const x = mk('x', 200);
      'boot returned ' + bootR + ', log top ' + JSON.stringify(logTop));
   delete AC.prototype.setSinkId; AC.sinkRefuse = false;
   await tryP(() => Player.setOutput(''));
+  Player.kill();
+
+  console.log('\n── a failed boot closes the context it built ───────────────');
+  /* ultracode review 2026-10-22 F1. bootGraph() assigns ctx before any
+     await; when every worklet route fails (allowCDN false) it throws, and
+     until this fix left that context open in ctx with no graph — the next
+     ▶ built another over it, never closed. Falsifiers: after two failed
+     boots, fewer contexts closed than built, or state.ctx still reports a
+     context (it said 'running' with master null). Control: with the plain
+     route allowed again the next boot succeeds and its context stays open,
+     so the counter is not just counting kill(). */
+  const ctxOf = () => { try { return Player.state.ctx; } catch (e) { return 'threw: ' + e.message; } };
+  const made0 = AC.made, closed0 = AC.closed;
+  AC.plainRefuse = true;
+  const f1 = await tryP(() => Player.outputStream(false));
+  const afterOne = { made: AC.made - made0, closed: AC.closed - closed0, ctx: ctxOf() };
+  const f2 = await tryP(() => Player.outputStream(false));
+  const afterTwo = { made: AC.made - made0, closed: AC.closed - closed0, ctx: ctxOf() };
+  AC.plainRefuse = false;
+  ok('control: both boots really failed, on the missing-worklet throw',
+     /threw: missing vendor\/x/.test(f1) && /threw: missing vendor\/x/.test(f2) && afterTwo.made === 2,
+     'f1 ' + f1 + ' · f2 ' + f2 + ' · ' + JSON.stringify(afterTwo));
+  ok('each failed boot closes its own context and leaves state.ctx none',
+     afterOne.closed === 1 && afterOne.ctx === 'none' && afterTwo.closed === 2 && afterTwo.ctx === 'none',
+     'one failed boot: ' + JSON.stringify(afterOne) + ' · two: ' + JSON.stringify(afterTwo));
+  const okBoot = await tryP(() => Player.outputStream(false));
+  const afterOk = { made: AC.made - made0, closed: AC.closed - closed0, ctx: ctxOf() };
+  ok('control: the next boot succeeds and its context stays open',
+     okBoot === null && afterOk.made === afterTwo.made + 1 && afterOk.closed === afterTwo.closed && afterOk.ctx === 'running',
+     'boot returned ' + okBoot + ' · ' + JSON.stringify(afterOk));
   Player.kill();
 
   /* review 2026-09-01 M6: analyse() runs under no harness (Essentia/WASM),

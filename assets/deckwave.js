@@ -1052,6 +1052,22 @@ const Player = (() => {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const audioCtx = new AC(phone ? { sampleRate: 44100, latencyHint: 'playback' } : { sampleRate: 44100 });
     ctx = audioCtx;
+    /* A boot that throws (every worklet route refused) closes the context
+       it built and gives up ctx, while it still owns it — otherwise the
+       next ▶ builds another over it and this one is never closed, and
+       state/pause() act on a context with no graph (ultracode review
+       2026-10-22 F1). A kill() that raced the boot already closed it. */
+    try { await buildGraph(audioCtx); }
+    catch (e) {
+      if (ctx === audioCtx) {
+        try { const c = audioCtx.close(); if (c && c.catch) c.catch(() => {}); } catch (x) {}
+        ctx = null;
+      }
+      throw e;
+    }
+  }
+
+  async function buildGraph(audioCtx) {
     /* the chosen output device, before anything can sound (see WHICH
        OUTPUT DEVICE). A refusal — the device was unplugged, or the id is
        stale — plays on the default and SAYS so, rather than failing boot. */
