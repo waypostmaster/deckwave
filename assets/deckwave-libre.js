@@ -98,7 +98,7 @@ const MAX_INFLIGHT = 2, GAP_MS = 250, TRIES = 3;
 /* A RESOURCE CAP, CHOSEN — not a threshold, not a calibration, and nothing
    about the music depends on it (review 2026-09-01 M4). 256 MB, because a
    fetched track is held roughly four times over before it is music: the
-   chunk list, the concatenated copy, the cache.put clone, and the decoded
+   chunk list, the concatenated copy, the cache.put copy, and the decoded
    PCM. The largest single track either source plausibly offers is a
    lossless master — 256 MB is about 40 minutes of stereo FLAC or 25 of
    16-bit/44.1 WAV, past any track in this catalogue (the biggest in the
@@ -261,11 +261,12 @@ const stats = { fetched: 0, cacheHits: 0, bytes: 0, retries: 0, errors: 0 };
    display at 99% and let `done` say 100: if the response were
    content-encoded, `loaded` counts decoded bytes against an encoded
    total and could overshoot (audio from both sources is served identity,
-   but the cap costs nothing). The cache write is STARTED before the read
-   loop and awaited after it — cache.put consumes its clone of the body
-   in step with the loop, whereas awaiting it first (as this code did
-   until today) buffers the whole track and would collapse every progress
-   event into one 0→100 jump. Range probes (16 bytes) do not report. */
+   but the cap costs nothing). The cache write comes AFTER the read loop,
+   from the assembled bytes (F137, 2026-10-28) — not from a clone awaited
+   before it, which buffered the whole track and collapsed every progress
+   event into one 0→100 jump, and not from a clone consumed beside it,
+   which held a refused download open. Range probes (16 bytes) do not
+   report. */
 const fetchWatchers = new Set();
 function watchFetch(fn) { fetchWatchers.add(fn); return () => fetchWatchers.delete(fn); }
 function reportFetch(ev) { for (const w of fetchWatchers) { try { w(ev); } catch (e) {} } }
@@ -340,7 +341,7 @@ async function fetchBytes(url, range, name, expect) {
       if (r.status === 503 || r.status === 429 || r.status >= 500) { lastErr = new Error('HTTP ' + r.status); continue; }
       if (!r.ok && r.status !== 206) throw new Error('HTTP ' + r.status + ' ' + url);
       /* the length the server declares, checked BEFORE the body is read and
-         before the cache clone is started — refusing costs one round trip,
+         before anything is written to the cache — refusing costs one round trip,
          retrying a file that can never be held costs three whole downloads */
       const len = +((r.headers && r.headers.get && r.headers.get('content-length')) || 0);
       if (!range && len > MAX_BYTES) {
@@ -348,18 +349,13 @@ async function fetchBytes(url, range, name, expect) {
         throw fatal('too big: ' + Math.round(len / 1048576) + ' MB, over the '
           + Math.round(MAX_BYTES / 1048576) + ' MB limit — ' + url);
       }
-      let putP = null;                              /* quota failures land in the catch below */
-      if (c && !range && r.status === 200) { try { putP = c.put(url, r.clone()); } catch (e) { putP = null; } }
       let ab;
       try { ab = range ? await r.arrayBuffer() : await readBody(r, url, name, expect); }
       catch (e) {                                    /* the body died mid-stream — retry like a 5xx */
-        if (putP) await putP.catch(() => {});
-        /* The put was started from a CLONE before the read, so a body that
-           ended early but cleanly (the truncation case) can have landed in
-           the cache as a complete entry — the exact permanence this is
-           meant to prevent. Drop it; a miss just re-fetches. */
-        if (c && !range && typeof c.delete === 'function') await c.delete(url).catch(() => {});
-        /* …unless the failure is the SIZE, not the network. A refusal and an
+        /* Nothing was written to the cache: the write happens only after
+           the body is whole (below), so a truncated or refused body never
+           lands there, and nothing else holds the transfer open.
+           …unless the failure is the SIZE, not the network. A refusal and an
            allocation failure (RangeError from `new Uint8Array(loaded)` on a
            file too big to hold) both used to be retried as mid-body deaths:
            three full downloads of a file that cannot exist here. Neither is
@@ -368,7 +364,16 @@ async function fetchBytes(url, range, name, expect) {
         lastErr = e; reportFetch({ url, name, loaded: 0, total: 0, done: true });
         continue;
       }
-      if (putP) await putP.catch(() => {});
+      /* THE CACHE GETS THE ACCEPTED BYTES, never a clone of the live body
+         (ultracode review 2026-10-22, F137/F152). A clone is a tee, and a
+         tee cancels its source only when BOTH branches cancel: cache.put
+         reading the clone kept a refused chunked download running to its
+         end, and the refusal itself waited for it. A put started before
+         the read could also reject with no handler attached yet. Quota
+         failures are swallowed here as before; a miss just re-fetches. */
+      if (c && !range && r.status === 200)
+        await Promise.resolve().then(() => c.put(url, new Response(ab, { status: 200,
+          headers: { 'content-length': String(ab.byteLength) } }))).catch(() => {});
       stats.fetched++; stats.bytes += ab.byteLength;
       return ab;
     }

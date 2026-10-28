@@ -815,6 +815,77 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
      'list ' + JSON.stringify(shownRows().match(/(ALPHA release|Bravo Tune)/g)) + ' · footer "' + els.ft.textContent + '"');
   global.document = realDoc; global.fetch = realFetch;
 
+  /* F137 (+F152): the 256 MB read cap must STOP the download. A fake body
+     with the Streams spec's tee semantics: clone() tees it, the source is
+     cancelled only when BOTH branches cancel (or when there never was a
+     clone), and a branch's cancel() does not settle until the source is
+     cancelled or runs dry. The source is 40 chunks of 64 MB that carry only
+     a byteLength — nothing is allocated. Falsifier: when the refusal
+     arrives the source has been pulled to the end, or was never cancelled,
+     because a cache.put consumer on a clone kept it alive. */
+  const realCaches = global.caches;
+  const teeBody = (n, size, real) => {
+    const S = { pulled: 0, cancelled: false, dry: false, teed: false, puts: 0 };
+    const q = [[], []], gone = [false, false]; let settle; const cancelP = new Promise(r => { settle = r; });
+    const pullOne = async () => { await new Promise(r => setImmediate(r));
+      if (S.cancelled || S.dry) return;
+      if (S.pulled >= n) { S.dry = true; settle(); return; }
+      S.pulled++; const v = real ? new Uint8Array(size).fill(5) : { byteLength: size };
+      for (const b of [0, 1]) if (!gone[b]) q[b].push({ done: false, value: v }); };
+    const branch = b => ({ getReader() { return {
+      async read() { while (!q[b].length) { if (S.dry || S.cancelled) return { done: true }; await pullOne(); } return q[b].shift(); },
+      cancel() { gone[b] = true; q[b].length = 0;
+        if (!S.teed || (gone[0] && gone[1])) { S.cancelled = true; settle(); } return cancelP; } }; } });
+    const drain = async rd => { let t = 0; for (;;) { const x = await rd.read(); if (x.done) return new ArrayBuffer(real ? t : 0); t += x.value.byteLength; } };
+    const res = { ok: true, status: 200, headers: new Map(), body: branch(0),
+      clone() { S.teed = true; const b1 = branch(1); return { status: 200, headers: new Map(), body: b1, arrayBuffer: () => drain(b1.getReader()) }; } };
+    return { S, res };
+  };
+  const teeCache = (S, putImpl) => ({ async open() { return {
+    async match() { return undefined; }, put(u, r) { S.puts++; return putImpl(u, r); },
+    async delete() { return true; }, async keys() { return []; } }; } });
+  let T = teeBody(40, 64 * 1048576);
+  global.caches = teeCache(T.S, async (u, r) => { await r.arrayBuffer(); });
+  global.fetch = async () => T.res;
+  const P2 = fresh();
+  let capErr = null, pulledAtRefusal = -1, cancelledAtRefusal = null;
+  try { await P2._fetchBytes('https://upload.wikimedia.org/x/endless-chunked.wav', null, 'endless.wav', 0); }
+  catch (e) { capErr = e; pulledAtRefusal = T.S.pulled; cancelledAtRefusal = T.S.cancelled; }
+  ok('F137: a chunked body over the 256 MB cap is refused AND the download stops — the source is cancelled, not drained into the cache',
+     capErr && /too big/.test(capErr.message) && pulledAtRefusal <= 6 && cancelledAtRefusal === true,
+     'err ' + (capErr && capErr.message) + ' · chunks pulled when the refusal arrived: ' + pulledAtRefusal + ' of 40 (cap trips at 5) · source cancelled: '
+     + cancelledAtRefusal + ' — a cache.put on a tee\'d clone keeps the transfer alive and the refusal waits for the whole body');
+
+  /* F152: a cache write that rejects while the body is still arriving must
+     not surface as an unhandled rejection. Control in the same line: the
+     download itself still succeeds. */
+  const unhandled = []; const onUnh = (reason) => { unhandled.push(reason); };
+  process.on('unhandledRejection', onUnh);
+  T = teeBody(4, 250, true);
+  T.res.headers = new Map([['content-length', '1000']]);
+  global.caches = teeCache(T.S, () => Promise.reject(new Error('QuotaExceededError (fake)')));
+  const P3 = fresh();
+  let quotaAb = null, quotaErr = null;
+  try { quotaAb = await P3._fetchBytes('https://upload.wikimedia.org/x/quota.wav', null, 'quota.wav', 1000); } catch (e) { quotaErr = e; }
+  await new Promise(r => setImmediate(r));
+  process.removeListener('unhandledRejection', onUnh);
+  ok('F152: a cache.put that rejects mid-read is not an unhandled rejection, and the track still arrives',
+     unhandled.length === 0 && quotaAb && quotaAb.byteLength === 1000 && !quotaErr,
+     'unhandled rejections: ' + unhandled.length + ' (' + unhandled.map(String).join(' | ') + ') · bytes '
+     + (quotaAb && quotaAb.byteLength) + ' · err ' + (quotaErr && quotaErr.message));
+
+  /* CONTROL for both: a whole chunked body through the same fakes is still
+     written to the cache exactly once, with all of its bytes */
+  T = teeBody(4, 250, true);
+  let putBytes = -1;
+  global.caches = teeCache(T.S, async (u, r) => { putBytes = (await r.arrayBuffer()).byteLength; });
+  const P4 = fresh();
+  const okAb = await P4._fetchBytes('https://upload.wikimedia.org/x/whole.wav', null, 'whole.wav', 1000);
+  ok('CONTROL (F137/F152): a whole chunked body still arrives and is written to the cache once, all of it',
+     okAb.byteLength === 1000 && T.S.puts === 1 && putBytes === 1000,
+     'bytes ' + okAb.byteLength + ' · puts ' + T.S.puts + ' · cached bytes ' + putBytes + ' — a fix that stopped caching would pass both checks above');
+  global.caches = realCaches; global.fetch = realFetch;
+
   finished = true;
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);
