@@ -449,6 +449,67 @@ global.DWLISTEN.active = true;
 DWstate = { idx: 0, of: 0, tempo: 0, now: null, next: null, live: 0, ctx: 'none' };
 drawAll('listen mode, no set', bundle({ set: [] }));
 
+/* RING BUFFERS DURING WARM-UP (ultracode review 2026-10-22, Codex triage
+   F86). polygraph and loudness wrote slot i then advanced i, and read from
+   (i + k) — so before the first wrap the plot started at the first UNWRITTEN
+   slot: two samples drew slots 2 and 3, zeros. Read from recorded drawing
+   calls, not pixels: a fresh registry is evaluated from the panels source so
+   both closures start empty (the shared one has been drawn into above), the
+   path points of each trace are captured between beginPath and stroke, and
+   the shared registry is put back. Falsifiers: after two samples, low then
+   high, the trace is not low-then-high, or polygraph's trace does not end on
+   its own live dot. CONTROL: a WRAPPED buffer fed a rising ramp is correct
+   on old and new code alike, so it must pass on both — if it fails, the
+   recorder is reading the wrong path. */
+{
+  let fresh = null, err = '';
+  const rec = () => { const paths = []; let cur = null; const c = ctx();
+    c.beginPath = () => { cur = { style: c.strokeStyle, pts: [], arcs: [] }; paths.push(cur); };
+    c.moveTo = (x, y) => { if (cur) cur.pts.push([x, y]); };
+    c.lineTo = (x, y) => { if (cur) cur.pts.push([x, y]); };
+    c.arc = (x, y) => { if (cur) cur.arcs.push([x, y]); };
+    c.paths = paths; return c; };
+  const fed = v => bundle({ freq: new Uint8Array(1024).fill(v), flux: 0, stereo: { width: 0, corr: 1, rmsL: 0, rmsR: 0 } });
+  const run = (id, vals) => { const p = fresh && fresh.get(id); let c = null;
+    if (!p) return null;
+    for (const v of vals) { c = rec(); p.draw(c, 320, 200, Tk, fed(v)); }
+    return c.paths; };
+  /* a fresh registry per run, so each ring starts empty; the shared one is put back */
+  const fresh1 = () => { const s = global.DWPANELS;
+    try { eval(fs.readFileSync(process.env.DECKWAVE_PANELS_SRC || 'assets/deckwave-panels.js', 'utf8').replace(/\r\n/g, '\n'));
+          fresh = global.DWPANELS; } catch (e) { err = e.message; }
+    global.DWPANELS = s; };
+  /* polygraph's BASS pen is the only path stroked in T.ac2 with points;
+     the path after it carries the live dot (an arc, no points) */
+  const bass = paths => { if (!paths) return null;
+    const k = paths.findIndex(q => q.style === Tk.ac2 && q.pts.length);
+    return k < 0 ? null : { ys: paths[k].pts.map(q => +q[1].toFixed(3)),
+                            dot: paths[k + 1] && paths[k + 1].arcs[0] ? +paths[k + 1].arcs[0][1].toFixed(3) : null }; };
+  const loud = paths => { if (!paths) return null;
+    const q = paths.find(q => q.style === Tk.ac && q.pts.length);
+    return q ? q.pts.map(p => +p[1].toFixed(3)) : null; };
+  let ramp = [], warm = [], lr = [], lw = [];
+  try {
+    fresh1(); ramp = bass(run('polygraph', Array.from({ length: 700 }, (_, k) => Math.floor(k * 255 / 699))));
+    fresh1(); warm = bass(run('polygraph', [51, 204]));
+    fresh1(); lr = loud(run('loudness', Array.from({ length: 300 }, (_, k) => 16 + Math.floor(k * 239 / 299))));
+    fresh1(); lw = loud(run('loudness', [32, 255]));
+  } catch (e) { err = 'THREW: ' + e.message; }
+  const nonInc = ys => !!ys && ys.length > 1 && ys.every((y, k) => !k || y <= ys[k - 1] + 1e-9) && ys[0] > ys[ys.length - 1];
+  ok('CONTROL: a wrapped polygraph buffer fed a rising ramp draws it in time order and ends on its live dot',
+     !!ramp && ramp.ys.length === 600 && nonInc(ramp.ys) && ramp.ys[599] === ramp.dot,
+     'the recorder did not find the BASS trace, or a wrapped buffer is misread: ' + JSON.stringify(err || (ramp && { n: ramp.ys.length, first: ramp.ys[0], last: ramp.ys[599], dot: ramp.dot })));
+  ok('CONTROL: a wrapped loudness buffer fed a rising ramp draws it in time order',
+     !!lr && lr.length === 240 && nonInc(lr),
+     'the recorder did not find the loudness trace, or a wrapped buffer is misread: ' + JSON.stringify(err || (lr && { n: lr.length, first: lr[0], last: lr[lr.length - 1] })));
+  ok('polygraph after two samples (low, then high): the BASS trace is low then high and ends on its live dot',
+     !!warm && warm.ys.length === 2 && warm.ys[0] > warm.ys[1] && warm.ys[1] === warm.dot,
+     'the warm-up trace plots unwritten slots: ' + JSON.stringify(err || warm));
+  ok('loudness after two samples (quiet, then loud): the trace is quiet then loud',
+     !!lw && lw.length === 2 && lw[0] > lw[1],
+     'the warm-up trace plots unwritten slots: ' + JSON.stringify(err || lw));
+}
+
 /* ── ROADMAP D6: every panel has a glossary term, every term exists ──────
    The dashboard's PANEL/HEAD maps are extracted from the source and checked
    against DWMSG and the registry, both directions. Falsifier: a registered

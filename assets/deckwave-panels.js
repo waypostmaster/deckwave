@@ -224,8 +224,10 @@ window.DWPANELS.register('polygraph', 'polygraph', (function () {
       c.textAlign = 'right'; c.textBaseline = 'middle';
       c.fillText(name, padL - 6, mid);
       c.strokeStyle = cols[ci]; c.lineWidth = 1.3; T.g(c, cols[ci], 6); c.beginPath();
+      /* oldest written slot is i - filled: before the first wrap, i itself
+         is UNWRITTEN, and reading from it plotted zeros (review F86) */
       for (let k = 0; k < filled; k++) {
-        const idx = (i + k) % N, x = padL + (k / (filled - 1 || 1)) * gw;
+        const idx = (i - filled + k + N) % N, x = padL + (k / (filled - 1 || 1)) * gw;
         const y = mid - (buf[ci][idx] - .5) * amp * 2;
         k ? c.lineTo(x, y) : c.moveTo(x, y);
       }
@@ -314,8 +316,9 @@ window.DWPANELS.register('loudness', 'loudness', (function () {
        would be honest (a quarter IS a quarter) if any are ever wanted —
        absolute ones cannot be, until something calibrates this to BS.1770. */
     c.strokeStyle = T.ac; c.lineWidth = 1.5; T.g(c, T.ac, 7); c.beginPath();
+    /* oldest written slot first, as in polygraph (review F86) */
     for (let k = 0; k < filled; k++) {
-      const idx = (i + k) % H, x = pad + (k / (filled - 1 || 1)) * (w - pad * 2);
+      const idx = (i - filled + k + H) % H, x = pad + (k / (filled - 1 || 1)) * (w - pad * 2);
       const y = gy - ((Math.max(-40, Math.min(0, hist[idx])) + 40) / 40) * (gy - pad);
       k ? c.lineTo(x, y) : c.moveTo(x, y);
     }
