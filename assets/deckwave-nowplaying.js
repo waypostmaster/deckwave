@@ -231,7 +231,19 @@ return {
       return;
     }
 
-    if (!t) { $('npT').textContent = 'idle'; return; }
+    /* Listening ended with no set: the deck is idle and so is the capture.
+       Without this the card read "idle" under the listen-mode labels, the
+       last listen values and "external source", describing a stream that
+       had stopped (ultracode review 2026-10-22, F72). */
+    if (!t) {
+      $('npT').textContent = 'idle';
+      if (labelsSwapped) {
+        restoreLabels();
+        $('npM').textContent = ''; lastMetaKey = '';
+        Object.keys(GRID_LABELS).forEach(id => { const b = $(id); if (b) b.textContent = '-'; });
+      }
+      return;
+    }
     /* coming back from listen mode — put the grid's own labels back */
     if (labelsSwapped) restoreLabels();
 

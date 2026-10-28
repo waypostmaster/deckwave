@@ -719,7 +719,62 @@ const dashSrc = fs.readFileSync(process.env.DECKWAVE_DASH_SRC || 'assets/deckwav
   prevDeck = null;
   [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate] = save;
 }
-const npSrc2 = fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(/\r\n/g, '\n');
+/* LISTEN OFF WITH NO SET (ultracode review 2026-10-22, Codex triage F72).
+   The listen branch relabels the grid (level/register/width/phase) and
+   writes "external source · visuals only, no analysis"; the no-track path
+   wrote 'idle' and returned BEFORE restoreLabels(), so the card read idle
+   under a capture that had ended. The stub here gives each grid value a
+   parent whose <u> label is a real recorded node, because the block above
+   answers querySelector with null and so could never see a label at all.
+   CONTROL FIRST: during listening the labels MUST read "level" and the
+   meta line MUST name the external source, or the listen branch was never
+   reached and the idle assertions would pass on untouched stubs. Falsifier:
+   after listen-off with an empty set, any label still reads a listen name,
+   or the meta line still claims an external source. */
+{
+  const npPath = process.env.DECKWAVE_NP_SRC || 'assets/deckwave-nowplaying.js';
+  const nodes = {}, labels = {};
+  const START = { gBpm: 'bpm', gKey: 'key', gStr: 'stretch', gEn: 'energy' };
+  const mkEl = id => {
+    const el = { style: {}, textContent: '', innerHTML: '', className: '', title: '', children: [], parentElement: null,
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, appendChild() {}, remove() {}, querySelector: () => null };
+    if (START[id]) { labels[id] = { textContent: START[id] };
+      el.parentElement = { querySelector: s => (s === 'u' ? labels[id] : null) }; }
+    return el;
+  };
+  const sr = { getElementById: id => (id === 'dw-np-css' || id === 'npBox' || id === 'list' || id === 'kReg')
+                                     ? null : (nodes[id] || (nodes[id] = mkEl(id))),
+               querySelector: s => (s === '.app' ? mkEl() : null), appendChild() {} };
+  const save = [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate, global.DWLISTEN.active, global.DWLISTEN.source];
+  let NP = null, err = '';
+  try {
+    eval(fs.readFileSync(npPath, 'utf8').replace(/\r\n/g, '\n'));
+    NP = global.DWNOWPLAYING; NP.mount({ shadow: sr });
+  } catch (e) { err = e.message; NP = null; }
+  nowMeta = null; nextMeta = null; deck = null; nextDeck = null; blend = null; elapsed = 0;
+  DWstate = { idx: 0, of: 0, tempo: 0, now: null, next: null, live: 0, ctx: 'none' };
+  const read = () => ({ T: nodes.npT && nodes.npT.textContent, M: nodes.npM && nodes.npM.textContent,
+    labels: Object.keys(START).map(id => labels[id] && labels[id].textContent).join('/'),
+    values: Object.keys(START).map(id => nodes[id] && nodes[id].textContent).join('/') });
+  let during = {}, idle = {};
+  if (NP) try {
+    global.DWLISTEN.active = true; global.DWLISTEN.source = 'line in';
+    NP.update(bundle({ set: [] }), null); during = read();
+    global.DWLISTEN.active = false;
+    NP.update(bundle({ set: [] }), null); idle = read();
+  } catch (e) { err = 'THREW: ' + e.message; }
+  ok('CONTROL: while listening with no set, the card relabels the grid and names the external source',
+     !!NP && /external source/.test(during.M || '') && /^level\/register\/width\/phase$/.test(during.labels || ''),
+     'the listen branch was never reached, so the idle checks after this would pass on untouched stubs: ' + JSON.stringify(err || during));
+  ok('listen off with no set: the card says idle and its grid labels are bpm/key/stretch/energy again',
+     !!NP && idle.T === 'idle' && idle.labels === 'bpm/key/stretch/energy',
+     'the card reads idle under the listen-mode labels: ' + JSON.stringify(idle));
+  ok('listen off with no set: the meta line no longer claims an external source, and no listen reading is left in the grid',
+     !!NP && !/external source/.test(idle.M || '') && idle.values === '-/-/-/-',
+     'a capture that has ended is still described on the card: ' + JSON.stringify({ during, idle }));
+  [nowMeta, nextMeta, deck, nextDeck, blend, elapsed, DWstate, global.DWLISTEN.active, global.DWLISTEN.source] = save;
+}
+const npSrc2 =fs.readFileSync('assets/deckwave-nowplaying.js', 'utf8').replace(/\r\n/g, '\n');
 /* CLAUDE.md: "Do not label an axis with numbers the project chose." The
    loudness panel drew reference lines at -14 and -23 and labelled them
    LUFS — an absolute broadcast target asserted on a series that is
