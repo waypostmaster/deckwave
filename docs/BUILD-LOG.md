@@ -4404,3 +4404,22 @@ iPhone, the usual surface; route not named.] Confirmed by the keeper naming
 what was seen or heard; walk Part C (`docs/UI-WALK-2026-10-14.md`) is the
 list that session would answer.
 
+**153i · The phone report, and a gripe (keeper, 2026-10-28T15:0xZ).** *"All
+fine so far. My one gripe is that if the Home Screen App goes inactive for too
+long it loses its state. From a mixing wise."* [CONFIRMED as reported: all
+fine on the phone so far; the Home Screen (standalone) app comes back from a
+long idle without the loaded set.] Not the Step S stop: that is a set dying
+while it plays; this is a set gone after the app sat idle. The parked
+Bluetooth test (150n) has not been run: *"Haven't had that particular event
+yet."* [INFERRED, not looked into: iOS reclaims an idle standalone web app's
+process and the page cold-starts; the set and the picked files live only in
+page memory, so a cold start has nothing to restore. Confirmed or refuted
+by whether the reopened app shows a fresh boot (empty deck, library
+prompt) rather than a paused set.] Not a build task: keeping a set across
+an eviction means persisting the set AND getting the audio back without a
+re-pick, and the keeper decided 2026-10-09 that the folder handle is NOT
+persisted. A design question for the keeper, raised, not scheduled.
+**Same sitting:** walk Part C resumed on the keeper's "Let's walk it", and
+the Codex triage of the review residue started on "Go with Codex" (ledger
+153j when it lands).
+
