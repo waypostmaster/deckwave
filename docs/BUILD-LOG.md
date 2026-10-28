@@ -4393,8 +4393,14 @@ behind the working branch; nothing a visitor sees depends on it.
 
 **153g · The live boot, seen (keeper, 2026-10-27T01:3xZ).** *"I can see it
 in the browser."* [CONFIRMED: the page loads on `f85204c` — the gap 153f
-left open.] Surface not named; carried as a browser on the keeper's desk.
-NOT covered by that sentence, and still UNSEEN: BLENDING through a phrase
-fade on the card, `◉ PERIODS LOCKED` on the monitor, the tune switch
-repainting the list.
+left open.] Surface: **Edge** (keeper, 2026-10-28T14:5xZ: *"The before
+remarks were Edge"*). NOT covered by that sentence, and still UNSEEN:
+BLENDING through a phrase fade on the card, `◉ PERIODS LOCKED` on the
+monitor, the tune switch repainting the list.
+
+**153h · On the phone (keeper, 2026-10-28T14:5xZ).** *"I've now been testing
+it on the phone."* No finding reported yet. [INFERRED: deckwave.fm on the
+iPhone, the usual surface; route not named.] Confirmed by the keeper naming
+what was seen or heard; walk Part C (`docs/UI-WALK-2026-10-14.md`) is the
+list that session would answer.
 
