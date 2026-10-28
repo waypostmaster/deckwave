@@ -4462,3 +4462,49 @@ the code before it is built, the same as 153. Codex marks five REAL rows as
 needing the keeper's ear (F23, F116, F122, F130, F154); they are not build
 candidates without it.
 
+
+**153l · The sixteen priority-1 rows of 153k, built (keeper: "Go ahead",
+2026-10-28).** Four agents, each in its own worktree from `366fa0f`, each
+told to re-check the claim against the code first and stand down where the
+code refuted it; none was refuted. Every new check was run against the
+`366fa0f` source through its harness's env seam and FAILS there, and this
+desk re-ran each of those falsifications itself after integrating: panels
+2 / popout 1 / player 1 / pool 1 + 2 / dashboard→panels 7, →prepared 3 /
+phone 5 / events 5 / libre 7 FAILED on the old source, all green on the
+new. Sixteen commits, `0f20006`..`6adf078`, one finding each (F152 folded
+into F137: the same `c.put(url, r.clone())` line). **All sixteen
+harnesses green, 1250, MEASURED 2026-10-28T16:06:45Z on `6adf078`** (1188
++ 62), library and python present, in the main tree beside another
+session's modified `citywalk.jsonl`, which none of this touched.
+- **Display and reporting:** F72 the card after listen ends with no set ·
+  F86 polygraph/loudness traces before the ring fills · F87 wayposts on a
+  one-tempo corpus (new seam `DECKWAVE_WAYPOSTS_SRC`) · F48 the key
+  tooltip names parallel on the deckwave tune and relative on standard ·
+  F94 hyphenated titles on the lock screen and poster · F123 a late art
+  encode is dropped · F136 `steer()` reports a refusal as one · F132 GNU
+  licence names from the path, not the host.
+- **Bookkeeping and resources:** F1 a failed boot closes its AudioContext
+  · F2 the audio-file gate needs a real dot (MEASURED on the real library:
+  230 files, 189 accepted by old and new alike, 0 dropped) · F49 Discard
+  refused while a prepared set is starting · F104 a hand-closed party
+  projector is released by the opener's timer · F133 the last search asked
+  wins · F137+F152 the 256 MB cap stops a chunked download, the cache is
+  written from the accepted bytes · F151 the JSON limiter slot is held to
+  the end of the body.
+- **F97, which decides which track a saved set loads:** exact name first,
+  the ASCII fold only when non-empty and naming one track. **MEASURED on
+  the keeper's corpus: the same track at all 189 positions, old and new;**
+  it changes only non-Latin names, which used to all load the first such
+  track. Shown to the keeper before landing; droppable as one commit.
+- Desk edits on integration: F86's loudness comment had been put inside a
+  declaration; moved above the loop, behaviour identical.
+- **[INFERRED, all sixteen: none is seen or heard, none run in a browser.**
+  Two rest on spec, not measurement: F104 (a closed window runs no
+  animation frames) and F137 (a cancelled sole body reader stops the
+  transfer).] The keeper's glances, when wanted: the key tooltip, a
+  refused Discard, a hyphenated title on the lock screen.
+- **Left, said so:** after a hand-close the popout's `mode` still reads
+  `party` (it did before; not in scope). **Ledger 127's "hand-close" path
+  is corrected by this row:** as 127 described it, it never ran in a
+  browser (F110). Nothing threshold, detector, envelope, alignment,
+  stretch or order moved. Not pushed.
