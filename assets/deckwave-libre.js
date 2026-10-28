@@ -397,7 +397,11 @@ async function getJSON(url) {
       catch (e) { lastErr = e; continue; }
       if (r.status === 429 || r.status >= 500) { lastErr = new Error('HTTP ' + r.status); continue; }
       if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + url);
-      return r.json();
+      /* AWAITED, so the `finally` below frees the slot after the body is
+         read, not when the headers arrive (ultracode review 2026-10-22,
+         F151): a bare `return r.json()` let a third request out while two
+         bodies were still downloading */
+      return await r.json();
     }
     stats.errors++;
     throw lastErr || new Error('fetch failed ' + url);

@@ -886,6 +886,29 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
      'bytes ' + okAb.byteLength + ' · puts ' + T.S.puts + ' · cached bytes ' + putBytes + ' — a fix that stopped caching would pass both checks above');
   global.caches = realCaches; global.fetch = realFetch;
 
+  /* F151: getJSON must hold its limiter slot until the JSON body is READ,
+     not until the headers arrive. Headers come back at once; every json()
+     is a promise this check settles by hand. Falsifier: a third request
+     goes out while the first two bodies are still unread. */
+  const bodies = []; let jsonFetches = 0;
+  global.fetch = async url => { jsonFetches++;
+    let settle; const body = new Promise(r => { settle = r; }); bodies.push({ url, settle });
+    return { ok: true, status: 200, headers: new Map(), json: () => body }; };
+  const P5 = fresh();
+  const jp = ['a', 'b', 'c'].map(k => P5._getJSON('https://archive.org/advancedsearch.php?f151=' + k));
+  await until(() => jsonFetches >= 3, 1200);
+  const issuedWhileUnread = jsonFetches;
+  bodies[0].settle({ k: 'a' });
+  await until(() => jsonFetches >= 3);
+  const issuedAfterOne = jsonFetches;
+  bodies.slice(1).forEach((b, i) => b.settle({ k: 'bc'[i] }));
+  const jr = await Promise.all(jp);
+  ok('F151: getJSON holds its slot until the body is read — a third request waits while two bodies are unread, and goes once one is',
+     issuedWhileUnread === 2 && issuedAfterOne === 3 && jr.map(x => x.k).join('') === 'abc',
+     'requests out while two bodies were unread: ' + issuedWhileUnread + ' (want 2) · after one body was read: ' + issuedAfterOne
+     + ' (want 3) · answers ' + JSON.stringify(jr.map(x => x.k)) + ' — "at most two fetches" (ledger 66) counted headers, not downloads');
+  global.fetch = realFetch;
+
   finished = true;
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);
