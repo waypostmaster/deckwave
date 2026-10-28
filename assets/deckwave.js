@@ -389,7 +389,9 @@ async function analyse(file, excerptSec) {
    'missing file' on a track the panel had just called added (ultra review
    E2). norm()'s list and this one must agree; both now do. */
 const AUDIO_EXT = ['.flac', '.mp3', '.wav', '.aiff', '.m4a', '.ogg', '.opus', '.oga'];
-const AUDIO_RE = new RegExp('\.(' + AUDIO_EXT.map(e => e.slice(1)).join('|') + ')$', 'i');
+/* '\\.' — in a string, '\.' is just '.', which made the dot match any
+   character: 'notes-mp3' passed the gate (ultracode review 2026-10-22 F2). */
+const AUDIO_RE = new RegExp('\\.(' + AUDIO_EXT.map(e => e.slice(1)).join('|') + ')$', 'i');
 
 async function walk(dir, out, depth) {
   out = out || []; depth = depth || 0; if (depth > 6) return out;

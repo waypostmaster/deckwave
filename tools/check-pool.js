@@ -521,6 +521,27 @@ ok('…and the two lists are the SAME list, not two lists that happen to agree t
       extList.split(',').map(s => s.trim().replace(/['.]/g, '')).sort().join(','),
    'norm(): ' + normList + ' vs AUDIO_EXT: ' + extList + ' — the comment above norm() says "keep this list in step with AUDIO_EXT below" and this is that comment\'s failure mode');
 
+/* ultracode review 2026-10-22 F2. AUDIO_RE was built from the string
+   '\.(' — in a string literal that is just '.(', so the regex's dot was
+   unescaped and any character stood in for it: 'notes-mp3' passed the
+   audio-file gate (walk, picker, drop) and failed later at decode. The two
+   declarations are lifted from the SEAMED source (DECKWAVE_SRC), not
+   camSrc, so the check can be run against an old file. Falsifiers: a
+   no-dot or wrong-dot name accepted; a real dotted name, any case,
+   rejected (the positive controls, which pass on the old regex too). */
+const reLines = [/^const AUDIO_EXT = .*$/m, /^const AUDIO_RE = .*$/m].map(r => (src.match(r) || [])[0]);
+const reDecl = reLines.every(Boolean) ? reLines.join('\n') : null;
+const AUDIO_RE_real = (() => { try { return reDecl && Function(reDecl + '\nreturn AUDIO_RE;')(); } catch (e) { return null; } })();
+const reAccepts = n => !!AUDIO_RE_real && AUDIO_RE_real.test(n);
+const realNames = ['a.mp3', 'Song.FLAC', 'x y.wav', 'k.aiff', 'm.m4a', 'o.ogg', 'p.opus', 'q.oga'];
+const badNames = ['notes-mp3', 'x_wav', 'coverogg', 'Song.mogg', 'notesflac'];
+ok('control: AUDIO_RE lifted from the source accepts real dotted names, any case',
+   !!AUDIO_RE_real && realNames.every(reAccepts),
+   'lifted ' + (AUDIO_RE_real && AUDIO_RE_real.source) + '; rejected ' + JSON.stringify(realNames.filter(n => !reAccepts(n))));
+ok('AUDIO_RE needs a literal dot before the extension',
+   !!AUDIO_RE_real && badNames.every(n => !reAccepts(n)),
+   'source ' + (AUDIO_RE_real && AUDIO_RE_real.source) + ' accepts ' + JSON.stringify(badNames.filter(reAccepts)) + ' — each passes the gate and fails at decode');
+
 /* ── the opener's tie-break, on a corpus built to force the tie ────────────
    `pool.filter(t => t._locked).concat(pool)` before a distance sort reads like
    a preference for a locked opener and is not one: Array#sort is stable, so
