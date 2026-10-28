@@ -742,6 +742,79 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
      /id="lh"/.test(libreSrcText) && /\$\('lh'\)\.onclick = \(\) => \{ current\.source = 'archive'; \$\('src'\)\.value = 'archive';\n\s*current\.preset = 'lukhash'; \$\('preset'\)\.value = 'lukhash'; \$\('q'\)\.value = ''; doSearch\(\); \};/.test(libreSrcText),
      'the button is missing, does not select the lukhash preset, or does not force the archive source (the preset means nothing on Commons)');
 
+  /* ── ultracode review 2026-10-22, second pass (2026-10-28) ────────────
+     These run on a FRESH instance of the module (eval'd again), so the
+     limiter, the panel and the network fake are this section's own. The
+     network here is hand-resolved: fetch() returns a promise the check
+     settles itself, so which response lands first is set by the check,
+     not by a race. The only real timer anywhere below is the limiter's
+     own 250 ms start gap, waited out with `until`. */
+  const until = async (cond, ms) => { const t0 = Date.now();
+    while (!cond() && Date.now() - t0 < (ms || 3000)) await new Promise(r => setTimeout(r, 5));
+    return cond(); };
+  const realFetch = global.fetch, realDoc = global.document;
+  const fresh = () => { eval(libreSrc); return window.DWLIBRE; };
+  const pend = [];
+  const handFetch = (url, opts) => new Promise((res, rej) => pend.push({ url, opts, res, rej }));
+  const take = re => { const k = pend.findIndex(p => re.test(p.url)); return k < 0 ? null : pend.splice(k, 1)[0]; };
+  const jsonRes = body => ({ ok: true, status: 200, headers: new Map(), async json() { return body; } });
+
+  /* F133: overlapping searches. A fake DOM whose elements PERSIST by id, so
+     what the list and the footer hold at the end can be read back. */
+  const mkEl = id => { let html = ''; const el = { id, value: '', style: {}, classList: fakeClassList(), children: [],
+    textContent: '', disabled: false, onclick: null,
+    get innerHTML() { return html; }, set innerHTML(v) { html = v; el.children = []; },
+    appendChild(c) { el.children.push(c); }, after() {}, focus() {}, addEventListener() {},
+    querySelector() { return mkEl(); }, querySelectorAll() { return []; } }; return el; };
+  const els = {};
+  global.document = { createElement() { const el = mkEl();
+      el.attachShadow = () => ({ appendChild() {}, getElementById: id => els[id] || (els[id] = mkEl(id)) }); return el; },
+    body: { appendChild() {} }, getElementById() { return null; }, addEventListener() {} };
+  global.fetch = handFetch;
+  const P = fresh();
+  P.open({ root: { appendChild() {} }, log() {} });
+  const shownRows = () => els.ls.children.map(c => c.innerHTML).join('\n');
+  const doc = (id, title) => ({ identifier: id, title, creator: 'X', licenseurl: 'https://creativecommons.org/licenses/by/4.0/', downloads: 1 });
+  const archiveBody = (tag, n) => ({ response: { numFound: n, docs: [doc(tag + '1', tag + ' release')] } });
+  const searchFor = q => { els.q.value = q; return els.go.onclick(); };
+
+  /* falsifier: the OLDER request's late answer replaces the newer one's
+     rows and footer. Control in the same line: the newer answer rendered. */
+  els.src.value = 'archive';
+  let pA = searchFor('alpha'), pB = searchFor('bravo');
+  await until(() => pend.length === 2);
+  take(/bravo/).res(jsonRes(archiveBody('BRAVO', 222))); await pB;
+  const bShown = /BRAVO release/.test(shownRows()) && /^222 /.test(els.ft.textContent);
+  take(/alpha/).res(jsonRes(archiveBody('ALPHA', 111))); await pA;
+  ok('F133: two Archive searches — the older one answering LAST does not replace the newer one\'s rows or footer',
+     bShown && /BRAVO release/.test(shownRows()) && !/ALPHA/.test(shownRows()) && /^222 /.test(els.ft.textContent),
+     'newer rendered first: ' + bShown + ' · at the end the list shows ' + JSON.stringify(shownRows().match(/(ALPHA|BRAVO) release/g))
+     + ' and the footer says "' + els.ft.textContent + '" — + add on those rows would fetch a release the query box does not name');
+
+  pA = searchFor('alpha'); pB = searchFor('bravo');
+  await until(() => pend.length === 2);
+  take(/bravo/).res(jsonRes(archiveBody('BRAVO', 333))); await pB;
+  take(/alpha/).res({ ok: false, status: 404, headers: new Map(), async json() { return {}; } }); await pA;
+  ok('F133: an older search that FAILS after the newer one rendered leaves the newer rows and footer standing',
+     /BRAVO release/.test(shownRows()) && /^333 /.test(els.ft.textContent),
+     'list "' + shownRows().slice(0, 80) + '" · footer "' + els.ft.textContent + '" — a stale error wiped a good answer');
+
+  /* across the source select: an Archive search, then a Commons one */
+  els.src.value = 'archive'; pA = searchFor('alpha');
+  els.src.value = 'commons'; pB = searchFor('bravo');
+  await until(() => pend.some(p => /list=search/.test(p.url)));
+  take(/list=search/).res(jsonRes({ query: { searchinfo: { totalhits: 44 }, search: [{ title: 'File:Bravo Tune.wav' }] } }));
+  await until(() => pend.some(p => /imageinfo/.test(p.url)));
+  take(/imageinfo/).res(jsonRes({ query: { pages: { '1': { title: 'File:Bravo Tune.wav', imageinfo: [{
+    url: 'https://upload.wikimedia.org/x/Bravo_Tune.wav', descriptionurl: 'https://commons.wikimedia.org/wiki/File:Bravo_Tune.wav',
+    size: 1000, timestamp: '2024-01-01T00:00:00Z', mime: 'audio/x-wav', extmetadata: { LicenseShortName: { value: 'CC0' } } }] } } } }));
+  await pB;
+  take(/alpha/).res(jsonRes(archiveBody('ALPHA', 111))); await pA;
+  ok('F133: a late Archive answer does not overwrite a Commons list searched after it',
+     /Bravo Tune/.test(shownRows()) && !/ALPHA/.test(shownRows()) && /^44 audio files/.test(els.ft.textContent),
+     'list ' + JSON.stringify(shownRows().match(/(ALPHA release|Bravo Tune)/g)) + ' · footer "' + els.ft.textContent + '"');
+  global.document = realDoc; global.fetch = realFetch;
+
   finished = true;
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exit(fails ? 1 : 0);

@@ -864,12 +864,20 @@ function mount(root) {
 
 function foot(s) { if (sr) sr.getElementById('ft').textContent = s; }
 
+/* THE LAST SEARCH ASKED WINS, not the last to answer (ultracode review
+   2026-10-22, F133). Enter, search and ♪ lukhash can each start a search
+   while one is in flight, on either source; every one takes a number from
+   this one counter, and an answer — rows, footer or error — whose number
+   is no longer the latest is dropped. */
+let searchGen = 0;
 async function doSearch() {
   const $ = id => sr.getElementById(id);
+  const gen = ++searchGen;
   const ls = $('ls'); ls.innerHTML = '<div class="it"><span class="m">searching…</span></div>';
-  if ($('src').value === 'commons') return doSearchCommons();
+  if ($('src').value === 'commons') return doSearchCommons(gen);
   try {
     const r = await search({ preset: $('preset').value, text: $('q').value, rows: 40 });
+    if (gen !== searchGen) return;
     foot(r.found + ' licensed releases match · showing ' + r.items.length + ' by downloads');
     ls.innerHTML = '';
     if (!r.items.length) { ls.innerHTML = '<div class="it"><span class="m">nothing matched</span></div>'; return; }
@@ -962,17 +970,18 @@ async function doSearch() {
       };
       ls.appendChild(row);
     }
-  } catch (e) { ls.innerHTML = ''; foot('search failed: ' + String(e && e.message || e)); }
+  } catch (e) { if (gen !== searchGen) return; ls.innerHTML = ''; foot('search failed: ' + String(e && e.message || e)); }
 }
 
 /* Commons results: one row per FILE, and + fetches that one track through
    the same DW.ingest door. The ⊖ removal works by the same source.item
    stamp the Archive rows use. */
-async function doSearchCommons() {
+async function doSearchCommons(gen) {
   const $ = id => sr.getElementById(id);
   const ls = $('ls');
   try {
     const r = await searchCommons($('q').value, 40);
+    if (gen !== searchGen) return;
     foot(r.found + ' audio files match on Commons · showing ' + r.items.length + ' by relevance');
     ls.innerHTML = '';
     if (!r.items.length) { ls.innerHTML = '<div class="it"><span class="m">nothing matched</span></div>'; return; }
@@ -1016,7 +1025,7 @@ async function doSearchCommons() {
       };
       ls.appendChild(row);
     }
-  } catch (e) { ls.innerHTML = ''; foot('search failed: ' + String(e && e.message || e)); }
+  } catch (e) { if (gen !== searchGen) return; ls.innerHTML = ''; foot('search failed: ' + String(e && e.message || e)); }
 }
 
 function open(opts) {
