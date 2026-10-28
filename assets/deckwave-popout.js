@@ -62,9 +62,20 @@ const closed = () => !win || win.closed;
    context die with the document, but the analyser fan-out does not, and the
    visualizer stays reachable through it. Reopening built a second one. So:
    disconnect the audio, ask the driver to drop the GL context while the
-   canvas is still alive, and forget the handles. Called from set('off'), and
-   from the tick the moment it notices the window has gone — which is the
-   only signal there is when the window is closed by hand. */
+   canvas is still alive, and forget the handles. Called from set('off'), on
+   reopen, and from watchClosed() when the window is closed by hand.
+
+   The hand-close road USED to be the popout's own rAF tick, and that tick
+   cannot run once the window is closed: its document is discarded and gets
+   no more animation frames, so the party was never released that way
+   (ultracode review 2026-10-22, F104/F110/F124; ledger 127's "hand-close"
+   was never exercised). The watch is the OPENER's timer, the one clock the
+   closed window cannot take with it. */
+const WATCH_MS = 1000;                        /* how soon a hand-close is noticed — pacing, not calibration */
+let watch = null;
+function unwatch() { if (watch) { clearInterval(watch); watch = null; } }
+function goneByHand() { unwatch(); raf = null; releaseParty(); cv = null; bcv = null; }
+function watchClosed() { unwatch(); watch = setInterval(() => { if (closed()) goneByHand(); }, WATCH_MS); }
 function releaseParty() {
   const an = window.DW && window.DW.Player && window.DW.Player.analyser;
   if (bc && an) { try { if (bc.disconnectAudio) bc.disconnectAudio(an); } catch (e) {} }
@@ -98,12 +109,14 @@ function ensureWin() {
   d.addEventListener('click', () => { if (mode === 'party') nextPreset(); });
   frames = 0; sampled = 0;
   const tick = () => {
-    /* the ONLY notification that the window was closed by hand */
-    if (closed()) { raf = null; releaseParty(); cv = null; bcv = null; return; }
+    /* a closed window normally runs no frame at all — watchClosed() is what
+       notices a hand-close; this only covers a frame already in flight */
+    if (closed()) { goneByHand(); return; }
     raf = win.requestAnimationFrame(tick);
     try { draw(); frames++; } catch (e) { lastErr = e.message; }
   };
   raf = win.requestAnimationFrame(tick);
+  watchClosed();
   return win;
 }
 
@@ -213,6 +226,7 @@ function nextPreset() {
 async function set(k) {
   if (k === 'off') {
     mode = 'off';
+    unwatch();
     releaseParty();                           /* while bcv still exists to lose its context */
     if (!closed()) { try { win.close(); } catch (e) {} }
     win = null; cv = null; bcv = null;

@@ -46,7 +46,9 @@ function makeWin() {
       const c = makeCanvas(); canvases.push(c); return c; } };
   return { closed: false, innerWidth: 800, innerHeight: 450, document: doc,
     devicePixelRatio: winDpr, opener: global,
-    requestAnimationFrame(fn) { rafs.push(fn); return rafs.length; },
+    /* a closed window runs no animation frames — its document is gone. The
+       fake used to queue them anyway, which hid ultracode review F104. */
+    requestAnimationFrame(fn) { if (this.closed) return 0; rafs.push(fn); return rafs.length; },
     close() { this.closed = true; } };
 }
 const runFrame = () => { const fn = rafs.pop(); rafs.length = 0; if (fn) fn(); };
@@ -77,6 +79,12 @@ global.performance = { now: () => nowMs };
 let nowMs = 1000;
 let curWin = null;
 global.open = () => { opened++; return blocked ? null : (curWin = makeWin()); };
+/* the OPENER's timers, fired by hand. They are the clock that survives a
+   hand-closed popout (its own rAF does not); real ones would keep node alive. */
+const timers = new Map(); let timerId = 0;
+global.setInterval = (fn, ms) => { timers.set(++timerId, { fn, ms }); return timerId; };
+global.clearInterval = id => { timers.delete(id); };
+const runOpenerTimers = () => { [...timers.values()].forEach(t => t.fn()); };
 
 eval(src);
 const P = window.DWPOPOUT;
@@ -172,6 +180,37 @@ const P = window.DWPOPOUT;
      opened === 3 && drawn.length === before + 1 && drawn[drawn.length - 1].id === 'spectrum' && P.mode === 'spectrum',
      'opened ' + opened + ' drawn ' + (drawn.length - before) + ' mode ' + P.mode);
   await P.set('off');
+
+  /* CLOSED BY HAND, IN PARTY (ultracode review 2026-10-22, Codex triage
+     F104; F110 and F124 are the same defect). The only hand-close detector
+     was inside the popout's own rAF tick, and a closed window runs no
+     animation frames, so butterchurn stayed wired to the opener's analyser.
+     Modelled as a browser does it: the window's `closed` flips WITHOUT
+     win.close() being called by this module, its pending frame is dropped,
+     and it accepts no new ones (makeWin above). Only the opener's own timers
+     run. Falsifier: after that, the visualizer is not disconnected or the
+     party handle is still held. CONTROL: with the window still OPEN, the same
+     opener timers must NOT release the party — a fix that tore it down on
+     every tick would pass the hand-close check and kill party mode. */
+  {
+    disconnected = null;
+    const rp = await P.set('party'); runFrame();
+    runOpenerTimers();
+    ok('CONTROL: an OPEN party window survives the opener\'s timers with the visualizer still connected',
+       /party — butterchurn/.test(rp) && P.status.party === true && P.status.open === true && disconnected === null,
+       'party ' + P.status.party + ' open ' + P.status.open + ' disconnected ' + !!disconnected + ' — ' + rp);
+    const framesBefore = P.status.frames;
+    curWin.closed = true; rafs.length = 0;      /* the user's X: no win.close() from us, no more frames */
+    runFrame(); runOpenerTimers();
+    ok('…the closed window ran no further frames (the fake models a discarded document)',
+       P.status.frames === framesBefore && rafs.length === 0,
+       'frames ' + framesBefore + ' -> ' + P.status.frames + ' — the fake fired a closed window\'s rAF, which hides exactly this bug');
+    ok('closed BY HAND in party: the visualizer is disconnected from the analyser and forgotten',
+       disconnected === global.DW.Player.analyser && P.status.party === false && P.status.open === false,
+       'disconnected ' + !!disconnected + ' party ' + P.status.party
+       + ' — the release only ran from the closed window\'s own rAF, which never fires again; butterchurn stays on the opener\'s graph for the session');
+    await P.set('off');
+  }
 
   console.log('\n── device pixels, and one advance per frame ─────────────────');
   /* The dashboard has always sized its canvases by devicePixelRatio and
