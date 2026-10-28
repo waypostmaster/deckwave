@@ -4509,3 +4509,23 @@ session's modified `citywalk.jsonl`, which none of this touched.
   is corrected by this row:** as 127 described it, it never ran in a
   browser (F110). Nothing threshold, detector, envelope, alignment,
   stretch or order moved. Not pushed.
+
+**153m · Pushed and live, 2026-10-28.** The keeper ran `! git push origin`
+at ~21:41Z: `f85204c..a6b87cb public -> main`. Before it: the private
+sweep (origin/main to `a6b87cb`) hit its control; its only new hits were a
+public panel name's word and a benign "record IDs" line in this log. The
+dry run showed that one range and nothing else. The green run (1250,
+16:06:45Z) was on `6adf078`; the two commits after it touch only
+`CLAUDE.md` and this file. `git ls-remote origin refs/heads/main` →
+`a6b87cb37b5727f28ee4a8f860240003e0ada2c8`; Pages build `built` for that
+commit at 21:41:50Z (deploy run success 21:41:57Z). **MEASURED 21:42:03Z:
+all ten changed assets served byte-identical to `a6b87cb`** (sha256,
+cache-busted, `no-cache`), with `index.html` and `deckwave-cache.js`,
+unchanged in this release, as controls matching both commits; and the
+same compare at 21:41:36Z, before the build finished, read STILL-OLD on
+all ten, so the instrument can tell the two apart. **F97 is live with
+the rest**; the keeper pushed without ruling on it separately, and it is
+still one revertible commit. **NOT done: a live boot in a browser** (the
+substitute is `check-panels` executing every script `index.html` loads,
+plus the byte match). [MEASURED: push, build, bytes. UNVERIFIED: live
+boot. UNSEEN: all sixteen of 153l and the three of 153g.]

@@ -410,7 +410,9 @@ hours, or drift.** Those need the ear or a browser.
    and re-check each against the code before building it. **Its sixteen
    priority-1 rows are BUILT (ledger 153l, 2026-10-28; F152 folded into
    F137), each re-checked, each check failing on the old source; none is
-   seen or heard.** What is left is its priority 2 and 3 rows.
+   seen or heard.** **Pushed and live at `a6b87cb` 2026-10-28, all ten
+   changed assets byte-matched on deckwave.fm (153m); live boot not yet
+   seen.** What is left is its priority 2 and 3 rows.
 
 ### Open items — CONSOLE EXTENSION (RECON + the voice)
 
