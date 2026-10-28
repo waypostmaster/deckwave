@@ -92,7 +92,7 @@ global.DWMSG = { term: () => null };
    failing on the old source first — the seam the text checks below already
    have for the dashboard and the card. */
 for (const f of [process.env.DECKWAVE_PANELS_SRC || 'assets/deckwave-panels.js', 'assets/deckwave-sprites.js', 'assets/patch-01-spectrogram.js',
-                 'assets/panel-wayposts.js', 'assets/panel-centre.js', process.env.DECKWAVE_ROUTE_SRC || 'assets/panel-route.js']) {
+                 process.env.DECKWAVE_WAYPOSTS_SRC || 'assets/panel-wayposts.js', 'assets/panel-centre.js', process.env.DECKWAVE_ROUTE_SRC || 'assets/panel-route.js']) {
   try { eval(fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n')); }
   catch (e) { console.log('FATAL loading ' + f + ': ' + (e.stack || e)); process.exit(1); }
 }
@@ -183,6 +183,43 @@ const draw1 = (id, D) => { texts.length = 0; const p = P.get(id);
   ok('stopped: the wayposts panel invents no tempo',
      !wp.some(s => /^\s*120 bpm/.test(s)) && wp.some(s => /- bpm/.test(s)),
      'a fabricated tempo or a count derived from one: ' + JSON.stringify(wp.filter(s => /bpm/.test(s))));
+}
+
+/* WAYPOSTS ON A ONE-TEMPO CORPUS (ultracode review 2026-10-22, Codex triage
+   F87). The radial map extrapolates below the corpus's slowest bpm, so with
+   every track at 120 and the 8% gate the reachable band's inner radius is
+   rad(120/1.08) < 0. A real canvas throws IndexSizeError on a negative arc
+   radius; the stub ctx() above accepts anything, which is why this was
+   invisible. The strict context here throws exactly as a browser does.
+   CONTROL FIRST: the strict context must throw on a negative radius (or
+   it cannot fail), and the panel must draw on the five-track fixture with
+   it (or the strictness is breaking something else). Falsifier: drawing
+   the one-tempo corpus throws, never reaches its footer, or passes any
+   negative radius to arc(). DECKWAVE_WAYPOSTS_SRC loads another copy. */
+{
+  const strict = () => { const c = ctx(), radii = [];
+    c.arc = (x, y, r) => { radii.push(r); if (r < 0) { const e = new Error('IndexSizeError: radius ' + r + ' is negative'); e.name = 'IndexSizeError'; throw e; } };
+    c.radii = radii; return c; };
+  let ctrlThrew = false; try { strict().arc(0, 0, -1); } catch (e) { ctrlThrew = e.name === 'IndexSizeError'; }
+  const drawWP = (corpus, tempo, now) => {
+    const was = [global.DW.corpus, DWstate], c = strict(); texts.length = 0;
+    global.DW.corpus = corpus; DWstate = { idx: 0, of: corpus.length, tempo, now: now.name, next: null, live: 1, ctx: 'running' };
+    let err = '';
+    try { P.get('wayposts').draw(c, 320, 200, Tk, bundle({ set: corpus, now, state: DWstate })); } catch (e) { err = e.message; }
+    [global.DW.corpus, DWstate] = was;
+    return { err, radii: c.radii, foot: texts.filter(s => /reachable/.test(s)) };
+  };
+  ok('CONTROL: the strict canvas throws IndexSizeError on a negative arc radius, as a browser does',
+     ctrlThrew, 'the strict context accepts a negative radius, so the check below could not fail');
+  const five = drawWP(SET, 120, T0);
+  ok('CONTROL: wayposts draws the five-track fixture on the strict canvas and reaches its footer',
+     !five.err && five.foot.length === 1,
+     'the strict context breaks the ordinary case: ' + JSON.stringify(five));
+  const ONE = ['8A', '9A', '8B', '3A'].map((cam, k) => mkTrack('LukHash - A - 1' + k + ' flat', 120, { camelot: cam, _stretch: 1 }));
+  const one = drawWP(ONE, 120, ONE[0]);
+  ok('wayposts on a one-tempo corpus (all 120 bpm, 8% gate) draws to its footer without a negative arc radius',
+     !one.err && one.foot.length === 1 && one.radii.every(r => r >= 0),
+     'the reachable band went below zero radius: ' + JSON.stringify({ err: one.err, neg: one.radii.filter(r => r < 0), foot: one.foot }));
 }
 
 /* 3. idx beyond the end of a SHORTER set loaded while stopped — the P.arc case */

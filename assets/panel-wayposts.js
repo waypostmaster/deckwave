@@ -65,7 +65,10 @@
 
     /* the reachable band: the horizon of what the gate allows right now */
     if (nav && haveTempo) {
-      const inner = rad(Tnow / (1 + nav.GATE)), outer = rad(Tnow / (1 - nav.GATE));
+      /* rad() extrapolates below the slowest track, so on a narrow-tempo
+         corpus the inner edge maps under zero and arc() throws (review F87).
+         A floor at the centre is a geometry bound; the gate is untouched. */
+      const inner = Math.max(0, rad(Tnow / (1 + nav.GATE))), outer = Math.max(0, rad(Tnow / (1 - nav.GATE)));
       c.fillStyle = T.ac; c.globalAlpha = .07;
       c.beginPath(); c.arc(cx, cy, outer, 0, 7); c.arc(cx, cy, inner, 0, 7, true); c.fill();
       c.globalAlpha = .35; c.strokeStyle = T.ac; c.lineWidth = 1; c.setLineDash([2, 3]);
