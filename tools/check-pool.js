@@ -379,6 +379,35 @@ ok('a pre-2026-08-19 score (no straight field) still loads and leaves classifica
    ld2.loaded === set.length && ld2.set.every(t => t._unlocked === undefined),
    'loaded ' + ld2.loaded + '/' + set.length);
 
+/* ultracode review 2026-10-22 F97. load() matched on an ASCII fold alone
+   (lowercase, drop everything outside a-z0-9), so every all-CJK or
+   Cyrillic name folded to '' and each such step loaded the FIRST such
+   track, with nothing in `missing`. Falsifiers: a non-Latin step loading
+   another track; a non-Latin step with no counterpart, or one whose fold
+   names two different tracks, loading anything at all. Control, on the
+   real corpus, passing on the old load() too: every track's own name
+   loads that track, and an uppercased, underscored variant (no exact
+   match, so the fold fallback) still does — the fallback is kept. */
+const ldTry = (steps, corp) => { try { return S.load({ format: 'deckwave-set', steps: steps.map(name => ({ name, rate: 1 })) }, corp); }
+  catch (e) { return { loaded: -1, missing: ['threw: ' + e.message], set: [] }; } };
+const realIds = c => c.set.map(t => t.id).join(',');
+const own = ldTry(corpus.map(t => t.name), corpus.map(t => Object.assign({}, t)));
+const folded = ldTry(corpus.map(t => t.name.toUpperCase().replace(/ /g, '_')), corpus.map(t => Object.assign({}, t)));
+ok('control: on the real corpus each name, exact or folded, loads its own track',
+   corpus.length > 100 && own.missing.length === 0 && realIds(own) === corpus.map(t => t.id).join(',')
+   && folded.missing.length === 0 && realIds(folded) === corpus.map(t => t.id).join(','),
+   'exact: ' + own.loaded + ' loaded, ' + own.missing.length + ' missing; folded: ' + folded.loaded + ' loaded, ' + folded.missing.length + ' missing, of ' + corpus.length);
+const cjk = [{ id: 'ja', name: '日本語' }, { id: 'ky', name: '音楽' }];
+const pickN = ldTry(['音楽'], cjk.map(t => Object.assign({}, t)));
+ok('a non-Latin step loads the track it names, not the first non-Latin one',
+   pickN.loaded === 1 && pickN.set[0].id === 'ky' && pickN.missing.length === 0,
+   'step 音楽 loaded ' + JSON.stringify(pickN.set.map(t => t.name)) + ' missing ' + JSON.stringify(pickN.missing));
+const noneN = ldTry(['Привет'], cjk.map(t => Object.assign({}, t)));
+const ambN = ldTry(['曲 1'], [{ id: 'p', name: '日本語 1' }, { id: 'q', name: '音楽 1' }]);
+ok('…a non-Latin step with no counterpart, or a fold naming two tracks, is reported missing',
+   noneN.loaded === 0 && noneN.missing[0] === 'Привет' && ambN.loaded === 0 && ambN.missing[0] === '曲 1',
+   'Привет loaded ' + JSON.stringify(noneN.set.map(t => t.name)) + '; 曲 1 loaded ' + JSON.stringify(ambN.set.map(t => t.name)) + ' — a wrong set that says it is complete');
+
 /* ── quiet endings reach the score (ledger 144) ─────────────────────────
    The Player leaves no later than DW.quietAt(m). The score must plan the
    same exit or it stops describing the mix. One locked step is given a

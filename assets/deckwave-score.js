@@ -231,9 +231,24 @@ function load(json, corpus) {
   const sc = typeof json === 'string' ? JSON.parse(json) : json;
   if (sc.format !== 'deckwave-set') throw new Error('not a deckwave set file');
   const nm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  /* The exact name first; the ASCII fold only as a fallback, and only when
+     it names one track. The fold drops every non-Latin character, so an
+     all-CJK or Cyrillic name folds to '' and used to match the FIRST such
+     track for every such step — a wrong set that loaded as complete
+     (ultracode review 2026-10-22 F97). An empty fold never matches, and a
+     fold shared by two differently named tracks is reported missing, the
+     rule LIB.find() already keeps ("ambiguous: never pick one"). */
+  const pick = name => {
+    const exact = corpus.find(t => t.name === name);
+    if (exact) return exact;
+    const k = nm(name);
+    if (!k) return null;
+    const hits = corpus.filter(t => nm(t.name) === k);
+    return hits.length && hits.every(h => h.name === hits[0].name) ? hits[0] : null;
+  };
   const set = [], missing = [];
   sc.steps.forEach(s => {
-    const m = corpus.find(t => nm(t.name) === nm(s.name));
+    const m = pick(s.name);
     if (!m) { missing.push(s.name); return; }
     m._stretch = s.rate;
     /* Put the classification back, or a straight track loads as a locked
