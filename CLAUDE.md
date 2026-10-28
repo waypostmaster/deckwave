@@ -403,8 +403,11 @@ hours, or drift.** Those need the ear or a browser.
    on-screen changes from ledger 153 are UNSEEN: BLENDING through a phrase
    fade on the card, `◉ PERIODS LOCKED` on the monitor, the tune switch
    repainting the list. **Pushed and live at `f85204c` 2026-10-27 (153f);
-   the keeper saw it load in a browser (153g).** The three changes above
-   are still unseen.
+   the keeper saw it load in Edge (153g).** The three changes above
+   are still unseen. **Triaged by Codex 2026-10-28 (153k):** 107 sent,
+   83 called REAL (16 priority 1), 12 FIXED, 12 CAN'T-TELL — Codex's
+   claims, not re-checked. Pick from `evidence/codex-2026-10-28/INDEX.md`
+   and re-check each against the code before building it.
 
 ### Open items — CONSOLE EXTENSION (RECON + the voice)
 

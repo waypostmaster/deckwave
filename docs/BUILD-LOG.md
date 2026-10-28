@@ -4442,3 +4442,23 @@ asks for, not built:** a "settle this deck now" would ramp the PLAYING deck
 (`A.changeRate(1, seconds, now)`, which exists) and re-plan its exit, which
 is heard path and settle itself is still UNTESTED BY EAR. The keeper's call.
 
+**153k · The residue triaged by Codex (keeper: "Go with Codex",
+2026-10-28).** Five read-only runs (gpt-6-astra, xhigh, empty working dir,
+web and connectors off), 15:01:56Z → 15:19:41Z, all exit 0. Sent: 107 of the
+155 confirmed findings (safe-fix and docs-only, less 14 matched as landed)
+plus the CURRENT text of the files they concern at `HEAD` — all of it
+already public. NOT sent: the 34 keeper-class findings (needs-keeper,
+heard-path, threshold), anything outside `assets/` and `index.html`. Each
+prompt was scanned for credential key names first, with a control that hit;
+the one flagged term is a denylist name already present 15 times in
+`origin/main`'s `assets/`. **Codex says: 83 REAL (16 priority 1, 32 p2, 35
+p3), 12 FIXED, 12 CAN'T-TELL; 31 rows call themselves a duplicate of
+another.** Two of the 16 landed in 153 were not matched out and are
+presumably among the 12 FIXED. Index: `evidence/codex-2026-10-28/INDEX.md`;
+the five reports beside it. **[INFERRED, every verdict: they are Codex's
+claims, not re-checked by this desk.** Last time its claims were mostly
+right and one was judged unreachable (153).] Each one is re-checked against
+the code before it is built, the same as 153. Codex marks five REAL rows as
+needing the keeper's ear (F23, F116, F122, F130, F154); they are not build
+candidates without it.
+
