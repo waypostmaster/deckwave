@@ -507,14 +507,20 @@ setInterval(() => STATUS.step(), 120);
 /* A prepared set is an intention. Only a successful player operation makes
    it the current set. Async completion may consume only its own candidate. */
 function makeSetSession(getDW, getNav) {
-  let committed = [], prepared = null;
+  let committed = [], prepared = null, starting = 0;
   const same = (a, b) => a === b || (a.id && b.id && a.id === b.id);
   const consume = candidate => { if (prepared === candidate) prepared = null; };
+  /* F49 (ultracode review 2026-10-22): play() and apply() hold their
+     candidate across the player's await, so a Discard in that window would
+     clear the card while the deck starts the set anyway. Refuse it instead;
+     both entry points (the card's button and ▶) come through here. */
+  const hold = async op => { starting++; try { return await op(); } finally { starting--; } };
   return {
     get current() { const dw = getDW(); return dw.nowMeta ? dw.playOrder : committed; },
     get prepared() { return prepared; },
+    get starting() { return starting > 0; },
     prepare(seq) { if (!Array.isArray(seq) || !seq.length) throw Error('no tracks to prepare'); prepared = seq; },
-    discard() { prepared = null; },
+    discard() { if (starting) throw Error('cannot discard: the prepared set is starting'); prepared = null; },
     adopt(seq) {
       const dw = getDW();
       if (dw.nowMeta && dw.playOrder !== seq) throw Error('prepare this set before applying it');
@@ -524,7 +530,7 @@ function makeSetSession(getDW, getNav) {
       const dw = getDW(), candidate = prepared;
       if (dw.nowMeta) throw Error('a set is playing — use Apply remaining');
       if (!candidate) throw Error('prepare a set first');
-      const result = await dw.play(candidate, 0);
+      const result = await hold(() => dw.play(candidate, 0));
       if (result !== 'superseded' && dw.playOrder === candidate) { committed = candidate; consume(candidate); }
       return result;
     },
@@ -543,7 +549,7 @@ function makeSetSession(getDW, getNav) {
       const failures = next.slice(idx + 1).filter(t => !dw.LIB.find(t))
         .map(t => ({ name: t.name, stage: 'apply', message: 'file missing or ambiguous — reopen its library' }));
       if (failures.length) { const e = Error('prepared set has missing files'); e.failures = failures; throw e; }
-      const result = await dw.reorder(next, { phrase: !!candidate.phrase });
+      const result = await hold(() => dw.reorder(next, { phrase: !!candidate.phrase }));
       if (/^refused/.test(result)) throw Error(result);
       if (dw.playOrder !== next) return 'superseded — playing order changed';
       committed = next; consume(candidate);
@@ -698,7 +704,9 @@ function mount(hostEl) {
     } catch (e) { reportIssue(e, 'prepared set'); log(e.message); }
     finally { b.disabled = false; renderPrepared(); if (sets.prepared && !sr.activeElement && (document.activeElement === host || document.activeElement === document.body)) b.focus(); }
   };
-  $('discardPrepared').onclick = () => { sets.discard(); renderPrepared(); announce('Prepared set discarded');
+  $('discardPrepared').onclick = () => {
+    try { sets.discard(); } catch (e) { log(e.message); announce(e.message); return; }
+    renderPrepared(); announce('Prepared set discarded');
     ($('list').querySelector('button') || [...$('tp').querySelectorAll('button')].find(b => b.textContent.startsWith('build set')))?.focus(); };
 
   /* split the deck's own analyser — a pass-through, so this is always available */

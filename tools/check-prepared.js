@@ -66,8 +66,68 @@ async function checksForSession() {
   {
     const r=rig(),candidate=[tune('first')];r.sets.prepare(candidate);r.hold.set('first',{promise:Promise.reject(Error('corrupt fixture'))});let error;
     try{await r.sets.play();}catch(e){error=e.message;}
-    ok('decode failure keeps the preparation available',error==='corrupt fixture'&&r.sets.prepared===candidate&&r.sets.current.length===0,{error,prepared:!!r.sets.prepared});r.player.stop();
+    ok('decode failure keeps the preparation available',error==='corrupt fixture'&&r.sets.prepared===candidate&&r.sets.current.length===0,{error,prepared:!!r.sets.prepared});
+    let after;try{r.sets.discard();}catch(e){after=e.message;}
+    ok('…and a failed Play prepared leaves Discard working (the pending mark cleared on rejection)',!after&&!r.sets.prepared,{after,prepared:!!r.sets.prepared});r.player.stop();
   }
+  /* ultracode review 2026-10-22, Codex triage F49: Discard during a pending
+     Play prepared cleared `prepared` and the UI said "discarded", but play()
+     had already captured the candidate, so the deck started it and it became
+     the committed set — the panel and the deck disagreed about what was
+     dropped. Same shape for a pending Apply remaining. Both entry points
+     (the Prepared card's button and ▶) go through sets.play(), so the gate is
+     in the session. Falsifier: discard() returns quietly while play() or
+     apply() is awaiting the player. Control: once the play has settled,
+     discard works again. */
+  {
+    const r=rig(),candidate=[tune('first'),tune('second')];r.sets.prepare(candidate);
+    const gate=deferred();r.hold.set('first',gate);const pending=r.sets.play();await flush();
+    let refusal;try{r.sets.discard();}catch(e){refusal=e.message;}
+    const heldDuring=r.sets.prepared===candidate;
+    gate.resolve({duration:120});await pending;await flush();
+    ok('Discard during a pending Play prepared is refused, and the prepared set is still there while it starts',
+       /starting/.test(refusal||'')&&heldDuring,{refusal,heldDuring});
+    /* not a falsifier of F49 (the old code ends in this state too): it pins
+       that the refusal does not break the start it refused to interrupt */
+    ok('…and the refusal does not interrupt the start: the set that started is the committed one',
+       r.player.nowMeta&&r.player.nowMeta.name==='first'&&r.sets.current===candidate&&!r.sets.prepared,{now:r.player.nowMeta&&r.player.nowMeta.name,prepared:!!r.sets.prepared});
+    const other=[tune('other')];r.sets.prepare(other);let later;try{r.sets.discard();}catch(e){later=e.message;}
+    ok('…control: once the play has settled, Discard discards',!later&&!r.sets.prepared,{later,prepared:!!r.sets.prepared});r.player.stop();
+  }
+  {
+    const r=rig(),current=[tune('a'),tune('b')];await r.player.play(current);await flush();r.sets.adopt(current);
+    const gate=deferred();r.hold.set('delayed',gate);const cand=[tune('delayed')];r.sets.prepare(cand);
+    const applying=r.sets.apply();await flush();
+    let refusal;try{r.sets.discard();}catch(e){refusal=e.message;}
+    const heldDuring=r.sets.prepared===cand;
+    gate.resolve({duration:120});await applying;await flush();
+    ok('Discard during a pending Apply remaining is refused too',/starting/.test(refusal||'')&&heldDuring,{refusal,heldDuring});
+    r.player.stop();
+  }
+}
+/* F49, the button: the Discard handler is cut out of the source and RUN with
+   a session whose discard() refuses. Falsifier: it announces "Prepared set
+   discarded" anyway, or throws out of the click. Control: with a session
+   that discards, it does announce it. */
+function checksForDiscardButton() {
+  const m = source.match(/\$\('discardPrepared'\)\.onclick = (\(\) => \{[\s\S]*?\?\.focus\(\); \});/);
+  ok('the Discard handler can be found', !!m, { found: !!m });
+  if (!m) return;
+  const run = refuse => {
+    const said = [], logged = []; let threw = null;
+    const btn = { focus() {}, textContent: '', disabled: false };
+    const $ = () => ({ querySelector: () => btn, querySelectorAll: () => [], disabled: false });
+    const sets = { discard() { if (refuse) throw Error('cannot discard: the prepared set is starting'); } };
+    try {
+      const fn = new Function('sets', 'renderPrepared', 'announce', 'log', '$', '"use strict"; return (' + m[1] + ');')(sets, () => {}, s => said.push(s), s => logged.push(s), $);
+      fn();
+    } catch (e) { threw = e.name + ': ' + e.message; }
+    return { said, logged, threw };
+  };
+  const no = run(true), yes = run(false);
+  ok('a refused Discard does not announce "discarded" and says why instead',
+     !no.threw && !no.said.some(s => /discarded/.test(s)) && no.said.concat(no.logged).some(s => /starting/.test(s)), no);
+  ok('…control: an accepted Discard announces it', !yes.threw && yes.said.includes('Prepared set discarded'), yes);
 }
 /* ── ledger 140: ▶ on a prepared set must arm the Android call-focus proxy ──
    Build always prepares now, so "Build, ▶" always takes the prepared branch
@@ -91,6 +151,7 @@ function checksForSource() {
 (async () => {
   try { checksForSource(); } catch (e) { ok('source checks complete', false, e.stack); }
   try { await checksForSession(); } catch (e) { ok('session checks complete', false, e.stack); }
+  try { checksForDiscardButton(); } catch (e) { ok('discard button checks complete', false, e.stack); }
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exitCode = fails ? 1 : 0;
 })();
