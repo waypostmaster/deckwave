@@ -1789,5 +1789,35 @@ console.log('\n── the tune switch runs to the end ────────�
      'threw ' + JSON.stringify(err) + ', retuned ' + retuned + ', repaints ' + repaints);
 }
 
+console.log('\n── the header key tooltip names both tunes ─────────────────');
+/* ultracode review 2026-10-22, Codex triage F48 (F59 the same defect):
+   DWDASH.TERMS.kKey.d said, unconditionally, that the same number with the
+   other letter is the RELATIVE major or minor. On the default deckwave tune
+   it is the PARALLEL one (Am = 11A beside A = 11B), so the .tip contradicted
+   the chart the set was built on. The text cannot follow DW.retune (the tip
+   is written once, at glossary()), so it must state both. The control reads
+   the ENGINE's tables, not the dashboard's hint, so the wording is checked
+   against what camelot() actually does. Falsifier: kKey.d still carries the
+   unconditional sentence, or does not tie parallel to the deckwave tune and
+   relative to the standard wheel, or the engine's tables stopped meaning that. */
+{
+  const eng = fs.readFileSync('assets/deckwave.js', 'utf8').replace(/\r\n/g, '\n');
+  const tbl = name => { const m = eng.match(new RegExp('const ' + name + ' = (\\{[\\s\\S]*?\\});'));
+    try { return m ? new Function('return ' + m[1])() : null; } catch (e) { return null; } };
+  const MAJ = tbl('CAMELOT_MAJOR'), DWT = tbl('CAMELOT_MINOR_DECKWAVE'), STD = tbl('CAMELOT_MINOR_STANDARD');
+  ok('…control: the engine pairs Am with A on the deckwave tune and with C on the standard one',
+     !!(MAJ && DWT && STD) && DWT.A === MAJ.A && STD.A === MAJ.C && DWT.A !== STD.A,
+     'the tables were not found or no longer mean parallel/relative — the wording below would be checked against nothing');
+  const km = dashSrc.match(/kKey: \{[^\n]*\n\s*d:'((?:[^'\\]|\\.)*)'/);
+  const d = km ? km[1] : '';
+  ok('…control: the kKey tooltip text was found', d.length > 40, 'extractor missed DWDASH.TERMS.kKey.d');
+  ok('the kKey tooltip no longer says, unconditionally, that the same number is the relative key',
+     !/the same number with the other letter is the relative major or minor\./.test(d),
+     'kKey.d still states the standard wheel as the only one: ' + JSON.stringify(d));
+  ok('the kKey tooltip ties PARALLEL to the deckwave tune and RELATIVE to the standard wheel',
+     /deckwave tune[^.]*parallel/i.test(d) && /standard[^.]*relative/i.test(d) && /Am = 11A beside A = 11B/.test(d),
+     'the tip does not say which tune means which: ' + JSON.stringify(d));
+}
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
 process.exit(fails ? 1 : 0);

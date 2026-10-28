@@ -2637,7 +2637,7 @@ DWDASH.TERMS = {
   kBpm: { t:'Tempo', u:'https://en.wikipedia.org/wiki/Tempo', verified:false,
     d:'The rolling target in beats per minute. It drifts 35% toward each incoming track rather than holding one fixed BPM, which is how a set can climb 100 → 150 without over-stretching anything.' },
   kKey: { t:'Key (music)', u:'https://en.wikipedia.org/wiki/Key_(music)', verified:false,
-    d:'The current key in Camelot notation — 12 numbers, A for minor and B for major. Adjacent numbers are a perfect fifth apart; the same number with the other letter is the relative major or minor.' },
+    d:'The current key in Camelot notation — 12 numbers, A for minor and B for major. Adjacent numbers are a perfect fifth apart. What the same number with the other letter means depends on the tune (the ⚙ tune select switches): on this deck\'s default deckwave tune it is the PARALLEL major or minor (Am = 11A beside A = 11B); on the standard Camelot wheel it is the RELATIVE one (Am = 8A beside C = 8B).' },
   kStr: { t:'Audio time stretching and pitch scaling', u:'https://en.wikipedia.org/wiki/Audio_time_stretching_and_pitch_scaling', verified:true,
     d:'How far the DECK is bending this track from its native tempo, with pitch preserved — the live rate, not the plan. Amber past 8%. Beyond roughly 15% the stretch becomes an audible wobble — a perceptual limit, not a preference, which is why beatmatched transitions stay inside 8% and anything further away is played straight instead. ∿ means straight: unstretched because it is not being beatmatched, so there is no figure to print.' },
   kHit: { t:'Onset detection', u:'https://en.wikipedia.org/wiki/Special:Search?search=onset+detection+audio', verified:false,
