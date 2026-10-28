@@ -4421,5 +4421,24 @@ re-pick, and the keeper decided 2026-10-09 that the folder handle is NOT
 persisted. A design question for the keeper, raised, not scheduled.
 **Same sitting:** walk Part C resumed on the keeper's "Let's walk it", and
 the Codex triage of the review residue started on "Go with Codex" (ledger
-153j when it lands).
+153k when it lands).
+
+**153j · Settle does not rescue the deck already playing (keeper, by use,
+2026-10-28T15:0xZ).** Asked first: *will "settle after a bad blend" settle
+the track already blended into, or only the next action?* Then tested on
+the phone: forced FINAL CHAPTER → Copyparty Memories, switched settle on,
+*"I think the stretch stayed -10.9% which is a bit too slow."*
+[CONFIRMED by use, and it is what the code says: the button only flips
+`DW.settle.on` (`deckwave-dashboard.js` sb handler); the ramp is decided in
+`chain()` for the INCOMING deck when a blend is planned
+(`nd.setRamp(rate, 1, seconds, out)`, `assets/deckwave.js` ~1753), and
+`chain()` plans the next blend the moment a track starts (comment at
+~1365), so switching it on mid-track touches neither the playing deck nor
+the blend already planned. Only a replan (next ▶, blend now, reorder) or
+the blend after that picks it up.] **The ear's half, new:** −10.9% on
+Copyparty Memories is *"a bit too slow"*, past `DWNAV.GATE` (8%). One
+by-use data point, phone, route not named; it moves no threshold. **What it
+asks for, not built:** a "settle this deck now" would ramp the PLAYING deck
+(`A.changeRate(1, seconds, now)`, which exists) and re-plan its exit, which
+is heard path and settle itself is still UNTESTED BY EAR. The keeper's call.
 
