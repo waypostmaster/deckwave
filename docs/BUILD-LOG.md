@@ -4623,3 +4623,43 @@ keeper's go.
   through background throttling and not measured. **UNHEARD.** The
   evaluator is Codex's model of the automation spec, not checked against a
   browser. Nothing from r4 is in `tools/`.
+
+**Ledger 154 · "More dynamic", the Home Screen loss, an iPhone app:
+Codex ideation (keeper, 2026-10-29: "Use a Codex CLI subagent to
+ideacraft … the homescreen app not persisting. let's get that fixed.
+even maybe think about making an actual app for iphone").** Two runs
+with 153n's flags, 14:47–15:21Z, both exit 0. Sources came from
+`origin/main`; the leak scan was clean (two ROADMAP hits, "patent
+history" and "risk-" matching `sk-`, are both already public). Answers
+are in `evidence/codex-2026-10-29/i1-ideas.md` and `i2-persist.md`.
+**[INFERRED, all of it: Codex's design, not built, not heard.]**
+- **Facts the desk checked by reading:** the dashboard HAS `next ▶`
+  (`deckwave-dashboard.js:1725`, `DW.skip()`), but it has NO back button.
+  `DW.back()` (`deckwave.js:2180`) restarts the previous row and is
+  reachable only from the lock screen's ◀◀. Nothing seeks within a track.
+  Listen mode feeds the panels and never the mix. A re-pick after a cold
+  start does not re-analyse, because the cache matches on
+  `name|size|lastModified` (`deckwave.js:827`, `:282`).
+- **i2, the Home Screen loss.** It lists everything a cold start loses (the
+  set, the position, the picked files, the in-memory corpus) and what
+  survives (analysis in IDB, prefs in localStorage). Its recommendation is
+  (a) a session checkpoint in a separate IDB `deckwave-session` plus a
+  re-pick; (b), keeping copies of the SET'S audio as IDB blobs with their
+  original name/size/mtime, waits on its own keeper decision. Its reading
+  is that the 10-09 folder-handle decision neither covers nor forbids (b).
+  A service worker helps an offline launch and saves no set. Codex's full
+  plan reconstructs a MID-TRACK position (rate curve, entry, logical
+  elapsed). That is heard path, and the plan forbids a checkpoint taken
+  inside a crossfade.
+- **i1, ideas and roadmap.** Codex's five picks: a visible ⏮/⏭ transport;
+  a performance pad over the existing DWEVENTS verbs; checkpoint/restore;
+  ±1 phrase jumps; a manual mic/line-in channel with input → gain →
+  master. The shared prerequisite it names is the cancelPending snap
+  (153n): no new transport control should replan during a fade until a
+  sounding transition keeps its envelopes. On an iPhone app it sets a
+  decision gate, not a default. If checkpoints and kept files fix the
+  return, the PWA is enough. If the obstacle is files, try a native file
+  bridge. If playback itself dies in the background and a native two-deck
+  spike survives the same scenario, consider native playback. No wrapper
+  can read Apple Music DRM tracks. A native target breaks the
+  static/bare-node rule and needs the keeper's explicit exception.
