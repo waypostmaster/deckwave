@@ -4663,3 +4663,53 @@ are in `evidence/codex-2026-10-29/i1-ideas.md` and `i2-persist.md`.
   spike survives the same scenario, consider native playback. No wrapper
   can read Apple Music DRM tracks. A native target breaks the
   static/bare-node rule and needs the keeper's explicit exception.
+
+**Ledger 155 · Resume after a cold start, built (keeper, 2026-10-29:
+"let's get that fixed"; two calls asked and answered: RE-PICK now with
+copies later, and resume at the START of the track that was playing).**
+One change to `deckwave-dashboard.js` with its harness in
+`check-prepared.js`. **[MEASURED in harness and in Chrome on
+localhost:8777; UNSEEN on the phone, UNHEARD.]**
+- `makeResumeStore()` keeps the playing set's `DWSCORE.score()` (names
+  and plan, no audio, no handles) under `localStorage['dw-resume']`. It
+  is rewritten when the playing order or track changes (2 s tick). A page
+  that wrote it forgets it after two empty ticks (stop, reset, the set's
+  end), so ▶ after a stop still means track 1. A fresh boot never erases
+  it. Storage refusal never throws into the set.
+- At boot, a **Saved set** card in the side panel (the phone drawer
+  opens for it) offers *Choose music to resume* and *Forget*. Resume runs
+  `DW.scan` only when the library lacks a track, then `DWSCORE.load`, then
+  PREPARES the set with `resumeAt`. `sets.play()` now starts at
+  `candidate.resumeAt || 0`, so the ▶ that starts it is the user's own
+  tap. The start track is found by NAME: `load()` drops missing steps, so
+  the saved number can be wrong.
+- **Harness: `check-prepared` 22 → 34.** On the old source, the resume
+  checks fail and the start-at-1 control passes. Two wrong-fix mutants
+  each fail their own check: reusing the saved number fails the
+  earlier-missing-track case, and dropping the `order &&` guard fails the
+  fresh-boot case. One fixture of mine could not tell name from number
+  (missing 'b' left 'c' at the old index); it was replaced before landing.
+  **All sixteen harnesses green, 1262, MEASURED 2026-10-29T20:29:51Z.**
+- **Live, Chrome, localhost (synthetic 150 s WAVs, volume 0, real clicks
+  on ▶ and ■):** no record means no card (the control). Playing wrote a
+  1844-byte record naming the playing track. A reload while playing
+  booted empty (corpus 0) and offered *was on 1*. Re-ingesting the same
+  files hit the cache (2 cached, 42 ms). Resume prepared "Resumes at track
+  2 … from its first beat", and ▶ played track 2 with track 1 kept as
+  history. ■ stop forgot the record within 6 s. Forget cleared the card
+  and the record, and a reboot offered nothing. In a 400×800 iframe (the
+  ≤720 CSS) the drawer opened and both buttons passed `elementFromPoint`.
+  **Found and fixed live:** in a 481 px-tall window the card's buttons
+  sat under the transport bar. `#resume{flex-shrink:0}` stops the card
+  shrinking, but it is still clipped at that height, because the
+  now-playing box takes 185 of the side panel's 278 px. The Prepared card
+  shares that limit; phone width is fine. The picker itself could not be
+  driven, so a re-pick on the iPhone is UNTESTED. Synthetic records were
+  deleted from that profile afterwards. One mis-aimed click (the bar
+  reflowed) saved a features-only cache file to that profile's Downloads.
+- **Also on the desktop:** a reload mid-set now offers the same card. That
+  was not asked for; it falls out of the same code.
+- **What only the phone can show:** whether iOS actually cold-starts
+  (153i's falsifier), whether the card appears after a real idle, whether
+  the picker comes back with the same name/size/date, and how the restart
+  sounds. Not pushed.

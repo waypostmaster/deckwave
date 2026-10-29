@@ -148,10 +148,99 @@ function checksForSource() {
      branch > 0 && handlerStart > 0 && before > handlerStart && before < branch,
      { handlerStart, armBefore: before, preparedBranch: branch, armAfter: after });
 }
+/* ── ledger 155: resume after the Home Screen app is reclaimed ─────────────
+   Three parts, each falsified on the 2026-10-29 source (no resume existed):
+   (1) a prepared set carrying resumeAt starts THERE through the real Player,
+   and one without it still starts at track 1 (the control: ▶ after a load
+   set must not inherit a stale index); (2) the store writes on a change of
+   order or track, rewrites nothing on a steady tick, forgets after two empty
+   ticks only if it wrote, and a FRESH page never erases the record it should
+   offer — the falsifier for that is a booting page wiping the saved set on
+   its own idle ticks, which would make the feature report nothing; (3) the
+   Resume button, cut out and run: a missing track drops out of the loaded
+   set, so the start index is found by NAME (the playing track, else the
+   next one that came back), and no picker opens when the library already
+   holds every track. What none of this sees: iOS reclaiming a page, the
+   picker on a phone, or the sound of the restart — those are the keeper's. */
+async function checksForResume() {
+  {
+    const r = rig(), set = [tune('one'), tune('two'), tune('three')];
+    set.resumeAt = 2; r.sets.prepare(set); await r.sets.play(); await flush();
+    ok('a resumed prepared set starts at the track that was playing', r.player.state.idx === 2 && r.player.nowMeta === set[2],
+       { idx: r.player.state.idx, now: r.player.nowMeta && r.player.nowMeta.name });
+    r.player.stop();
+    const r2 = rig(), plain = [tune('one'), tune('two')]; r2.sets.prepare(plain); await r2.sets.play(); await flush();
+    ok('…control: a prepared set without resumeAt still starts at track 1', r2.player.state.idx === 0, { idx: r2.player.state.idx });
+    r2.player.stop();
+  }
+  const b = source.indexOf('function makeResumeStore('), e = source.indexOf('\n}\n', b);
+  const make = b < 0 ? null : vm.runInNewContext('(' + source.slice(b, e + 2) + ')');
+  ok('the dashboard has a resume store', !!make, { found: !!make });
+  if (make) {
+    const mem = new Map(); let refuse = false;
+    const store = { getItem: k => mem.has(k) ? mem.get(k) : null, removeItem: k => mem.delete(k),
+                    setItem: (k, v) => { if (refuse) throw Error('QuotaExceededError'); mem.set(k, v); } };
+    const order = ['a', 'b', 'c'].map(n => ({ name: n }));
+    const dw = { nowMeta: order[0], playOrder: order, state: { idx: 0 } };
+    const score = o => ({ format: 'deckwave-set', steps: o.map(t => ({ name: t.name })) });
+    const s = make(() => dw, score, store);
+    const w1 = s.tick(), w2 = s.tick();
+    dw.state.idx = 1; dw.nowMeta = order[1]; const w3 = s.tick(), rec = s.read();
+    ok('the store writes on a new set and on a new track, and not on a steady tick', w1 && !w2 && w3 && rec && rec.idx === 1 && rec.name === 'b' && rec.score.steps.length === 3,
+       { w1, w2, w3, rec: rec && { idx: rec.idx, name: rec.name } });
+    dw.nowMeta = null; s.tick(); const kept = !!s.read(); s.tick(); const gone = !s.read();
+    ok('a living page forgets the set after two empty ticks (stop, reset, the end), not one', kept && gone, { afterOne: kept, afterTwo: gone });
+    dw.nowMeta = order[1]; s.tick();
+    const fresh = make(() => ({ nowMeta: null, playOrder: [], state: { idx: -1 } }), score, store);
+    fresh.tick(); fresh.tick(); fresh.tick();
+    ok('a freshly booted page never erases the saved set it should offer', !!fresh.read() && fresh.read().name === 'b', { rec: fresh.read() && fresh.read().name });
+    refuse = true; dw.state.idx = 2; dw.nowMeta = order[2]; let threw = null, wrote;
+    try { wrote = s.tick(); } catch (x) { threw = x.message; }
+    refuse = false; const retried = s.tick();
+    ok('refused storage never throws into the set, and the write is retried', !threw && wrote === false && retried === true && s.read().idx === 2, { threw, wrote, retried });
+    mem.set('dw-resume', JSON.stringify({ v: 1, idx: 9, score: { steps: [{ name: 'x' }] } }));
+    ok('a record pointing past its own set is refused, not offered', s.read() === null, {});
+  }
+  const m = source.match(/\$\('resumeGo'\)\.onclick = (async \(\) => \{[\s\S]*?\n  \});/);
+  ok('the Resume handler can be found', !!m, { found: !!m });
+  if (!m) return;
+  const run = (corpusNames, linked, idx = 1) => {
+    const said = { logs: [], issues: [], prepared: null, scans: 0 };
+    const btn = { disabled: false };
+    const steps = ['a', 'b', 'c', 'd'].map(n => ({ name: n }));
+    const rec = { v: 1, idx, name: steps[idx].name, score: { format: 'deckwave-set', steps } };
+    const corpus = corpusNames.map(n => ({ name: n }));
+    const win = { DW: { corpus, LIB: { find: t => linked.includes(t.name) },
+                        scan: async () => { said.scans++; linked.push(...corpusNames); return {}; } },
+                  DWSCORE: { load: (sc, cp) => { const set = [], missing = [];
+                    sc.steps.forEach(st => { const t = cp.find(x => x.name === st.name); if (t) set.push(t); else missing.push(st.name); });
+                    return { set, missing }; } } };
+    const fn = new Function('window', '$', 'resume', 'log', 'reportIssue', 'hideResume', 'dash', '"use strict"; return (' + m[1] + ');')(
+      win, () => btn, { read: () => rec }, x => said.logs.push(x), (x, st) => said.issues.push(st + ':' + (x.failures || []).map(f => f.name).join(',')),
+      () => {}, { prepare: set => { said.prepared = set; } });
+    return fn().then(() => said);
+  };
+  const gone = await run(['a', 'c', 'd'], []);
+  ok('Resume with the playing track missing starts at the next track that came back, found by name',
+     gone.prepared && gone.prepared.resumeAt === 1 && gone.prepared[1].name === 'c' && gone.scans === 1 && gone.issues.some(x => /resume:b/.test(x)),
+     { resumeAt: gone.prepared && gone.prepared.resumeAt, at: gone.prepared && gone.prepared[gone.prepared.resumeAt].name, scans: gone.scans, issues: gone.issues });
+  /* an EARLIER track missing shifts every index after it: playing 'c' (step 2)
+     must start at 'c', which is index 1 of the loaded [b, c, d]. A fix that
+     reused the saved number would start at 'd' — this is the case that tells
+     name from number; the one above cannot. */
+  const shifted = await run(['b', 'c', 'd'], [], 2);
+  ok('Resume after an EARLIER missing track still starts on the playing one, not on the saved number',
+     shifted.prepared && shifted.prepared[shifted.prepared.resumeAt].name === 'c',
+     { resumeAt: shifted.prepared && shifted.prepared.resumeAt, at: shifted.prepared && shifted.prepared[shifted.prepared.resumeAt].name });
+  const all = await run(['a', 'b', 'c', 'd'], ['a', 'b', 'c', 'd']);
+  ok('Resume opens no picker when the library already holds every track, and starts on the playing one',
+     all.scans === 0 && all.prepared && all.prepared.resumeAt === 1 && all.prepared[1].name === 'b', { scans: all.scans, resumeAt: all.prepared && all.prepared.resumeAt });
+}
 (async () => {
   try { checksForSource(); } catch (e) { ok('source checks complete', false, e.stack); }
   try { await checksForSession(); } catch (e) { ok('session checks complete', false, e.stack); }
   try { checksForDiscardButton(); } catch (e) { ok('discard button checks complete', false, e.stack); }
+  try { await checksForResume(); } catch (e) { ok('resume checks complete', false, e.stack); }
   console.log('\n' + (fails ? fails + ' FAILED' : 'all passed') + ' of ' + checks + ' checks');
   process.exitCode = fails ? 1 : 0;
 })();

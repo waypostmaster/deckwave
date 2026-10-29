@@ -118,6 +118,7 @@ canvas{display:block;width:100%;height:100%;background:var(--bg)}
 .list button.tr.now{border-left:2px solid var(--ac2)}
 .prepared[hidden],.issues[hidden]{display:none}
 .prepared{display:flex;flex-direction:column;min-height:0;max-height:48%;border-top:1px solid var(--ac);padding:8px 10px;gap:6px}
+#resume{flex-shrink:0;max-height:none}
 .prepared h2{font-size:9px;font-weight:400;text-transform:uppercase;letter-spacing:.12em;color:var(--ac)}
 .prepared p{font-size:9px;line-height:1.5;color:var(--dim)}
 .prepareActions{display:flex;gap:5px;flex-wrap:wrap}
@@ -530,7 +531,9 @@ function makeSetSession(getDW, getNav) {
       const dw = getDW(), candidate = prepared;
       if (dw.nowMeta) throw Error('a set is playing — use Apply remaining');
       if (!candidate) throw Error('prepare a set first');
-      const result = await hold(() => dw.play(candidate, 0));
+      /* a resumed set starts at the track that was playing, from its first
+         beat (ledger 155); every other prepared set starts at track 1 */
+      const result = await hold(() => dw.play(candidate, candidate.resumeAt || 0));
       if (result !== 'superseded' && dw.playOrder === candidate) { committed = candidate; consume(candidate); }
       return result;
     },
@@ -554,6 +557,50 @@ function makeSetSession(getDW, getNav) {
       if (dw.playOrder !== next) return 'superseded — playing order changed';
       committed = next; consume(candidate);
       return 'applied remaining · ' + result;
+    }
+  };
+}
+
+/* ── RESUME AFTER A COLD START (keeper, 2026-10-29, ledger 155) ──────────
+   "if the Home Screen App goes inactive for too long it loses its state"
+   (153i): iOS reclaims an idle standalone page and it boots fresh, with the
+   set and the picked files gone from memory. The keeper's two calls: the
+   music comes back by RE-PICKING (no audio is stored; copies are a later,
+   separate decision), and the set resumes at the START of the track that
+   was playing — not mid-track, which would be a new heard path.
+   So this keeps the playing set's SCORE (DWSCORE.score: names, plan, no
+   audio, no handles) under one localStorage key, rewritten whenever the
+   playing order or track changes. A page that is still alive and sees the
+   deck empty on two ticks running — stop, reset audio engine, the set's
+   end — forgets it, so ▶ after a stop still means track 1. A page iOS
+   reclaims never gets that tick, which is the case this exists for. Only a
+   page that WROTE the record can forget it by idling: a fresh boot leaves
+   the old one for the card to offer. */
+function makeResumeStore(getDW, getScore, store) {
+  const KEY = 'dw-resume';
+  let order = null, idx = -1, idle = 0;
+  const read = () => {
+    try {
+      const r = JSON.parse(store.getItem(KEY) || 'null');
+      return r && r.v === 1 && r.score && Array.isArray(r.score.steps) && Number.isInteger(r.idx)
+        && r.idx >= 0 && r.idx < r.score.steps.length ? r : null;
+    } catch (e) { return null; }
+  };
+  const forget = () => { try { store.removeItem(KEY); } catch (e) {} order = null; idx = -1; idle = 0; };
+  return {
+    read, forget,
+    tick() {
+      const dw = getDW();
+      if (!dw || !dw.nowMeta) { if (order && ++idle >= 2) forget(); return false; }
+      idle = 0;
+      const o = dw.playOrder, i = dw.state.idx;
+      if (o === order && i === idx) return false;
+      try {
+        store.setItem(KEY, JSON.stringify({ v: 1, savedAt: new Date().toISOString(), idx: i,
+                                            name: dw.nowMeta.name, score: getScore(o) }));
+      } catch (e) { return false; }   /* storage refused: the set plays on; retried on the next tick */
+      order = o; idx = i;
+      return true;
     }
   };
 }
@@ -606,6 +653,10 @@ function mount(hostEl) {
        <div class="cw"><canvas id="cArc" part="arc"></canvas></div></div>
    </div>
    <div class="side"><u id="sideHd">set · stopped</u><div class="list" id="list"></div>
+     <section class="prepared" id="resume" hidden aria-label="Saved set">
+       <h2 id="resumeHd">Saved set</h2><p id="resumeNote"></p>
+       <div class="prepareActions"><button id="resumeGo">Choose music to resume</button><button id="resumeForget">Forget</button></div>
+     </section>
      <section class="prepared" id="prepared" hidden aria-label="Prepared set">
        <h2 id="preparedHd">Prepared set</h2><p id="preparedNote"></p>
        <div class="prepareActions"><button id="applyPrepared">Apply remaining</button><button id="discardPrepared">Discard</button></div>
@@ -687,7 +738,9 @@ function mount(hostEl) {
     $('applyPrepared').textContent = active ? 'Apply remaining' : 'Play prepared';
     $('preparedNote').textContent = active
       ? 'Keeps this track and played history. Replans the remaining prepared tracks from the current tempo; some may play straight.'
-      : 'Ready to play. Your current set is kept until playback starts.';
+      : candidate && candidate.resumeAt
+        ? 'Resumes at track ' + (candidate.resumeAt + 1) + ', ' + String(candidate[candidate.resumeAt].name).slice(0, 50) + ', from its first beat. Earlier tracks stay as history.'
+        : 'Ready to play. Your current set is kept until playback starts.';
     if (candidate !== paintedPrepared) {
       paintedPrepared = candidate;
       $('preparedHd').textContent = 'Prepared set · ' + (candidate ? candidate.length : 0) + (candidate && candidate.length === 1 ? ' track' : ' tracks');
@@ -708,6 +761,62 @@ function mount(hostEl) {
     try { sets.discard(); } catch (e) { log(e.message); announce(e.message); return; }
     renderPrepared(); announce('Prepared set discarded');
     ($('list').querySelector('button') || [...$('tp').querySelectorAll('button')].find(b => b.textContent.startsWith('build set')))?.focus(); };
+
+  /* the saved-set card (makeResumeStore above): offered once, at boot, when
+     a record survives and nothing is playing. Resume = the same two steps a
+     person would take by hand — scan (re-pick; the analysis cache answers,
+     nothing is re-analysed) and load set — and the result is PREPARED with
+     the track to start at, so the ▶ that starts it is the user's own tap. */
+  let store = null; try { store = window.localStorage; } catch (e) {}
+  const resume = store ? makeResumeStore(() => window.DW,
+    o => window.DWSCORE.score(o, { xfade: 16 }), store) : null;
+  const hideResume = () => { $('resume').hidden = true; };
+  function offerResume() {
+    const rec = resume && resume.read();
+    if (!rec || window.DW.nowMeta || sets.prepared) return;
+    const when = new Date(rec.savedAt), steps = rec.score.steps;
+    $('resumeNote').textContent = steps.length + (steps.length === 1 ? ' track' : ' tracks')
+      + ' · was on ' + (rec.idx + 1) + ': ' + String(rec.name).slice(0, 60)
+      + (isNaN(when) ? '' : ' · saved ' + when.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))
+      + '. Pick your music again; the set restarts that track from its first beat. No audio was kept.';
+    $('resume').hidden = false;
+    if (innerWidth <= 720) app.classList.add('ph-list');
+    if (dash.syncPhl) dash.syncPhl();
+  }
+  $('resumeForget').onclick = () => { if (resume) resume.forget(); hideResume(); announce('Saved set forgotten'); log('saved set forgotten'); };
+  $('resumeGo').onclick = async () => {
+    const b = $('resumeGo'), rec = resume && resume.read();
+    if (!rec) { hideResume(); return; }
+    if (b.disabled) return; b.disabled = true;
+    try {
+      const has = name => window.DW.corpus.some(t => t.name === name && window.DW.LIB.find(t));
+      if (!rec.score.steps.every(s => has(s.name))) {
+        log('pick your music folder…');
+        if (window.DWPHONE) window.DWPHONE.hold('scan');
+        try {
+          const r = await window.DW.scan((i, n, nm) => log(i + '/' + n + ' ' + nm.slice(0, 40)));
+          if (r.failures && r.failures.length) reportIssue(r, 'scan');
+        } finally { if (window.DWPHONE) window.DWPHONE.release('scan'); }
+      }
+      const r = window.DWSCORE.load(rec.score, window.DW.corpus.map(t => ({ ...t })));
+      if (r.missing.length) reportIssue({ failures: r.missing.map(name => ({ name, message: 'not in the music you picked — the saved set plays without it' })) }, 'resume');
+      if (!r.set.length) { log('none of the saved set is in what you picked'); return; }
+      /* the playing track if it came back, else the first one after it that
+         did: load() drops missing steps, so indices are by name, not number */
+      const after = rec.score.steps.slice(rec.idx).map(s => s.name);
+      let at = -1;
+      for (const name of after) { at = r.set.findIndex(t => t.name === name); if (at >= 0) break; }
+      r.set.resumeAt = Math.max(0, at);
+      hideResume();
+      dash.prepare(r.set);
+      log('saved set prepared · press ▶ to resume at ' + (r.set.resumeAt + 1) + ': ' + r.set[r.set.resumeAt].name.slice(0, 40));
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      log(e && e.name === 'AbortError' || /nothing picked/i.test(m) ? 'resume cancelled — the saved set is kept' : 'resume failed: ' + m);
+      if (!(e && e.name === 'AbortError') && !/nothing picked/i.test(m)) reportIssue(e, 'resume');
+    } finally { b.disabled = false; }
+  };
+  setInterval(() => { if (resume) resume.tick(); if (window.DW.nowMeta && !$('resume').hidden) hideResume(); }, 2000);
 
   /* split the deck's own analyser — a pass-through, so this is always available */
   function splitDeck() {
@@ -1343,6 +1452,7 @@ function mount(hostEl) {
   window.DWLOOP.start(dash);
 
   buildTransport(dash);
+  offerResume();   /* after the transport, so syncPhl exists for the phone drawer */
   return dash;
 }
 
