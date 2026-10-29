@@ -1,0 +1,47 @@
+  pass  fake: first ramp anchors at call time
+  pass  fake: target is exponential
+  pass  fake: cancellation does not stop an earlier target
+  pass  fake: cancel removes a ramp endpoint without implicit holding
+  pass  fake: hold retains the ramp prefix and held value
+  pass  fake: replacement preserves equal-time event ordering
+  pass  fake: targeted disconnect preserves the other unique edge
+  pass  fake: buffer dimensions describe its actual PCM
+  pass  ordinary hold: nonvacuous scheduled-gain control
+  pass  ordinary hold: both physical decks retain gain across cancellation
+  pass  ordinary cancellation actually discards the unstarted successor
+  pass  opener entrance: nonvacuous scheduled-gain control
+  pass  opener entrance: both physical decks retain gain across cancellation
+  pass  overlap before handover 0.125: nonvacuous scheduled-gain control
+  FAIL  overlap before handover 0.125: both physical decks retain gain across cancellation
+        A boundary jump falsifies continuity: [{"source":6,"parameterBefore":0.875,"parameterAfter":0.875,"before":0.875,"after":0.875},{"source":12,"parameterBefore":0.20833333333333345,"parameterAfter":0,"before":0.20833333333333345,"after":0}]
+  pass  overlap before handover 0.25: nonvacuous scheduled-gain control
+  FAIL  overlap before handover 0.25: both physical decks retain gain across cancellation
+        A boundary jump falsifies continuity: [{"source":6,"parameterBefore":0.75,"parameterAfter":0.75,"before":0.75,"after":0.75},{"source":12,"parameterBefore":0.4166666666666669,"parameterAfter":0,"before":0.4166666666666669,"after":0}]
+  pass  overlap before handover 0.5: nonvacuous scheduled-gain control
+  FAIL  overlap before handover 0.5: both physical decks retain gain across cancellation
+        A boundary jump falsifies continuity: [{"source":6,"parameterBefore":0.5,"parameterAfter":0.5,"before":0.5,"after":0.5},{"source":12,"parameterBefore":0.8333333333333338,"parameterAfter":0,"before":0.8333333333333338,"after":0}]
+  pass  overlap before handover 0.9: nonvacuous scheduled-gain control
+  FAIL  overlap before handover 0.9: both physical decks retain gain across cancellation
+        A boundary jump falsifies continuity: [{"source":6,"parameterBefore":0.09999999999999964,"parameterAfter":0.09999999999999964,"before":0.09999999999999964,"after":0.09999999999999964},{"source":12,"parameterBefore":1,"parameterAfter":0,"before":1,"after":0}]
+  pass  overlap after handover 0.125: nonvacuous scheduled-gain control
+  pass  overlap after handover 0.125: both physical decks retain gain across cancellation
+  pass  overlap after handover 0.25: nonvacuous scheduled-gain control
+  pass  overlap after handover 0.25: both physical decks retain gain across cancellation
+  pass  overlap after handover 0.5: nonvacuous scheduled-gain control
+  pass  overlap after handover 0.5: both physical decks retain gain across cancellation
+  pass  overlap after handover 0.9: nonvacuous scheduled-gain control
+  pass  overlap after handover 0.9: both physical decks retain gain across cancellation
+  pass  120/120: incoming shelf is on the source route
+  pass  120/120: incoming bass never exceeds 0 dB
+  pass  120/120: incoming ramp endpoints match the plan
+  pass  120/128: incoming shelf is on the source route
+  pass  120/128: incoming bass never exceeds 0 dB
+  pass  120/128: incoming ramp endpoints match the plan
+  pass  128/120: incoming shelf is on the source route
+  pass  128/120: incoming bass never exceeds 0 dB
+  pass  128/120: incoming ramp endpoints match the plan
+  pass  Stop fixture includes cancelled, outgoing, current and future sources
+  pass  every started source is stopped or still reaches the destination
+  pass  Stop has an effective stop for every started source, including future ones
+
+4 FAILED of 41 checks

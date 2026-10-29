@@ -4571,3 +4571,55 @@ they read changed. Dry run named only `a6b87cb..f115138 public -> main`.
 the contents API lists all six captures; Pages build `building` for that
 commit at 02:12:04Z, then `built` at 02:12:26Z; the index returned 200
 at 02:12:31Z. This row is itself unpushed and docs-only.
+
+**153n · Codex, nine read-only runs on expiring credits (keeper: "Go
+ahead", 2026-10-29).** Same flow as 153k: gpt-6-astra, xhigh, `-s
+read-only -a never`, each run from its own empty directory,
+`--ignore-user-config`, web and connectors off. Launched 12:29Z. What
+was sent: source text read from `origin/main` (`f115138`; `assets/`,
+`index.html` and `tools/` there equal `HEAD`'s, checked by diff), the
+sixteen 153l commits as `git show -U40`, and the review's own finding
+text. **This time the 17 keeper-class findings WERE sent** (153k held
+them back as not build candidates; the keeper approved sending them for
+listening scripts). Leak scan of all nine prompts before launch: a
+planted control was flagged; control `deckwave` hit 46–128 times per
+prompt; private/credential terms 0; the citywalk denylist hit ONE entry,
+every hit the public file name `panel-wayposts.js` (inside pasted files
+and in finding text that cites it), the same benign hit as 153k. The
+nine: **r1a/r1b** a second read of the sixteen 153l commits (live,
+unseen); **r2-engine-core / dashboard / panels / io** the priority-2
+rows re-checked against today's code, each with a patch and a check
+(the five keeper-ear p2 rows F23 F116 F122 F130 F154 moved to r3a);
+**r3a/r3b** the keeper-class items turned into offline instruments where
+possible and five-minute listening scripts where not; **r4** a design
+and code for a fake AudioContext that records AudioParam events, since
+no harness has ever seen one. **[INFERRED, every result until this desk
+re-checks it against the code.]** Nothing is built from it without the
+keeper's go.
+- **Back 12:44–12:58Z, all nine exit 0.** Answers are filed at
+  `evidence/codex-2026-10-29/` with an INDEX that has a desk column. Each
+  was scanned before filing (control `deckwave` hit 2–36 per answer;
+  private and credential terms 0; the only hits were the wayposts file name
+  and "desk-prepared" matching `sk-`).
+- **Two of the sixteen live 153l commits called WRONG, both re-checked by
+  reading.** 29858fb (F136) is **CONFIRMED**: `last` in
+  `deckwave-events.js` is module-global and the refusal branches write it
+  after an `await`, so an older steer's refusal overwrites a newer decision.
+  This commit introduced it; it touches `status().last`, not audio, and it
+  is not fixed yet. 311c1b0 (F94) is **OVERSTATED**: `A-ha - Song` keeps
+  its artist on the lock screen, but the regex is now the one nowplaying
+  and panels already used, so it is a shared limitation, not this commit's
+  regression, and the corpus has no such artist. The other fourteen are
+  SOUND or SOUND-WITH-NOTE, mostly on checks that could pass a wrong fix;
+  those are not re-checked.
+- **The cancelPending snap is now MEASURED, in a fake.** The desk ran r4's
+  `check-player-audio.js` from a scratch directory against `origin/main`'s
+  engine: 8 FAILED of 41. A replan 12.5% into the incoming deck's fade
+  steps its gain 0.208 → 1, matching the 10-22 reviewer's independent
+  0.208 → 1.000. The falsifier's other half: with A's resets swapped for
+  `cancelAndHoldAtTime`, the result was 4 FAILED of 41, the opener case and
+  every after-handover case green. The four left red need a LATE handover
+  timer (`armHandover` fires at `out + 0.1 s`), **[INFERRED]** reachable
+  through background throttling and not measured. **UNHEARD.** The
+  evaluator is Codex's model of the automation spec, not checked against a
+  browser. Nothing from r4 is in `tools/`.
