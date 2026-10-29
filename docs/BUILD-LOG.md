@@ -4529,3 +4529,26 @@ still one revertible commit. **NOT done: a live boot in a browser** (the
 substitute is `check-panels` executing every script `index.html` loads,
 plus the byte match). [MEASURED: push, build, bytes. UNVERIFIED: live
 boot. UNSEEN: all sixteen of 153l and the three of 153g.]
+
+**142a · The weekly captures were landing but not committed, and the
+kernel's "never git" was misread as a rule about the files, 2026-10-29.
+[MEASURED 2026-10-29T01:37Z]** The scheduled task has run every Saturday
+since registration: last run 2026-10-24 03:00 local, result 0, next
+2026-10-31. Its three files (`20261010T0700Z`, `20261017T0700Z`,
+`20261024T0700Z`) each carry `errors: {}` and a full 14-day series, and the
+windows chain with no gap from 2026-09-19 to 2026-10-23 (each overlaps the
+last by a week, so one missed Saturday loses nothing; two in a row would).
+But they sat untracked: the 10-05 commit took the first three and nothing
+had committed since. CLAUDE.md said "dated files, never git", which this
+desk read as "keep them out of git" and proposed a `.gitignore` line; Act
+48 says the opposite (*"The keeper was told and chose the tracked path"*)
+and "never git" was about the tool. Caught before the line was written, by
+checking why three captures were already tracked. The keeper reaffirmed the
+tracked path; the three are committed here and the kernel sentence now says
+which half "never" applies to. Read of the series, for the record: views
+fall 109 → 98 → 71 → 32 per window (uniques 21 → 22 → 17 → 12), stars 7
+throughout, forks 0; clones jump to 15 / 40 / 59 / 21 / 17 on 10-07, 10-09,
+10-10, 10-15, 10-17, around the 10-07, 10-09 and 10-14 pushes, while views
+do not move with them. **[INFERRED]** those clones are automated (mirrors,
+scanners) rather than people; GitHub does not say who clones, so nothing
+in the capture can confirm it. Not pushed.

@@ -234,7 +234,10 @@ is no switch between the two and there should not be.
 
 **GitHub traffic is captured weekly** (Act 48, ledger 142): a Windows
 scheduled task runs `tools/gh-traffic.py` every Saturday into
-`evidence/gh-traffic/`, dated files, never git. `schtasks /query /tn
+`evidence/gh-traffic/`, dated files. **The tool never runs git; the
+captures ARE committed, by a person, on the keeper's 2026-10-05 call**
+(this sentence read "never git" and was misread as "keep out of git" on
+2026-10-29, ledger 142a). `schtasks /query /tn
 "Deckwave GitHub traffic capture" /v /fo list` says when it last ran and
 with what result; do not read that from here.
 
