@@ -4552,3 +4552,21 @@ throughout, forks 0; clones jump to 15 / 40 / 59 / 21 / 17 on 10-07, 10-09,
 do not move with them. **[INFERRED]** those clones are automated (mirrors,
 scanners) rather than people; GitHub does not say who clones, so nothing
 in the capture can confirm it. Not pushed.
+
+**142b · Pushed, 2026-10-29.** `public` fast-forwarded `a6b87cb` →
+`f115138` (ancestry checked, `update-ref` guarded on the old value); the
+outgoing range was `25adf6c` (153m) and `f115138` (142a), docs and
+evidence only, nothing under `assets/`. Before: the controlled private
+sweep of the 879 added lines, control `deckwave` 37; private and company
+terms 0 apart from one "record id", which is 153m's own sentence about an
+earlier benign hit; the citywalk denylist hit 27 lines, ONE entry, every
+hit inside `waypostmaster` in the captures' GitHub paths (36 files on
+`origin/main` already carried it, the 10-03 capture among them), which is
+the public owner name, not a citywalk leak. On a clean worktree of
+`f115138` with `.citywalk-denylist` copied in: `check-citywalk` 58,
+`check-serve` 67, all passed; the other fourteen not re-run, as nothing
+they read changed. Dry run named only `a6b87cb..f115138 public -> main`.
+**The keeper ran `! git push origin`** (~02:11Z). MEASURED 02:12:07Z:
+`git ls-remote origin refs/heads/main` → `f11513866999da90c9110c98e13abb2192cd12e8`;
+the contents API lists all six captures; Pages build `building` for that
+commit at 02:12:04Z. This row is itself unpushed and docs-only.
