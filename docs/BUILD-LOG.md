@@ -4569,4 +4569,5 @@ they read changed. Dry run named only `a6b87cb..f115138 public -> main`.
 **The keeper ran `! git push origin`** (~02:11Z). MEASURED 02:12:07Z:
 `git ls-remote origin refs/heads/main` → `f11513866999da90c9110c98e13abb2192cd12e8`;
 the contents API lists all six captures; Pages build `building` for that
-commit at 02:12:04Z. This row is itself unpushed and docs-only.
+commit at 02:12:04Z, then `built` at 02:12:26Z; the index returned 200
+at 02:12:31Z. This row is itself unpushed and docs-only.
