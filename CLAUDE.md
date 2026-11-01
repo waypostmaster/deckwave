@@ -267,7 +267,7 @@ that must hit** (ledger 121: a zero without a control is decoration).
 
 ### Harnesses — sixteen of them, 1250 checks, all `node tools/check-*.js`
 
-`check-pool` 62 · `check-route` 21 · `check-player` 120 · `check-panels` 285 · `check-phone` 84 · `check-phrase` 59 · `check-libre` 117 · `check-flac` 13 (needs the library) · `check-popout` 30 · `check-events` 71 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 57 · `check-reliability` 64 · `check-prepared` 34 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59. **Re-run 2026-10-21T01:33:37Z: all sixteen green, 1125** — ledger 151 took `check-panels` to 237 (per-file figures above are current) and gave it a `DECKWAVE_DASH_SRC` seam. **Re-run 2026-10-27T01:17:35Z: all sixteen green, 1188** — ledger 153 (the ultracode fixes) took `check-player` to 117, `check-panels` to 265, `check-loop` to 57. **Re-run 2026-10-28T16:06:45Z: all sixteen green, 1250** — ledger 153l (the sixteen Codex-triaged fixes) added 62 across eight harnesses. **Re-run 2026-10-29T20:29:51Z: all sixteen green, 1262** — ledger 155 took `check-prepared` to 34. **Re-run 2026-11-01T16:22:33Z: all sixteen green, 1279** — ledger 156 took `check-reliability` to 64; per-file figures above are current. Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 62 · `check-route` 21 · `check-player` 120 · `check-panels` 287 · `check-phone` 84 · `check-phrase` 59 · `check-libre` 117 · `check-flac` 13 (needs the library) · `check-popout` 30 · `check-events` 71 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 57 · `check-reliability` 69 · `check-prepared` 34 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59. **Re-run 2026-10-21T01:33:37Z: all sixteen green, 1125** — ledger 151 took `check-panels` to 237 (per-file figures above are current) and gave it a `DECKWAVE_DASH_SRC` seam. **Re-run 2026-10-27T01:17:35Z: all sixteen green, 1188** — ledger 153 (the ultracode fixes) took `check-player` to 117, `check-panels` to 265, `check-loop` to 57. **Re-run 2026-10-28T16:06:45Z: all sixteen green, 1250** — ledger 153l (the sixteen Codex-triaged fixes) added 62 across eight harnesses. **Re-run 2026-10-29T20:29:51Z: all sixteen green, 1262** — ledger 155 took `check-prepared` to 34. **Re-run 2026-11-01T16:22:33Z: all sixteen green, 1279** — ledger 156 took `check-reliability` to 64. **Re-run 2026-11-01T20:29:10Z: all sixteen green, 1286** — ledger 157 took `check-reliability` to 69 and `check-panels` to 287; per-file figures above are current. Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -369,7 +369,7 @@ hours, or drift.** Those need the ear or a browser.
    are in the review's Part 5. Parts 3–4 win over Part 2 where they
    disagree. **The walk (`docs/UI-WALK-2026-10-09.md`) asked them on the
    desktop; ledger 150 (2026-10-14) built four of its decisions:** the
-   settle mark beside Build, the control budget (23, a ceiling in
+   settle mark beside Build, the control budget (23, lowered to 22 by ledger 157; a ceiling in
    check-panels), phrase-next, and the five energy windows as one panel
    with a window selector (no id migration: the ids did not move). **All
    four SEEN/HEARD by the keeper in Edge (150j) and pushed at `25cd17b`
@@ -469,7 +469,7 @@ by its absence before it had a name for it).
   "experiments" section on top of them; those are undecided. Pushed and
   live at `09417d5` (151c). What is owed is the keeper's glance at the
   open drawer.
-- **The harness total is 1279 on this branch**, MEASURED 2026-11-01T16:22:33Z
+- **The harness total is 1286 on this branch**, MEASURED 2026-11-01T20:29:10Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the

@@ -4824,3 +4824,41 @@ origin`, 2026-11-01: `e2a597c..1ccd6b2 public -> main`).** MEASURED
 after: `ls-remote` serves `1ccd6b2`; Pages `built 1ccd6b2` at 20:24:26Z;
 `deckwave.fm/assets/deckwave.js` byte-matches `1ccd6b2` and differs from
 `e2a597c` (the control). A live boot was not loaded by this desk.
+
+**Ledger 157 · ◀ back on the bar, and it BLENDS (keeper, 2026-11-01, two
+calls asked and answered: "Blend back", and "Move cache to ⚙" to pay for
+the slot).** One commit across `deckwave.js` and `deckwave-dashboard.js`,
+with harnesses in `check-reliability.js` and `check-panels.js`.
+**[MEASURED in harness; UNSEEN, UNHEARD.]**
+- **Engine:** `Player.blendBack()` (and `DW.blendBack()`) runs
+  `blendNow(order[idx-1], {onPhrase: nextPhrase})`. That is the path
+  clicking a played row already took, now on next ▶'s phrase-next exit.
+  `blendNow` gained `opts.onPhrase`, passed to `nextExitAfter` and
+  `chain`; without it, every existing caller is unchanged. `placeNext()`
+  moves the previous track to just after the playing one, so the list
+  reads in the order heard: `[a, b*, c]` becomes `[b*, a, c]`. A second
+  press before the handover steps one further back; after the handover,
+  the track just left is "the one before". On the first track it says
+  "start of the set" and leaves the planned next alone. With nothing
+  playing it is `back()`, the cut. **The lock screen's ⏮ is unchanged**
+  (`DW.back()`, a cut). Whether it should blend too was not asked.
+- **Bar:** `◀ back` sits before `next ▶` in the play group, with a title
+  that states the wait. `▾ save cache` and `▴ load cache` moved to
+  ⚙ settings › troubleshoot (GRP.trouble). The bar went 23 → 22, and the
+  ceiling in `check-panels` was LOWERED to 22 (its comment allows
+  lowering freely). The known-sites fixture now expects save cache under
+  `trouble`, a change in the same commit as the move.
+- **Harness: `check-reliability` 64 → 69, `check-panels` 285 → 287.** From
+  a mid-phrase state (20.3 s into track 2), a plain blend-now leaves at
+  22 s and next ▶ at 32 s: the control. ◀ back must leave at 32 s over the
+  same 16 s fade with ¶, bring in track 1, and reorder to `b,a,c,d` with
+  idx 0. The first-track and nothing-playing cases are covered too. On the
+  old engine the section crashes into its catching seam (no `blendBack`)
+  and fails. A mutant that drops `onPhrase` fails the phrase check (22 ≠
+  32); a mutant that cuts fails two. On the old dashboard 4 of the panel
+  checks fail (no back, cache in the bar, 23 > 22, the fixture).
+  **All sixteen green, 1286, MEASURED 2026-11-01T20:29:10Z.**
+- **Not seen or heard:** the browser extension was not connected, so no
+  live click. One press of ◀ back mid-track on localhost answers both:
+  the log should say `blending in N s ¶ · <previous track>`, and the list
+  should show it as next.

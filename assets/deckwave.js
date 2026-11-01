@@ -2059,10 +2059,25 @@ const Player = (() => {
       if (meta === A.track.meta) return 'already playing';   /* handed over to it meanwhile */
       cancelPending();
       placeNext(meta);
-      const out = nextExitAfter(opts.lead != null ? opts.lead : 1.2);
-      await chain(out, buf);
-      return 'blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's · ' +
-             meta.name.slice(-30);
+      /* opts.onPhrase: skip()'s phrase-next path, asked for by blendBack() */
+      const out = nextExitAfter(opts.lead != null ? opts.lead : 1.2, opts.onPhrase);
+      await chain(out, buf, opts.onPhrase);
+      return 'blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's' +
+             (opts.onPhrase && A && A.atPhrase ? ' ¶' : '') + ' · ' + meta.name.slice(-30);
+    },
+
+    /* ◀ back, BLENDED (keeper, 2026-11-01: "Blend back"). The track before
+       the playing one crossfades in on the same path as next ▶: the next
+       phrase start, else the next downbeat. It is blendNow() on that row,
+       which is what clicking a played row already did, so placeNext() moves
+       it to just after the playing track and the list reads in the order it
+       is heard. A second press before the handover steps one further back;
+       after it, the track just left is the one before. Nothing playing:
+       back(), a cut, as on the lock screen. */
+    async blendBack() {
+      if (!A || !ctx) return this.back();
+      if (idx < 1) return 'start of the set · nothing before this track';
+      return this.blendNow(order[idx - 1], { onPhrase: nextPhrase });
     },
 
     /* Change what comes next, leaving the current track to finish as planned.
@@ -2674,6 +2689,7 @@ return {
      plain vendored one — and why; see the Player's `stretch` block */
   get worklet() { return Player.worklet; },
   async back() { return Player.back(); },
+  async blendBack() { return Player.blendBack(); },
   async blendNow(meta, opts) { return Player.blendNow(meta, opts); },
   async queueNext(meta) { return Player.queueNext(meta); },
   async reorder(seq, opts) { return Player.reorder(seq, opts); },

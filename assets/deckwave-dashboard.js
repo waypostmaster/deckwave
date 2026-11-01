@@ -1832,6 +1832,16 @@ function buildTransport(dash) {
      downbeat and crossfades over the set's xfade (keeper: "the next button
      should default to a reasonable blend asap"). It is a cut only when
      nothing is playing. The lock screen's ▶▶ lands on the same DW.skip(). */
+  /* ◀ back BLENDS too (keeper, 2026-11-01: "Blend back"): the previous
+     track crossfades in on next ▶'s path, phrase start else downbeat. See
+     blendBack in deckwave.js. The lock screen's ⏮ is still DW.back(), a cut.
+     It took the bar slot the two cache buttons gave up (they moved to
+     ⚙ settings › troubleshoot), so the bar went from 23 controls to 22. */
+  const backBtn = btn('◀ back', async () => {
+    try { log(await window.DW.blendBack()); dash.renderList(); }
+    catch (e) { log('cannot go back: ' + String((e && e.message) || e) + ' — deck stopped'); } }, false, GRP.play);
+  backBtn.title = 'blend back into the previous track at the next 8-bar phrase start, '
+    + 'or the next downbeat when the track has no usable phrase (a cut only when nothing is playing)';
   const nextBtn = btn('next ▶', async () => {
     try { log(await window.DW.skip()); }
     catch (e) { log('cannot play next: ' + String((e && e.message) || e) + ' — deck stopped'); } }, false, GRP.play);
@@ -2072,7 +2082,8 @@ function buildTransport(dash) {
      minutes of analysis for this library, and a different Essentia build
      may not reproduce it bit-for-bit — and clearing site data destroys it
      in one click. DWCACHE has existed to protect it since patch 06 and was
-     reachable from the console only. Two buttons, beside the set's own.
+     reachable from the console only. Two buttons, beside the set's own
+     until 2026-11-01, in ⚙ settings › troubleshoot since.
      Restore MERGES by default (existing records are kept); the result is
      verified against the summary the file carries, not assumed. */
   const csb = btn('▾ save cache', async () => {
@@ -2082,7 +2093,7 @@ function buildTransport(dash) {
       log('cache saved · ' + r.summary.tracks + ' tracks · ' + r.summary.totalBeats + ' beats · ' + r.file);
     } catch (e) { log('cache export failed: ' + String((e && e.message) || e)); }
   });
-  csb.dataset.grp = GRP.files;
+  csb.dataset.grp = GRP.trouble;   /* in the bar until 2026-11-01; see ◀ back */
   const clb = btn('▴ load cache', () => {
     if (!window.DWCACHE) { log('cache module not loaded'); return; }
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
@@ -2096,7 +2107,7 @@ function buildTransport(dash) {
       } catch (e) { log('cache restore failed: ' + String((e && e.message) || e)); } finally { inp.remove(); } };
     inp.click();
   });
-  clb.dataset.grp = GRP.files;
+  clb.dataset.grp = GRP.trouble;
 
   sep();
   const app = sr.querySelector('.app');

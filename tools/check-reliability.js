@@ -239,9 +239,37 @@ async function fadeInChecks(){
     r.player.stop();
   }
 }
+/* ◀ back, blended (keeper 2026-11-01). The deck is on track 2, past the
+   overlap, mid-phrase: 20.3 s in, so the next downbeat after the 1.2 s lead
+   (22 s) and the next phrase start (32 s) differ, and "it took the phrase
+   path" is falsifiable. The yardstick is skip() from the same state. */
+async function backChecks(){
+  const onSecond=async()=>{const r=playerRig({phrase:true});const seq=['bk a','bk b','bk c','bk d'].map(n=>track(n));
+    seq.forEach(t=>t.phrase={v:r.phraseAPI.V,ok:true,beat:0,contrast:2});
+    await r.player.play(seq);await flush();const begin=r.d.B.startedAt;r.now=begin+.1;r.d.handover(1);await flush();
+    r.now=begin+20.3;return {r,begin};};
+  const back=await onSecond(),fwd=await onSecond(),plain=await onSecond();
+  const said=await back.r.player.blendBack();await flush();
+  await fwd.r.player.skip();await flush();
+  await plain.r.player.blendNow(plain.r.d.order[0]);await flush();
+  const at=x=>x.r.d.B&&+(x.r.d.B.startedAt-x.begin).toFixed(6);
+  ok('control: a plain blend-now and next ▶ leave at different points from this state',at(plain)===22&&at(fwd)===32,{plain:at(plain),next:at(fwd)});
+  ok('◀ back blends at the same point and over the same fade as next ▶ (the phrase path)',at(back)===at(fwd)&&near(back.r.d.A.fade,fwd.r.d.A.fade)&&/ ¶ /.test(said),{back:at(back),next:at(fwd),fades:[back.r.d.A.fade,fwd.r.d.A.fade],said});
+  const names=back.r.d.order.map(t=>t.name);
+  ok('◀ back brings in the previous track, and the list reads in the order heard',back.r.d.B.track.meta.name==='bk a'&&back.r.d.A.track.meta.name==='bk b'&&names.join()==='bk b,bk a,bk c,bk d'&&back.r.d.idx===0&&back.r.player.state.now==='bk b',{next:back.r.d.B.track.meta.name,order:names,idx:back.r.d.idx});
+  [back,fwd,plain].forEach(x=>x.r.player.stop());
+  {
+    const r=playerRig();await r.player.play([track('first'),track('second')]);await flush();const pendingDeck=r.d.B;
+    const said=await r.player.blendBack();
+    ok('◀ back on the first track says so and leaves the planned next alone',/start of the set/.test(said)&&r.d.B===pendingDeck,{said,sameNext:r.d.B===pendingDeck});
+    r.player.stop();const starts=r.started.length;const cut=await r.player.blendBack();await flush();
+    ok('◀ back with nothing playing is the cut back(), as on the lock screen',r.started.length>starts&&r.player.state.now==='first'&&/^1\//.test(cut),{said:cut,starts:[starts,r.started.length],now:r.player.state.now});
+    r.player.stop();
+  }
+}
 module.exports = { playerRig, track, flush, deferred };
 if (require.main === module) (async()=>{
-  for(const [name,run] of [['player',playbackChecks],['fade-in',fadeInChecks],['library',libraryChecks],['capture',captureChecks],['render',renderChecks]]){
+  for(const [name,run] of [['player',playbackChecks],['fade-in',fadeInChecks],['back',backChecks],['library',libraryChecks],['capture',captureChecks],['render',renderChecks]]){
     console.log('\n'+name+' · synthetic inputs, no audio/library');
     try{await run();}catch(e){ok(name+' completed',false,e.stack);}
   }

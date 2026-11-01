@@ -1637,7 +1637,10 @@ console.log('\n── the control budget (UI walk decision 5) ──────
    group, or one created in another file. Lower the ceiling freely; raising
    it is the keeper's call, which is the whole point of the gate. */
 {
-  const CEILING = 23;   /* MEASURED 2026-10-14 by this counter on adccea4 */
+  /* 23 MEASURED 2026-10-14 by this counter on adccea4. LOWERED to 22 on
+     2026-11-01 (keeper: add ◀ back, move the two cache buttons to
+     ⚙ settings › troubleshoot): one in, two out. */
+  const CEILING = 22;
   const NOT_CONTROLS = ['smark'];
   const src = dashSrc;
   /* the GRP literal, read from the source (comments stripped): since
@@ -1705,7 +1708,7 @@ console.log('\n── the control budget (UI walk decision 5) ──────
      'found ' + sites.filter(s => s.kind === 'btn').length + ' btn + ' + sites.filter(s => s.kind === 'select').length
      + ' select sites — the paren matcher lost its place');
   const known = { 'scan': 'deck', 'pause': 'play', 'reset audio engine': 'trouble', 'register colour: off': 'look',
-                  '▾ save cache': 'files', 'layout': 'look', 'setMenu': 'files' };
+                  '▾ save cache': 'trouble', 'layout': 'look', 'setMenu': 'files' };
   const wrong = Object.keys(known).filter(l => !find(l) || find(l).grp !== known[l]);
   ok('…and classifies seven known sites correctly (default group, 4th arg, reassignment, select 5th arg, hand-built)',
      wrong.length === 0, 'misclassified: ' + wrong.map(l => l + '=' + (find(l) ? find(l).grp : 'MISSING')).join(', '));
@@ -1718,6 +1721,21 @@ console.log('\n── the control budget (UI walk decision 5) ──────
   ok('bar controls outside the ⚙ drawer: ' + bar.length + ' ≤ ceiling ' + CEILING,
      bar.length <= CEILING,
      'a control was added to the bar without one leaving it — the keeper set this ceiling at the walk (decision 5)');
+  /* ◀ back (keeper, 2026-11-01: blend back; the cache buttons pay for it).
+     Falsifiers: no back button in the play group, a back that calls the
+     cutting DW.back() instead of DW.blendBack(), or either cache button
+     still in the bar. */
+  {
+    const backSite = find('◀ back'), at = src.indexOf("btn('◀ back'");
+    const handler = at < 0 ? '' : src.slice(at, closeOf(src.indexOf('(', at)));
+    ok('◀ back sits in the play group beside next ▶ and blends (DW.blendBack, not the cutting DW.back)',
+       !!backSite && backSite.grp === 'play' && /window\.DW\.blendBack\(\)/.test(handler) && !/window\.DW\.back\(\)/.test(handler)
+       && at < src.indexOf("btn('next ▶'"),
+       { site: backSite && backSite.grp, handler: handler.slice(0, 120) });
+    ok('both cache buttons live in ⚙ settings › troubleshoot, not the bar',
+       ['▾ save cache', '▴ load cache'].every(l => find(l) && find(l).grp === 'trouble'),
+       ['▾ save cache', '▴ load cache'].map(l => l + '=' + (find(l) ? find(l).grp : 'MISSING')).join(', '));
+  }
 
   /* THE DRAWER HAS SECTIONS (2026-10-21). UI review Part 5 §5 sent the
      engine reset to "Settings › Troubleshoot" and walk decision 2 sent
