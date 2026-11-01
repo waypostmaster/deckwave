@@ -267,7 +267,7 @@ that must hit** (ledger 121: a zero without a control is decoration).
 
 ### Harnesses — sixteen of them, 1250 checks, all `node tools/check-*.js`
 
-`check-pool` 62 · `check-route` 21 · `check-player` 120 · `check-panels` 285 · `check-phone` 84 · `check-phrase` 59 · `check-libre` 117 · `check-flac` 13 (needs the library) · `check-popout` 30 · `check-events` 71 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 57 · `check-reliability` 47 · `check-prepared` 34 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59. **Re-run 2026-10-21T01:33:37Z: all sixteen green, 1125** — ledger 151 took `check-panels` to 237 (per-file figures above are current) and gave it a `DECKWAVE_DASH_SRC` seam. **Re-run 2026-10-27T01:17:35Z: all sixteen green, 1188** — ledger 153 (the ultracode fixes) took `check-player` to 117, `check-panels` to 265, `check-loop` to 57. **Re-run 2026-10-28T16:06:45Z: all sixteen green, 1250** — ledger 153l (the sixteen Codex-triaged fixes) added 62 across eight harnesses. **Re-run 2026-10-29T20:29:51Z: all sixteen green, 1262** — ledger 155 took `check-prepared` to 34; per-file figures above are current. Ledger 141 says exactly what the new checks can and cannot fail on.
+`check-pool` 62 · `check-route` 21 · `check-player` 120 · `check-panels` 285 · `check-phone` 84 · `check-phrase` 59 · `check-libre` 117 · `check-flac` 13 (needs the library) · `check-popout` 30 · `check-events` 71 · `check-recon` 137 · `check-citywalk` 58 · `check-serve` 67 (needs python) · `check-loop` 57 · `check-reliability` 64 · `check-prepared` 34 — **1079 in all, MEASURED 2026-10-07T05:38Z on `codex/mike-reliability-ui` (1063 before ledger 144's ten and ledger 146's six) by running all sixteen and summing the tally lines. All sixteen green, library and python present.** The two newest are Mike's (Act 47); since ledger 145 `public` carries all sixteen too. **Re-run 2026-10-09T03:14Z: all sixteen green, 1093 (ledgers 148–149 added fourteen to check-panels).** **Re-run 2026-10-14T16:54Z: all sixteen green, 1118** — ledger 150 took `check-panels` to 230 and `check-phrase` to 59. **Re-run 2026-10-21T01:33:37Z: all sixteen green, 1125** — ledger 151 took `check-panels` to 237 (per-file figures above are current) and gave it a `DECKWAVE_DASH_SRC` seam. **Re-run 2026-10-27T01:17:35Z: all sixteen green, 1188** — ledger 153 (the ultracode fixes) took `check-player` to 117, `check-panels` to 265, `check-loop` to 57. **Re-run 2026-10-28T16:06:45Z: all sixteen green, 1250** — ledger 153l (the sixteen Codex-triaged fixes) added 62 across eight harnesses. **Re-run 2026-10-29T20:29:51Z: all sixteen green, 1262** — ledger 155 took `check-prepared` to 34. **Re-run 2026-11-01T16:22:33Z: all sixteen green, 1279** — ledger 156 took `check-reliability` to 64; per-file figures above are current. Ledger 141 says exactly what the new checks can and cannot fail on.
 
 **This line said 997 / `check-panels` 201 for a day, and Act 45 said 998 in
 the same tree** — Act 45 added the check and updated the journal, not the
@@ -400,7 +400,8 @@ hours, or drift.** Those need the ear or a browser.
    2026-10-22 review confirmed 155 findings; 16 are landed (ledger 153).
    About 120 are neither fixed nor ruled on, and 17 wait on the keeper
    (heard path first: `cancelPending()` snapping a fading-in deck to full
-   gain and bass). The raw set is OUTSIDE the repo at
+   gain and bass, BUILT 2026-11-01 as ledger 156, UNHEARD, the A/B is in
+   that row). The raw set is OUTSIDE the repo at
    `C:\Claude\outbox\deckwave\ultracode-2026-10-22\`. Do not re-run the
    review; pick from that file, build as the UI review's §7 says. Three
    on-screen changes from ledger 153 are UNSEEN: BLENDING through a phrase
@@ -468,7 +469,7 @@ by its absence before it had a name for it).
   "experiments" section on top of them; those are undecided. Pushed and
   live at `09417d5` (151c). What is owed is the keeper's glance at the
   open drawer.
-- **The harness total is 1262 on this branch**, MEASURED 2026-10-29T20:29:51Z
+- **The harness total is 1279 on this branch**, MEASURED 2026-11-01T16:22:33Z
   by running all sixteen, not by arithmetic on a delta. All sixteen green,
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the

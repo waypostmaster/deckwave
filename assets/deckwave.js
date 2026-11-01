@@ -1379,6 +1379,21 @@ const Player = (() => {
     return best;
   }
 
+  /* Rewrite one of a deck's params from audio time t: back onto its fade-in
+     if that is still running, else to `full`. seg is the deck's own
+     [t0, v0, t1, v1] linear ramp, recorded where it was scheduled (play()
+     and chain()). cancelScheduledValues alone would drop the ramp's end and
+     leave the param wherever its last kept event was, which is not the
+     value playing now, so the current value is computed and set first. */
+  function rejoin(p, seg, full, t) {
+    p.cancelScheduledValues(t);
+    if (!seg || t >= seg[2]) { p.setValueAtTime(full, t); return; }
+    const [t0, v0, t1, v1] = seg;
+    p.setValueAtTime(t <= t0 ? v0 : v0 + (v1 - v0) * (t - t0) / (t1 - t0), t);
+    if (t < t0) p.setValueAtTime(v0, t0);
+    p.linearRampToValueAtTime(v1, t1);
+  }
+
   /* Cancel the blend that chain() has already committed to the graph.
      chain() schedules the next deck the instant the current track starts, so
      anything that wants to change what comes next has to undo that first —
@@ -1410,12 +1425,18 @@ const Player = (() => {
       B = null;
     }
     if (A) {
-      /* put A back to full, un-faded, so chain() can re-plan its exit */
+      /* Drop A's exit so chain() can re-plan it, and leave its ENTRANCE
+         alone. Until 2026-11-01 this set gain 1 and bass 0 at once, so a
+         cancel while A was still fading in (the opener's first second, or
+         the first part of every crossfade once the handover has run) jumped
+         it to full level and full bass mid-fade: measured in a fake as
+         0.208 → 1 (ledger 156). rejoin() rewrites the fade-in from now on
+         the line it was already on, so it ends where and when it was
+         written to. A replacement exit cannot land inside it, because
+         nextExitAfter() waits for the overlap to finish. */
       try {
-        A.g.gain.cancelScheduledValues(ctx.currentTime);
-        A.g.gain.setValueAtTime(1, ctx.currentTime);
-        A.lo.gain.cancelScheduledValues(ctx.currentTime);
-        A.lo.gain.setValueAtTime(0, ctx.currentTime);
+        rejoin(A.g.gain, A.fadeIn && A.fadeIn.g, 1, ctx.currentTime);
+        rejoin(A.lo.gain, A.fadeIn && A.fadeIn.lo, 0, ctx.currentTime);
         /* A prior stop time cannot be cancelled, but it can be replaced.
            Keep the natural tail available while a replacement decodes. */
         A.src.stop(A.startedAt + A.when(A.track.meta.dur - A.entry));
@@ -1786,6 +1807,7 @@ const Player = (() => {
     nd.g.gain.linearRampToValueAtTime(1, out + fade * .6);
     nd.lo.gain.setValueAtTime(-30, out);
     nd.lo.gain.linearRampToValueAtTime(0, out + fade * .55);
+    nd.fadeIn = { g: [out, 0, out + fade * .6, 1], lo: [out, -30, out + fade * .55, 0] };  /* see rejoin() */
     nd.src.start(out, nd.entry); nd.startedAt = out;
     B = nd;
     /* ¶ marks a phrase-mode transition: the outgoing track's phrase
@@ -1932,6 +1954,7 @@ const Player = (() => {
       d.entry = m._unlocked ? 0 : ((m.beats || [0])[0] || 0);
       const t0 = ctx.currentTime + .35;
       d.g.gain.setValueAtTime(0, t0); d.g.gain.linearRampToValueAtTime(1, t0 + 1);
+      d.fadeIn = { g: [t0, 0, t0 + 1, 1] };  /* see rejoin(); the shelf stays at 0 */
       d.src.start(t0, d.entry); d.startedAt = t0;
       A = d; B = null;
       log.unshift('▶ ' + m.name.slice(-30) + ' @' + m.bpm.toFixed(1));

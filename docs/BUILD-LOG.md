@@ -4763,3 +4763,52 @@ push carried 155/155a and the 10-31 traffic capture (`e2a597c`).
 - **NOT seen:** a live boot. The browser extension was not connected, so
   nobody has loaded deckwave.fm on this build. The Home Screen app picks it
   up on its next fresh load (GitHub caches assets for up to 10 minutes).
+
+**Ledger 156 · A cancel no longer snaps a fading-in deck to full (keeper,
+2026-11-01: "Yes, proceed", on the desk's pick of the heard-path item
+first).** One change to `cancelPending()` in `deckwave.js`, with its
+harness in `check-reliability.js`. **[MEASURED in harness; UNHEARD.]**
+- **The fault, measured 10-29 in Codex's fake (153n) and again here:**
+  `cancelPending()` set A's gain to 1 and its bass shelf to 0 at once. A
+  is still FADING IN during the opener's first second and the first 60%
+  of every crossfade after the handover (gain over `fade*.6`, bass over
+  `fade*.55`), so a cancel there jumped the incoming track to full level
+  and full bass in one sample. At 1/8 of the way into a crossfade: gain
+  0.208 → 1, bass shelf -23.2 dB → 0. Every replan runs it: next ▶,
+  clicking a track (blend now), reorder-now, the phrase toggle.
+- **The fix:** each deck records its own fade-in where it is scheduled
+  (`d.fadeIn`, `[t0, v0, t1, v1]` per param, in `play()` and `chain()`).
+  `rejoin()` drops everything from now, sets the value the fade has
+  reached, and ramps on to the same end at the same time. The exit is
+  still dropped, as before. No number was chosen: the segment is the one
+  `chain()` already wrote. A replacement exit cannot land inside the
+  rejoined fade-in, because `nextExitAfter()` already waits for the overlap
+  to finish. One edge is not covered: the opener's fade-in ends at +1.35 s
+  and blend-now's default lead is 1.2 s, so a blend-now pressed in the
+  first 0.15 s of a set can still put an exit inside it.
+- **Harness: `check-reliability` 47 → 64.** It has three cases: the
+  opener, and 1/8, 1/4 and 1/2 into a crossfade after the handover. Each
+  case is checked for no jump at the cancel (both decks), for staying on
+  the same line halfway to the end, and for finishing at full with the
+  cancelled exit gone. A control confirms a cancel past the fade-in still
+  holds full gain. On the old source 8 fail (the jump and the line). A
+  hold-the-value mutant (no ramp after the set) fails 8 (the line and the
+  finish). **All sixteen green, 1279, MEASURED 2026-11-01T16:22:33Z.**
+- **Codex's independent fake (`evidence/codex-2026-10-29/r4-extracted`)
+  agrees:** the opener now passes. The three after-handover cases differ
+  by ≤ 2e-8, because that fake rounds param values to float32
+  (`Math.fround`, as the browser does) and checks them to 32 ε at double
+  precision. That is a tolerance artifact, not a jump. **NOT FIXED, on
+  purpose:** its four BEFORE-handover cases. A cancel inside the 0.1 s
+  between the incoming deck's start and the handover timer still kills
+  that deck and restores the outgoing one to full. It is [INFERRED] to
+  need a late timer (153n), and fixing it means running the handover
+  early inside `cancelPending()`, which moves `idx` under every caller. It
+  is a separate decision.
+- **The A/B (the keeper's ear, either surface):** play a set. When the
+  next track has JUST started fading in (the first few seconds after the
+  card changes), press next ▶ or click another track. Before: the
+  incoming track lurches to full volume with full bass. Now: it keeps
+  fading in smoothly, and the new choice comes in after the crossfade
+  ends. Until this is pushed, deckwave.fm (`e2a597c`, whose `deckwave.js`
+  is unchanged since `f115138`) is the before and localhost is the after.

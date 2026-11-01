@@ -208,9 +208,40 @@ async function renderChecks(){
     ok('decode context closes on '+(bad?'failure':'success'),rig.closed===1,{closed:rig.closed});
   }
 }
+/* Ledger 156: cancelPending() while a deck is FADING IN. Gain and bass are
+   read off the recorded param timeline before and after, on the deck that is
+   fading in (the opener, or the incoming deck once handover has run).
+   Falsifiers: a snap to full (the old code) fails continuity; holding the
+   value where the cancel found it fails "same line" and "finishes". */
+async function fadeInChecks(){
+  const cases=[['opener entrance',null],...[.125,.25,.5].map(f=>['after handover '+f,f])];
+  for(const [label,f] of cases){
+    const r=playerRig();await r.player.play([track('fi a'),track('fi b'),track('fi c')]);await flush();
+    let deck=r.d.A,old=null,gEnd,loEnd=null;
+    if(f==null){gEnd=deck.startedAt+1;r.now=deck.startedAt+.5;}
+    else{old=r.d.A;const begin=r.d.B.startedAt,fade=old.fade;r.now=begin+.1;r.d.handover(1);await flush();
+      deck=r.d.A;gEnd=begin+fade*.6;loEnd=begin+fade*.55;r.now=begin+fade*f;}
+    const t=r.now,g=deck.g.gain,lo=deck.lo.gain,exitAt=deck.outAt,exitFade=deck.fade;
+    const before={g:g.at(t),lo:lo.at(t),gMid:g.at((t+gEnd)/2),loMid:loEnd==null?0:lo.at((t+loEnd)/2),old:old&&old.g.gain.at(t)};
+    ok(label+': control, the deck is mid-fade and has an exit to cancel',before.g>0&&before.g<1&&(loEnd==null||before.lo>-30&&before.lo<0)&&exitAt>gEnd,{before,exitAt,gEnd});
+    r.d.cancelPending();
+    const after={g:g.at(t),lo:lo.at(t),gMid:g.at((t+gEnd)/2),loMid:loEnd==null?0:lo.at((t+loEnd)/2),old:old&&old.g.gain.at(t)};
+    ok(label+': cancel leaves gain and bass where they were (no snap to full)',near(after.g,before.g)&&near(after.lo,before.lo)&&(!old||near(after.old,before.old)),{before,after});
+    ok(label+': the fade-in carries on along the same line',near(after.gMid,before.gMid)&&near(after.loMid,before.loMid),{before,after});
+    ok(label+': the fade-in still finishes at full, and the cancelled exit is gone',near(g.at(gEnd),1)&&(loEnd==null||near(lo.at(loEnd),0))&&near(g.at(exitAt+exitFade/2),1)&&near(lo.at(exitAt+exitFade/2),0)&&deck.outAt===null,
+      {gEnd:g.at(gEnd),loEnd:loEnd==null?null:lo.at(loEnd),atOldExit:[g.at(exitAt+exitFade/2),lo.at(exitAt+exitFade/2)],outAt:deck.outAt});
+    r.player.stop();
+  }
+  {
+    const r=playerRig();await r.player.play([track('hold a'),track('hold b')]);await flush();const d=r.d.A,exitAt=d.outAt;
+    r.now=d.startedAt+20;r.d.cancelPending();
+    ok('control: a cancel on a deck past its fade-in holds full gain through the dropped exit',near(d.g.gain.at(r.now),1)&&near(d.g.gain.at(exitAt+8),1)&&near(d.lo.gain.at(exitAt+8),0),{now:d.g.gain.at(r.now),atOldExit:d.g.gain.at(exitAt+8)});
+    r.player.stop();
+  }
+}
 module.exports = { playerRig, track, flush, deferred };
 if (require.main === module) (async()=>{
-  for(const [name,run] of [['player',playbackChecks],['library',libraryChecks],['capture',captureChecks],['render',renderChecks]]){
+  for(const [name,run] of [['player',playbackChecks],['fade-in',fadeInChecks],['library',libraryChecks],['capture',captureChecks],['render',renderChecks]]){
     console.log('\n'+name+' · synthetic inputs, no audio/library');
     try{await run();}catch(e){ok(name+' completed',false,e.stack);}
   }
