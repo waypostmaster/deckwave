@@ -4713,3 +4713,25 @@ localhost:8777; UNSEEN on the phone, UNHEARD.]**
   (153i's falsifier), whether the card appears after a real idle, whether
   the picker comes back with the same name/size/date, and how the restart
   sounds. Not pushed.
+
+**Ledger 155a · First phone report on resume (keeper, 2026-11-01, iPhone,
+a Safari TAB on the LAN server at `0bba23c`, NOT a Home Screen app).**
+Keeper's words: *"the resume kinda worked, but I have no idea what stopped
+it in the first place. the music was playing, not idle like usual."*
+- **[CONFIRMED, partly] the Saved set card and a resume worked on the
+  phone at least once.** What "kinda" means is not yet known; asked.
+- **A stop WHILE PLAYING, in a tab.** If the card appeared, the page had
+  been thrown away and booted again: this was a page reload, not an audio
+  pause, because the card only shows on a fresh boot. That separates it
+  from §14 (a call pausing the set) and from 150l–n's car stop (deck
+  seemed to run on). **[INFERRED]** that it was a Safari WebContent
+  process kill or crash (memory, or Safari reclaiming a background tab).
+  What would confirm it: Safari's own banner ("This webpage was reloaded
+  because a problem occurred"), or whether Safari was on screen at the
+  moment it stopped. Asked.
+- **Not captured:** the LAN server was reused from an earlier start, so
+  its stderr request log (which would time the phone's reload of
+  `index.html`) went to a console this desk cannot read. Next time, start
+  the server from the desk so the reload is timed.
+- Per the NOT-owed list, still not a code task: no diagnosis from
+  `deckwave-phone.js` before a captured stop.
