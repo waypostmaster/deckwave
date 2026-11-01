@@ -4812,3 +4812,9 @@ harness in `check-reliability.js`. **[MEASURED in harness; UNHEARD.]**
   fading in smoothly, and the new choice comes in after the crossfade
   ends. Until this is pushed, deckwave.fm (`e2a597c`, whose `deckwave.js`
   is unchanged since `f115138`) is the before and localhost is the after.
+
+**Ledger 156a · The snap fix HEARD (keeper, 2026-11-01, after the A/B in
+156: "Yep. I heard it").** **[CONFIRMED]** as the keeper's go-ahead after
+listening. The surface (localhost in Edge, or the LAN server on the
+phone) was not stated, and neither was whether the deckwave.fm "before"
+was played too. The before-handover window stays unfixed (156).
