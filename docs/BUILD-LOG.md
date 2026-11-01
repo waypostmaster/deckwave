@@ -4818,3 +4818,9 @@ harness in `check-reliability.js`. **[MEASURED in harness; UNHEARD.]**
 listening. The surface (localhost in Edge, or the LAN server on the
 phone) was not stated, and neither was whether the deckwave.fm "before"
 was played too. The before-handover window stays unfixed (156).
+
+**Ledger 156b · The snap fix pushed and live (keeper ran `git push
+origin`, 2026-11-01: `e2a597c..1ccd6b2 public -> main`).** MEASURED
+after: `ls-remote` serves `1ccd6b2`; Pages `built 1ccd6b2` at 20:24:26Z;
+`deckwave.fm/assets/deckwave.js` byte-matches `1ccd6b2` and differs from
+`e2a597c` (the control). A live boot was not loaded by this desk.
