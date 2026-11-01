@@ -4744,3 +4744,22 @@ it in the first place. the music was playing, not idle like usual."*
   the server from the desk so the reload is timed.
 - Per the NOT-owed list, still not a code task: no diagnosis from
   `deckwave-phone.js` before a captured stop.
+
+**Ledger 155b · Resume pushed and live (keeper ran `git push origin`,
+2026-11-01T15:28Z: `f115138..e2a597c public -> main`).** Before it, on a
+clean worktree of `e2a597c`: **all sixteen harnesses green, 1262,
+MEASURED 2026-11-01T15:22:26Z–15:23:12Z.** The private sweep took every
+tracked file at `e2a597c` against what GitHub served (`f115138`), with a
+planted dangling tree that had to be flagged (it was, on both planted
+terms) and the control term (1644 hits). Three terms grew, all benign: a
+denylist term inside the public account name and `panel-wayposts.js`, `sk-`
+inside "desk-"/"risk-", and ROADMAP's "patent history" quoted in 153n. The
+push carried 155/155a and the 10-31 traffic capture (`e2a597c`).
+- **MEASURED after:** `ls-remote` serves `e2a597c`; the Pages build said
+  `built e2a597c` at 15:29:07Z; `deckwave.fm/assets/deckwave-dashboard.js`
+  byte-matches `e2a597c` and differs from `f115138` (the control), and
+  `index.html` is unchanged in both. The only visitor-facing change is the
+  dashboard.
+- **NOT seen:** a live boot. The browser extension was not connected, so
+  nobody has loaded deckwave.fm on this build. The Home Screen app picks it
+  up on its next fresh load (GitHub caches assets for up to 10 minutes).
