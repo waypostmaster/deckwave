@@ -4729,6 +4729,13 @@ it in the first place. the music was playing, not idle like usual."*
   What would confirm it: Safari's own banner ("This webpage was reloaded
   because a problem occurred"), or whether Safari was on screen at the
   moment it stopped. Asked.
+- **Answered 2026-11-01: the phone was LOCKED** (keeper). So the page
+  was killed in the background with audio playing, not crashed on screen.
+  **[INFERRED]** an iOS memory kill of Safari's background web content;
+  a tab and a Home Screen app both run in WebKit and can both be
+  reclaimed, so "it was a tab" is not yet shown to be the cause. What
+  would separate them: the same set, locked, as a Home Screen app from
+  the same origin. Still asked: the reload banner, and what "kinda" was.
 - **Not captured:** the LAN server was reused from an earlier start, so
   its stderr request log (which would time the phone's reload of
   `index.html`) went to a console this desk cannot read. Next time, start
