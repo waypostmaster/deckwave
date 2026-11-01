@@ -4718,8 +4718,10 @@ localhost:8777; UNSEEN on the phone, UNHEARD.]**
 a Safari TAB on the LAN server at `0bba23c`, NOT a Home Screen app).**
 Keeper's words: *"the resume kinda worked, but I have no idea what stopped
 it in the first place. the music was playing, not idle like usual."*
-- **[CONFIRMED, partly] the Saved set card and a resume worked on the
-  phone at least once.** What "kinda" means is not yet known; asked.
+- **[CONFIRMED] resume worked on the phone** (keeper, correcting their
+  own word: *"it worked, not kinda. it worked."*). A Safari tab, after
+  a real background kill, not a staged reload. The Home Screen app is
+  still unseen.
 - **A stop WHILE PLAYING, in a tab.** If the card appeared, the page had
   been thrown away and booted again: this was a page reload, not an audio
   pause, because the card only shows on a fresh boot. That separates it

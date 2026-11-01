@@ -417,8 +417,10 @@ hours, or drift.** Those need the ear or a browser.
    changed assets byte-matched on deckwave.fm (153m); live boot not yet
    seen.** What is left is its priority 2 and 3 rows.
 
-11. **Resume after a cold start (ledger 155) — BUILT 2026-10-29, UNSEEN on
-   the phone, NOT pushed.** The keeper chose re-pick (no audio stored) and
+11. **Resume after a cold start (ledger 155) — BUILT 2026-10-29, NOT
+   pushed. SEEN WORKING on the iPhone 2026-11-01 in a Safari tab on the
+   LAN server, after a real kill while locked (155a, CONFIRMED); the Home
+   Screen app is still unseen, and what killed the tab is [INFERRED].** The keeper chose re-pick (no audio stored) and
    restart-the-playing-track. One glance on the iPhone after a real idle:
    does the Saved set card appear, does the picker give the same files,
    does ▶ restart the right track. Audio copies (so no re-pick) are a
