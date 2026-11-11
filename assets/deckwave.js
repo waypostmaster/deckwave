@@ -986,6 +986,14 @@ const Player = (() => {
   let gen = 0;
   /* the deck that most recently handed over — see the handover timer */
   let handed = null;
+  /* ◀ back's trail (review 2026-11-10): the tracks already left BY a back
+     press, the track the last press was made on, and the one it asked for.
+     placeNext() moves the previous track to just after the playing one, so
+     after the handover order[idx - 1] is the track just left and a plain
+     idx - 1 only ever alternates between two tracks. blendBack() steps
+     past the trail instead. It is forgotten on stop() and whenever the deck
+     is found somewhere a back press did not put it. */
+  let backTrail = [], backFrom = null, backTarget = null;
   const issues = [];
   function recordIssue(meta, stage, error) {
     const issue = { name: meta.name, id: meta.id || null, stage, message: String(error.message || error) };
@@ -1441,14 +1449,34 @@ const Player = (() => {
            Keep the natural tail available while a replacement decodes. */
         A.src.stop(A.startedAt + A.when(A.track.meta.dur - A.entry));
       } catch (e) {}
-      A.outAt = null; A.fade = null;
+      /* atPhrase goes with the exit it described, or a later report line
+         prints ¶ from a transition that was cancelled (review 2026-11-10) */
+      A.outAt = null; A.fade = null; A.atPhrase = false;
     }
+  }
+
+  /* The LAST track's fade-out is under way: an exit with no next deck and
+     no handover to follow. cancelPending() here would write gain 1 at once
+     (the fade-in is long over) and jump a half-faded deck to full level. */
+  function endingFade() {
+    return !!(A && !B && ctx && A.outAt != null && ctx.currentTime >= A.outAt);
+  }
+
+  /* One wording for "leaving at the next phrase start": next ▶ and ◀ back
+     both print it, so the fade length and the ¶ cannot drift apart. ¶ only
+     when the exit really is a phrase start. */
+  function phraseLine(out, meta) {
+    return 'blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's over ' +
+           Math.round((A && A.fade) || xfade) + 's' + (A && A.atPhrase ? ' ¶' : '') + ' · ' + meta.name.slice(-30);
   }
 
   /* Move meta to be the next track, IN PLACE, so the dashboard's array — the
      same object — sees it too. Reassigning order would silently desync them. */
-  function placeNext(meta) {
-    const at = order.indexOf(meta);
+  function placeNext(meta, row) {
+    /* `row`: the caller knows WHICH row it means. indexOf finds the first,
+       so in a set that lists a track twice it moved the earlier copy and
+       the list stopped reading in the order heard (review 2026-11-10). */
+    const at = (row != null && order[row] === meta) ? row : order.indexOf(meta);
     if (at > -1) {
       order.splice(at, 1);
       /* Pulling a row from BEFORE the playing track shifts the playing track
@@ -1971,6 +1999,7 @@ const Player = (() => {
       gapsHanded += ((A && A.gaps) || 0) + ((B && B.gaps) || 0);
       clearTimeout(chainTimer);
       let n = 0; live.forEach(s => { try { s.stop(); n++; } catch (e) {} });
+      backTrail = []; backFrom = backTarget = null;
       live.clear(); A = null; B = null; return 'stopped ' + n + ' sources';
     },
     /* last resort — always works, whatever state the graph is in */
@@ -2056,14 +2085,21 @@ const Player = (() => {
       catch (e) { return 'cannot load: ' + e.message; }
       if (!A || !ctx) return 'nothing playing';     /* stopped while decoding */
       if (my !== gen) return 'superseded';          /* a replan replaced the set it was clicked on */
+      /* opts.from (blendBack): the track the press was made ON. A handover
+         does not bump gen, so one landing during the decode passed every
+         guard above and the blend ran out of the NEXT track seconds after
+         it started. skip() refuses the same case in the same words. */
+      if (opts.from && A.track.meta !== opts.from) return 'order changed while loading — press again';
       if (meta === A.track.meta) return 'already playing';   /* handed over to it meanwhile */
+      /* the last track started fading out while this decoded: see blendBack */
+      if (opts.from && endingFade()) return this.play(order, order[opts.row] === meta ? opts.row : order.indexOf(meta));
       cancelPending();
-      placeNext(meta);
+      placeNext(meta, opts.row);
       /* opts.onPhrase: skip()'s phrase-next path, asked for by blendBack() */
       const out = nextExitAfter(opts.lead != null ? opts.lead : 1.2, opts.onPhrase);
       await chain(out, buf, opts.onPhrase);
-      return 'blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's' +
-             (opts.onPhrase && A && A.atPhrase ? ' ¶' : '') + ' · ' + meta.name.slice(-30);
+      if (opts.onPhrase) return phraseLine(out, meta);
+      return 'blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's · ' + meta.name.slice(-30);
     },
 
     /* ◀ back, BLENDED (keeper, 2026-11-01: "Blend back"). The track before
@@ -2071,13 +2107,32 @@ const Player = (() => {
        phrase start, else the next downbeat. It is blendNow() on that row,
        which is what clicking a played row already did, so placeNext() moves
        it to just after the playing track and the list reads in the order it
-       is heard. A second press before the handover steps one further back;
-       after it, the track just left is the one before. Nothing playing:
-       back(), a cut, as on the lock screen. */
+       is heard. Every press steps one further back toward the start of the
+       set, before the handover or after it: the rows a back press already
+       left are stepped over (backTrail, at the top of the Player). Until
+       2026-11-10 a press after the handover took order[idx - 1], which is
+       the track just left, so the button alternated between two tracks and
+       never reached the ones before them. Nothing playing: back(), a cut,
+       as on the lock screen. The last track already fading out: also the
+       cut, because cancelling that fade would jump it back to full level. */
     async blendBack() {
       if (!A || !ctx) return this.back();
-      if (idx < 1) return 'start of the set · nothing before this track';
-      return this.blendNow(order[idx - 1], { onPhrase: nextPhrase });
+      const cur = A.track.meta;
+      const arrived = cur === backTarget;
+      const pending = cur === backFrom && order[idx + 1] === backTarget;
+      const trail = (arrived || pending) ? backTrail.slice() : [];
+      if (!trail.includes(cur)) trail.push(cur);
+      let row = idx - 1;
+      while (row >= 0 && trail.includes(order[row])) row--;
+      if (row < 0) return 'start of the set · nothing before this track';
+      const meta = order[row];
+      if (endingFade()) return this.play(order, row);
+      const said = await this.blendNow(meta, { onPhrase: nextPhrase, from: cur, row });
+      /* the trail moves only when the blend was really written */
+      if (A && A.track.meta === cur && order[idx + 1] === meta && /^blending in /.test(String(said))) {
+        backTrail = trail; backFrom = cur; backTarget = meta;
+      }
+      return said;
     },
 
     /* Change what comes next, leaving the current track to finish as planned.
@@ -2212,8 +2267,7 @@ const Player = (() => {
       await chain(out, buf, nextPhrase);
       /* ¶ only when the exit really is a phrase start — on a track with no
          usable phrase the downbeat path ran, and ¶ would claim otherwise */
-      return 'next · blending in ' + Math.max(0, out - ctx.currentTime).toFixed(1) + 's over ' +
-             Math.round((A && A.fade) || xfade) + 's' + (A && A.atPhrase ? ' ¶' : '') + ' · ' + nm.name.slice(-30);
+      return 'next · ' + phraseLine(out, nm);
     },
     async back() { return this.play(order, Math.max(0, idx - 1)); },
     setXfade(s) { xfade = Math.max(2, Math.min(60, s)); return xfade; },

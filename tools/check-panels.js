@@ -1732,6 +1732,17 @@ console.log('\n── the control budget (UI walk decision 5) ──────
        !!backSite && backSite.grp === 'play' && /window\.DW\.blendBack\(\)/.test(handler) && !/window\.DW\.back\(\)/.test(handler)
        && at < src.indexOf("btn('next ▶'"),
        { site: backSite && backSite.grp, handler: handler.slice(0, 120) });
+    /* review 2026-11-10. Falsifiers: a handler that calls blendBack with
+       nothing playing (the engine then replays the Player's last order,
+       which need not be the listed set), and one that never tells DWNAV. */
+    const guardAt = handler.search(/if \(!window\.DW\.state\.now\)[^;]*log\('nothing playing/);
+    ok('◀ back with nothing playing says so, before it asks the deck',
+       guardAt > -1 && guardAt < handler.indexOf('window.DW.blendBack()'),
+       { guardAt, callAt: handler.indexOf('window.DW.blendBack()') });
+    const pushAt = handler.indexOf('N.push(window.DW.state.idx)');
+    ok('◀ back records the playing row in the nav history AFTER the blend moved it',
+       pushAt > handler.indexOf('window.DW.blendBack()') && /window\.DWNAV/.test(handler),
+       { pushAt, callAt: handler.indexOf('window.DW.blendBack()') });
     ok('both cache buttons live in ⚙ settings › troubleshoot, not the bar',
        ['▾ save cache', '▴ load cache'].every(l => find(l) && find(l).grp === 'trouble'),
        ['▾ save cache', '▴ load cache'].map(l => l + '=' + (find(l) ? find(l).grp : 'MISSING')).join(', '));

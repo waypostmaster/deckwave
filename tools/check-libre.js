@@ -131,7 +131,8 @@ global.DW = { corpus: [], async ingest(files, onProgress) {
   /* mid-demo, the transport must answer with the hold message — probed from
      INSIDE the fetch of the remaining tracks, where a listener would tap it */
   if (global.__probeHoldDuringIngest) { global.__probeHoldDuringIngest = false;
-    transport.skipDuringDemo = await global.DW.skip(); }
+    transport.skipDuringDemo = await global.DW.skip();
+    transport.blendBackDuringDemo = await global.DW.blendBack(); }
   for (let i = 0; i < files.length; i++) { if (onProgress) onProgress(i + 1, files.length, files[i].name);
     const id = files[i].name + '|' + files[i].size + '|' + files[i].lastModified;
     /* records store the name minus its extension — deckwave.js analyse() */
@@ -141,7 +142,7 @@ global.DW = { corpus: [], async ingest(files, onProgress) {
 },
   async play(seq, from) { transport.playCalls.push({ seq: seq || [], from, phrase: !!(seq && seq.phrase) }); return 'playing'; },
   async reorder(seq, opts) { transport.reorderCalls.push(seq); return 'reordered · ' + (seq.length - 1) + ' ahead'; },
-  async skip() { return 'real skip'; }, async back() { return 'real back'; },
+  async skip() { return 'real skip'; }, async back() { return 'real back'; }, async blendBack() { return 'real blendBack'; },
   async blendNow() { return 'real blendNow'; }, async queueNext() { return 'real queueNext'; }
 };
 
@@ -514,6 +515,11 @@ ok('a flac-only upload still comes in as flac under ogg preference', L.pickTrack
   ok('demo: while the rest is arriving, skip answers with the hold message, not a skip',
      /demo: the set is still arriving/.test(String(transport.skipDuringDemo)),
      'a listener tapping next mid-download would tear the opening track: got ' + transport.skipDuringDemo);
+  /* review 2026-11-10: the bar's back button calls DW.blendBack, which the
+     hold did not cover. Falsifier: the real blendBack answering mid-fetch. */
+  ok('demo: the blended back button is held too, and comes back afterwards',
+     /demo: the set is still arriving/.test(String(transport.blendBackDuringDemo)) && (await DW.blendBack()) === 'real blendBack',
+     'a back press mid-download reached the deck: got ' + transport.blendBackDuringDemo);
   ok('demo: the hold message SAYS where the fetch is and that pause works, and it reaches the log',
      /\(\d+\/\d+\)/.test(String(transport.skipDuringDemo)) && /pause still works/.test(String(transport.skipDuringDemo))
      && demoLogs.some(m => /still arriving \(\d+\/\d+\)/.test(m)),

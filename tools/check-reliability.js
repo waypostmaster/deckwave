@@ -267,9 +267,75 @@ async function backChecks(){
     r.player.stop();
   }
 }
+/* The review of ledger 157 (2026-11-10). Each block states its falsifier;
+   each was run against the pre-fix source (DECKWAVE_SRC) and failed there. */
+async function backReviewChecks(){
+  const rig=async(names,hand)=>{const r=playerRig({phrase:true});const seq=names.map(n=>typeof n==='string'?track(n):n);
+    seq.forEach(t=>t.phrase={v:r.phraseAPI.V,ok:true,beat:0,contrast:2});
+    await r.player.play(seq);await flush();for(let i=0;i<hand;i++)await step(r);return r;};
+  /* fire the handover onto the planned next deck, then stand well past the overlap */
+  const step=async r=>{const begin=r.d.B.startedAt;r.now=begin+.1;r.d.handover(r.d.idx+1);await flush();r.now=begin+40.3;};
+  const nm=d=>d&&d.track.meta.name, names=r=>r.d.order.map(t=>t.name).join();
+  {
+    /* Falsifier: the old order[idx-1] gives bw c on the second press, and
+       never reaches bw a. */
+    const r=await rig(['bw a','bw b','bw c','bw d'],2);
+    ok('control: the walk starts on the third track with the fourth planned',nm(r.d.A)==='bw c'&&nm(r.d.B)==='bw d',{A:nm(r.d.A),B:nm(r.d.B)});
+    await r.player.blendBack();await flush();const first=nm(r.d.B);await step(r);
+    await r.player.blendBack();await flush();const second=nm(r.d.B),order=names(r);await step(r);
+    ok('◀ back pressed again after the handover goes one further back, not to the track just left',first==='bw b'&&second==='bw a'&&order==='bw c,bw b,bw a,bw d',{first,second,order});
+    const end=await r.player.blendBack();
+    ok('◀ back on the earliest track of the walk says start of the set',nm(r.d.A)==='bw a'&&/start of the set/.test(end)&&nm(r.d.B)==='bw d',{A:nm(r.d.A),said:end,B:nm(r.d.B)});
+    await step(r);await r.player.blendBack();await flush();
+    ok('the walk is forgotten once the set moves on by itself: back from the next track is the one just left',nm(r.d.A)==='bw d'&&nm(r.d.B)==='bw a',{A:nm(r.d.A),B:nm(r.d.B)});
+    r.player.stop();
+  }
+  {
+    /* Falsifier: the old code blends out of the track the handover landed
+       on, so B is replaced and the answer starts 'blending in'. */
+    const r=await rig(['hd a','hd b','hd c','hd d'],1);const planned=r.d.B,held=deferred();r.hold.set('hd a',held);
+    const pressing=r.player.blendBack();await flush();
+    const begin=r.d.B.startedAt;r.now=begin+.1;r.d.handover(2);await flush();r.now=begin+5;const after=r.d.B;
+    held.resolve({duration:120,name:'hd a'});const said=await pressing;await flush();
+    ok('control: the handover really ran while the back press was decoding',nm(r.d.A)==='hd c'&&planned!==after&&nm(after)==='hd d',{A:nm(r.d.A),B:nm(after)});
+    ok('◀ back refuses when a handover landed during its decode, and leaves the new plan alone',/press again/.test(said)&&r.d.B===after&&names(r)==='hd a,hd b,hd c,hd d',{said,order:names(r),sameNext:r.d.B===after});
+    r.player.stop();
+  }
+  {
+    /* Falsifier: the old cancelPending() path writes gain 1 at once on the
+       half-faded last deck, which goes on playing. */
+    const r=await rig(['ef a','ef b'],1);const last=r.d.A,out=last.outAt,fade=last.fade;
+    r.now=out+fade/2;const g=last.g.gain,before=g.at(r.now),starts=r.started.length;
+    ok('control: the last track is half-way down its closing fade with nothing planned',nm(last)==='ef b'&&r.d.B===null&&before>.2&&before<.8,{A:nm(last),B:nm(r.d.B),gain:before});
+    const said=await r.player.blendBack();await flush();
+    ok('◀ back during the closing fade cuts to the previous track and never lifts the fading deck to full',g.at(r.now)<=before+1e-9&&g.at(r.now+1)<=before+1e-9&&r.started.length>starts&&r.player.state.now==='ef a'&&/^1\//.test(said),
+      {before,after:g.at(r.now),later:g.at(r.now+1),now:r.player.state.now,said});
+    r.player.stop();
+  }
+  {
+    /* Falsifier: indexOf moves the FIRST copy, giving dp a,dp c,dp x,dp x. */
+    const x=track('dp x');const r=await rig([x,track('dp a'),x,track('dp c')],0);
+    r.d.cancelPending();await r.player.play(r.d.order,3);await flush();r.now=r.d.A.startedAt+20.3;
+    ok('control: the set lists one track twice and the deck is on the row after the second copy',names(r)==='dp x,dp a,dp x,dp c'&&r.d.idx===3&&nm(r.d.A)==='dp c',{order:names(r),idx:r.d.idx});
+    await r.player.blendBack();await flush();
+    ok('◀ back moves the row it means when a track is listed twice',names(r)==='dp x,dp a,dp c,dp x'&&r.d.idx===2&&nm(r.d.B)==='dp x',{order:names(r),idx:r.d.idx,B:nm(r.d.B)});
+    r.player.stop();
+  }
+  {
+    /* Falsifier: the old back line has no fade length. The yardstick is
+       next ▶'s own line from the same state. */
+    const a=await rig(['ln a','ln b','ln c'],1),b=await rig(['ln a','ln b','ln c'],1);
+    const back=await a.player.blendBack(),next=await b.player.skip();await flush();
+    const shape=s=>String(s).replace(/^next · /,'').replace(/ · .*$/,'');
+    ok('◀ back and next ▶ print the same line: when, over how long, and ¶',/^blending in [\d.]+s over \d+s ¶$/.test(shape(back))&&shape(back)===shape(next),{back,next});
+    a.d.cancelPending();
+    ok('a cancelled exit takes its ¶ with it',a.d.A.atPhrase===false&&a.d.A.outAt===null,{atPhrase:a.d.A.atPhrase,outAt:a.d.A.outAt});
+    a.player.stop();b.player.stop();
+  }
+}
 module.exports = { playerRig, track, flush, deferred };
 if (require.main === module) (async()=>{
-  for(const [name,run] of [['player',playbackChecks],['fade-in',fadeInChecks],['back',backChecks],['library',libraryChecks],['capture',captureChecks],['render',renderChecks]]){
+  for(const [name,run] of [['player',playbackChecks],['fade-in',fadeInChecks],['back',backChecks],['back review',backReviewChecks],['library',libraryChecks],['capture',captureChecks],['render',renderChecks]]){
     console.log('\n'+name+' · synthetic inputs, no audio/library');
     try{await run();}catch(e){ok(name+' completed',false,e.stack);}
   }

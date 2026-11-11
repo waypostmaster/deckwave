@@ -1838,10 +1838,21 @@ function buildTransport(dash) {
      It took the bar slot the two cache buttons gave up (they moved to
      ⚙ settings › troubleshoot), so the bar went from 23 controls to 22. */
   const backBtn = btn('◀ back', async () => {
-    try { log(await window.DW.blendBack()); dash.renderList(); }
+    /* Nothing playing: say so, as blend() does. The engine's own answer is
+       back(), which replays the Player's LAST order, and after a stop and a
+       new build that is not the set this list shows (review 2026-11-10). */
+    if (!window.DW.state.now) { log('nothing playing · ▶ plays the set'); return; }
+    try {
+      const ans = await window.DW.blendBack(); log(ans);
+      /* the menu's ↩ back can return from this press. Pushed AFTER the
+         blend, because placeNext() has just moved the playing row. */
+      const N = window.DWNAV;
+      if (N && /^blending in /.test(String(ans))) N.push(window.DW.state.idx);
+      dash.renderList();
+    }
     catch (e) { log('cannot go back: ' + String((e && e.message) || e) + ' — deck stopped'); } }, false, GRP.play);
   backBtn.title = 'blend back into the previous track at the next 8-bar phrase start, '
-    + 'or the next downbeat when the track has no usable phrase (a cut only when nothing is playing)';
+    + 'or the next downbeat when the track has no usable phrase; each press steps one track further back';
   const nextBtn = btn('next ▶', async () => {
     try { log(await window.DW.skip()); }
     catch (e) { log('cannot play next: ' + String((e && e.message) || e) + ' — deck stopped'); } }, false, GRP.play);

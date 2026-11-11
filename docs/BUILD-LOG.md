@@ -4882,3 +4882,48 @@ one ref.
   matched the OLD commit, so it has been seen failing. Index 200.
 - **Not seen or heard:** no live boot in a browser, and ledger 157's
   one press of ◀ back is still owed.
+
+**Ledger 158 · The back button, reviewed and fixed (keeper, 2026-11-10:
+"conduct a code review", then "Fix all").** A review of `1ccd6b2..4a28d31`
+returned nine findings; this desk re-read the code path behind each before
+building. All nine are addressed in one commit, because seven of them meet
+inside `blendNow()` and `blendBack()`.
+- **1 · back walks.** After a handover `order[idx - 1]` is the track just
+  left (placeNext put it there), so the button alternated between two
+  tracks. `blendBack()` now steps past the rows a back press already left
+  (`backTrail`), forgets the trail on `stop()` and whenever the deck is
+  somewhere a back press did not put it, and says "start of the set" at
+  the end of the walk. This changes what the button does; it was the
+  keeper's "Fix all", not an A/B.
+- **2 · the demo hold.** `blendBack` joins the held list in
+  `deckwave-libre.js`.
+- **3 · handover during the decode.** `blendNow` takes `opts.from` and
+  refuses in skip()'s words when the playing track changed while loading.
+- **4 · CLAUDE.md's three totals** (1250, 1079, 1286) are one measured
+  number again.
+- **5 · the closing fade.** With the last track already fading out, back
+  CUTS to the previous track (`play`, the lock screen's path) instead of
+  cancelling the fade, which wrote gain 1 at once: measured in the fake as
+  0.5 to 1. No ramp was invented and no constant added. A row click during
+  that fade still takes the old path; not touched.
+- **6 · nothing playing.** The bar button says so and stops; the engine's
+  own answer, `back()`, replays the Player's last order, which after a stop
+  and a new build is not the listed set. The engine is unchanged there.
+- **7 · nav history.** The press is pushed to DWNAV after the blend, with
+  the playing row as it then is. **NOT fixed:** DWNAV stores row numbers,
+  so older entries can still name the wrong row after any blend that moves
+  a row. That is older than this button and wants metas, not indices.
+- **8 · a track listed twice.** `placeNext(meta, row)` moves the row it is
+  given; `indexOf` moved the first copy.
+- **9 · one line.** next and back share `phraseLine()`, so back now prints
+  the fade length too, and `cancelPending()` clears `atPhrase` with the
+  exit it described.
+- **Checks: fifteen new, each run against the pre-fix source through the
+  harness seams.** Eleven failed there (eight in `check-reliability`, one
+  in `check-libre`, two in `check-panels`); the other four are controls
+  that pass on both. **All sixteen green, 1301, MEASURED
+  2026-11-11T04:24:08Z** on the working tree.
+- **[INFERRED], every item.** Fake AudioContext and text checks only; no
+  browser, nothing seen or heard. What confirms it: press ◀ back, wait for
+  the handover, press again; the third track back should come in and the
+  log line should read `blending in N s over M s ¶`. NOT pushed.

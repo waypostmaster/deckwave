@@ -707,7 +707,10 @@ async function demoInner(o, at) {
      functional and its unclear why or when they might be"): every blocked
      press logs WHERE the fetch is and that pause still works — a silently
      dead button and a broken one are indistinguishable from a lock screen. */
-  const HELD = ['play', 'skip', 'back', 'blendNow', 'queueNext'];
+  /* blendBack joined 2026-11-10: the bar's ◀ back calls it, not back(), so
+     it walked straight past this hold and could put an old set on the air
+     while the demo was arriving. */
+  const HELD = ['play', 'skip', 'back', 'blendBack', 'blendNow', 'queueNext'];
   const orig = {};
   const tell = o.log || log;
   const holdMsg = () => 'demo: the set is still arriving (' + at.i + '/' + at.n
