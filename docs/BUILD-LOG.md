@@ -4862,3 +4862,23 @@ with harnesses in `check-reliability.js` and `check-panels.js`.
   live click. One press of ◀ back mid-track on localhost answers both:
   the log should say `blending in N s ¶ · <previous track>`, and the list
   should show it as next.
+
+**Ledger 157a · The back button pushed and live (keeper ran `git push
+origin`, 2026-11-11T04:12Z: `1ccd6b2..4a28d31 public -> main`).** Before
+it, MEASURED 2026-11-11T04:08Z–04:11Z on a clean export of `4a28d31`:
+**all sixteen harnesses green, 1286.** Fourteen ran on the bare export;
+`check-citywalk` and `check-serve` ask git questions and scored 2 FAILED
+and 65 there, so they were re-run in a throwaway repo of the same export
+with the denylist copied in and passed at 58 and 67. The private sweep
+compared hit counts for the five denylist terms and the private, company
+and credential words between what GitHub served (`1ccd6b2`) and the
+outgoing tree: every count identical, none in the 130 added lines, and
+the control term hit (1649 to 1652, 4 in the diff). The dry run named
+one ref.
+- **MEASURED after:** `ls-remote` serves `4a28d31`; the Pages build said
+  `built 4a28d31` at 04:12:55Z; `deckwave.fm/assets/deckwave-dashboard.js`
+  (186893 bytes) and `assets/deckwave.js` (158467) byte-match `4a28d31`
+  and differ from `1ccd6b2`. The same comparison at 04:12:42Z, mid-build,
+  matched the OLD commit, so it has been seen failing. Index 200.
+- **Not seen or heard:** no live boot in a browser, and ledger 157's
+  one press of ◀ back is still owed.
