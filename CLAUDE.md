@@ -400,8 +400,8 @@ hours, or drift.** Those need the ear or a browser.
    2026-10-22 review confirmed 155 findings; 16 are landed (ledger 153).
    About 120 are neither fixed nor ruled on, and 17 wait on the keeper
    (heard path first: `cancelPending()` snapping a fading-in deck to full
-   gain and bass, BUILT 2026-11-01 as ledger 156, UNHEARD, the A/B is in
-   that row). The raw set is OUTSIDE the repo at
+   gain and bass, BUILT 2026-11-01 as ledger 156; HEARD by the keeper
+   and live at `1ccd6b2` per ledgers 156a and 156b). The raw set is OUTSIDE the repo at
    `C:\Claude\outbox\deckwave\ultracode-2026-10-22\`. Do not re-run the
    review; pick from that file, build as the UI review's §7 says. Three
    on-screen changes from ledger 153 are UNSEEN: BLENDING through a phrase
@@ -418,8 +418,8 @@ hours, or drift.** Those need the ear or a browser.
    changed assets byte-matched on deckwave.fm (153m); live boot not yet
    seen.** What is left is its priority 2 and 3 rows.
 
-11. **Resume after a cold start (ledger 155) — BUILT 2026-10-29, NOT
-   pushed. SEEN WORKING on the iPhone 2026-11-01 in a Safari tab on the
+11. **Resume after a cold start (ledger 155) — BUILT 2026-10-29, pushed
+   and live at `e2a597c` (155b). SEEN WORKING on the iPhone 2026-11-01 in a Safari tab on the
    LAN server, after a real kill while locked (155a, CONFIRMED); the Home
    Screen app is still unseen, and what killed the tab is [INFERRED].** The keeper chose re-pick (no audio stored) and
    restart-the-playing-track. One glance on the iPhone after a real idle:
@@ -485,6 +485,16 @@ by its absence before it had a name for it).
   library and python present. Do not re-count to check — but DO re-run if
   another document in this tree disagrees with this number, which is how the
   stale 997 was caught (ledger 136).
+- **The back button has been reviewed and its nine findings are closed**
+  (ledger 158, 2026-11-10: one reviewer over `1ccd6b2..4a28d31`, every
+  finding re-read against the code by this desk, fifteen checks added).
+  Do not re-review that range. Owed on it: the keeper's two presses (open
+  item 12), and the nav history's row numbers, which is a named gap and
+  not a build task until the keeper asks.
+- **A bare `git archive` export fails two harnesses by construction.**
+  `check-citywalk` (2 FAILED) and `check-serve` (65, not 67) ask git
+  questions; MEASURED 2026-11-11. Run those two in a repo, with
+  `.citywalk-denylist` copied in. It is not a regression.
 - **Mike's commit `8bf6f82` has been reviewed** (Act 47, ledgers 137–141:
   three Opus 5.5 read-only reviewers, every finding re-checked against the
   code path by this desk). Do not re-review it from scratch. What is owed on
@@ -523,8 +533,13 @@ outstanding as of 2026-10-21T01:40Z**: the five decided in
 `docs/UI-REVIEW-2026-10-07.md` Part 5 are built, live and seen (ledger 148,
 148a); ledger 149's three are pushed (149a); the walk's four were pushed at
 `25cd17b` (150k); the drawer sections with compact under Look are built,
-pushed and live at `09417d5` (ledger 151, 151c). **First action next
-session: ask the keeper for one glance at the open `⚙ settings` drawer
+pushed and live at `09417d5` (ledger 151, 151c). **As of the 2026-11-11T04:33Z seal: ledger 157 (the back button) is
+pushed and live at `4a28d31` (157a, MEASURED); ledger 158 (its review,
+nine findings, all addressed) is committed at `0f785f7` and was NOT
+pushed at the seal. First action next session: ask the keeper whether
+they pressed ◀ back twice across a handover (open item 12). If they want
+158 live, run the push preparation again from scratch, then the items
+below.** **After that: ask the keeper for one glance at the open `⚙ settings` drawer
 on deckwave.fm or localhost (ledger 151),
 then open `docs/UI-WALK-2026-10-14.md` at Part C (the phone, deckwave.fm,
 C1 version check first). Ask for the rest of Step S (Q2–Q4 in general,
